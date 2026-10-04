@@ -1,0 +1,327 @@
+# Architecture
+
+How the kit is put together, and how a project looks once the kit is installed. This is the design
+every plan builds against; *why* each choice was made is in `decisions-log.md` (numbers in brackets,
+e.g. [11], point there). Claude Code behaviour cited here was checked against the official docs on
+2026-10-04 (links at the end); anything not confirmed is listed under *Open questions*.
+
+## 1. Principles
+
+1. **Put each rule where its guarantee matches its importance.** A preference goes in prose; a
+   must-never goes in a deny rule or a hook; a must-always goes in CI. The agent can drift from prose
+   under pressure; it can't drift from code.
+2. **Deterministic where possible, agentic where it pays.** Scripts do anything with one right answer
+   (git, file layout, checks). The agent does what needs judgement (planning, review, filling project
+   specifics during `/onboard`). [17]
+3. **Evidence, not claims.** Every guardrail has tests; every workflow has an eval; every merge has
+   a test run behind it. [16]
+4. **The repo is the source of truth.** Lanes, rules and process are committed files shared by
+   everyone who clones the repo, not settings in someone's personal app. [14]
+5. **Never surprise the owner.** The installer never overwrites without asking; agents never settle a
+   design question silently; nothing is pushed or merged without a visible step.
+6. **Stdlib Python 3.11+ only** in anything installed into a project. [3]
+
+## 2. Two things to keep apart
+
+| | **The kit repo** (this repo) | **An installed project** |
+| --- | --- | --- |
+| What it is | The source: payload, installer, packs, tests, evals | Any repo the kit was installed into |
+| Who edits it | Kit maintainers | The project's team and its agents |
+| Its own agent setup | `AGENTS.md`, `CLAUDE.md` for building the kit | Generated from the kit's templates |
+
+## 3. Kit repo layout
+
+```
+claude-code-lanes-starter/
+├── install.ps1 · install.sh        thin bootstrappers: check prerequisites, run kit_setup.py   (plan 08)
+├── kit_setup.py                    the installer (dry run, questions, manifest)                (plan 08)
+├── payload/
+│   ├── kit-owned/                  copied as-is; mirrors target paths; replaceable on update
+│   │   └── .claude/
+│   │       ├── kit/                Python: kitlib, lanes, checks, hook entry points           (02–05)
+│   │       ├── skills/<name>/SKILL.md                                                          (07)
+│   │       └── agents/reviewer.md                                                              (06)
+│   └── templates/                  rendered once ({{placeholders}}), then project-owned        (01)
+├── packs/<name>/                   optional stack add-ons, same kit-owned/templates split      (10)
+├── examples/hello-lanes/           small Python project installed with the kit                 (11)
+├── evals/                          scenario tests that drive `claude -p`                       (11)
+├── tests/                          pytest for everything above
+└── docs/                           ARCHITECTURE, ROADMAP, decisions log, plans
+```
+
+The code tested is the code shipped: tests import from `payload/kit-owned/.claude/kit/` directly.
+
+## 4. An installed project
+
+```
+my-project/
+├── AGENTS.md                      P  universal rules for any coding agent
+├── CLAUDE.md                      P  "@AGENTS.md" + Claude-specific parts, under ~100 lines
+├── .claude/
+│   ├── kit.toml                   P  project config: test command, lanes, checks, protected paths
+│   ├── settings.json              P  permissions (deny rules generated from kit.toml) + hook wiring
+│   ├── rules/*.md                 P  path-scoped rules (`paths:` frontmatter)
+│   ├── skills/<name>/SKILL.md     K  /plan-feature /implement /wrap-up /code-health /design /next /onboard
+│   ├── agents/reviewer.md         K  fresh-context reviewer
+│   ├── kit/                       K  kitlib + lanes + checks + hooks; manifest.json; VERSION
+│   └── worktrees/<lane>/             lane worktrees (gitignored)
+├── .worktreeinclude               P  gitignored files copied into each new worktree (settings.local.json, .env)
+├── kit · kit.cmd                  K  shims: `kit lanes status`, `kit check rules --staged`
+├── .github/workflows/kit.yml      P  CI: tests + checks on every push and PR                     (plan 09)
+└── docs/
+    ├── ai/WORKFLOW.md             P  the human guide: the daily loop and why each rule exists
+    ├── plans/  (+ finished/)      P  one file per plan, from _TEMPLATE.md
+    ├── backlog/<slug>.md          P  one file per backlog item                                    [13]
+    ├── changelog.d/<branch>.md    P  changelog fragments, compiled into CHANGELOG.md at release   [13]
+    ├── CHANGELOG.md · BUILD-STATE.md · CODE-STANDARDS.md
+    └── design/  VISION.md · DESIGN.md · decisions-log.md
+```
+
+**K** = kit-owned, **P** = project-owned.
+
+### Ownership and updates [7]
+
+- Kit-owned files are listed in `.claude/kit/manifest.json` with the kit version and a SHA-256 of each
+  file as installed. A future `kit update` replaces a kit-owned file only if its hash still matches
+  (nobody edited it); edited files are reported, never overwritten.
+- Project-owned files are rendered once and never touched again by the kit.
+- To customize a kit-owned skill, copy it to a new name. The README says so.
+
+## 5. Where instructions live
+
+| Layer | Loaded | Guarantee | Holds | Budget |
+| --- | --- | --- | --- | --- |
+| `AGENTS.md` | every session, every agent tool | prose | universal rules, stack, how to check work | ~80 lines |
+| `CLAUDE.md` | every Claude session; re-read after compaction | prose | `@AGENTS.md`, skills list, lane pointer, compaction notes | ~100 lines total |
+| `.claude/rules/*.md` | when a matching file is read or edited | prose | area rules (`paths:` globs) | ≤200 lines each |
+| Skills | name and description at start; body when invoked | procedure | workflows | one screen |
+| Reviewer subagent | when called; separate context | independent check | review checklist | — |
+| Permission deny rules | every tool call | enforced for built-in tools and recognized shell file commands | protected paths, secrets | — |
+| Hooks | lifecycle events | enforced, deterministic | pattern rules, lane context, command backstop | fast (<1 s) |
+| CI | every push and PR | enforced at the repo boundary | tests + the same checks | — |
+
+Claude Code also reads `AGENTS.md` natively when no `CLAUDE.md` exists; the kit ships both, with
+`CLAUDE.md` importing `AGENTS.md`, so the rules exist in one place. [4]
+
+## 6. Lanes
+
+### Concepts [11]
+
+- **Lane:** a long-lived workspace. It has a name, a scope, the paths it owns, its own worktree
+  folder, and its own tool resources (ports, editor instances). Typical: 2–4 lanes.
+- **Task branch:** short-lived, one per task, named `<lane>/<task-slug>`, always created from the
+  latest integration branch. Deleted once merged. No long-lived lane branch exists.
+- **Integration branch:** where finished work lands; `main` by default. In local mode no folder keeps
+  it checked out (git refuses to fast-forward a branch checked out elsewhere).
+
+### Configuration (`.claude/kit.toml`)
+
+```toml
+[project]
+name = "hello-lanes"
+test_command = "python -m pytest -q"
+integration_branch = "main"
+merge_mode = "pr"                      # "pr" (default) or "local"           [12]
+worktree_root = ".claude/worktrees"    # or "../{project}-lanes" (Unity)    [2]
+ownership = "ask"                      # out-of-lane edit: "ask" | "warn" | "block" | "off"
+shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
+
+[[lanes]]
+name = "core"
+scope = "Domain logic and its tests"
+owns = ["src/core/**", "tests/core/**"]
+resources = { dev_port = 8001 }
+
+[[lanes]]
+name = "api"
+scope = "HTTP layer"
+owns = ["src/api/**", "tests/api/**"]
+resources = { dev_port = 8002 }
+```
+
+`resources` is free-form: the lane router tells the agent each value, and packs give some of them
+meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
+
+### Commands (`kit lanes ...`), all usable by a human or an agent
+
+| Command | Does |
+| --- | --- |
+| `create [lane...]` | Worktree per lane under `worktree_root`; copies `.worktreeinclude` files; optional link of Claude's per-folder auto-memory to the main one |
+| `status` | Every lane: folder, current branch, ahead/behind integration, uncommitted changes, unpushed commits, PR state |
+| `start <task>` | Fetch → check the lane's previous task branch is merged (PR mode: `gh`; local: `git branch --merged`) → delete it → create `<lane>/<task>` from `origin/<integration>`. Refuses with uncommitted changes |
+| `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review) |
+| `finish` | Run `test_command` → push → **PR mode:** open a PR whose body carries the plan link and the review report; **local mode:** fast-forward the integration branch with `git push . HEAD:<integration>`, retrying after `sync` if refused |
+| `remove <lane>` | Remove the worktree (refuses with uncommitted changes) |
+
+### Drift is prevented, then detected
+
+- *Prevented:* task branches live for one task, so they can't fall behind or keep stale history.
+- *Detected:* the **lane-router hook** (SessionStart: startup, resume, clear, compact) tells the agent
+  its lane, scope, owned paths, resources and branch, and warns when the branch is behind, already
+  merged, or isn't a task branch. It uses only local git data (no network) and never blocks.
+  It works out the lane from the hook input's `cwd`, not `CLAUDE_PROJECT_DIR`.
+
+### Ownership
+
+A PreToolUse hook on Edit/Write compares the file with the lane's `owns` plus `shared_paths`. With
+`ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
+(`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
+
+### Relation to Claude Code's own features [20]
+
+Lane worktrees sit where `claude --worktree` puts its own, so Claude Code recognizes them. Lanes are
+for persistent, human-supervised workstreams; agent teams are for fanning one task out. A lane
+session can still use agent teams or `isolation: worktree` subagents inside its task.
+
+## 7. Checks
+
+### One module, three entry points [14]
+
+```
+kitlib (config, glob matching, comment stripping, reporting)
+   ├── rules_check       ─┐
+   ├── protected_paths    ├─  each exposes: check(paths or command) → findings
+   └── ownership         ─┘
+          │
+          ├── hook mode:   kit hook <name>        reads Claude Code JSON on stdin, answers in hook protocol
+          ├── CLI mode:    kit check <name> [--staged | --diff BASE | FILES]   exit 0 clean, 1 findings
+          └── git mode:    .githooks/pre-commit → kit check all --staged       (opt-in; sets core.hooksPath)
+CI runs:   kit check all --diff origin/main
+```
+
+### Rules-check (PostToolUse on Edit|Write; also CLI, pre-commit, CI)
+
+```toml
+[[checks.rules]]
+id = "no-print"
+pattern = '\bprint\('
+paths = ["src/**/*.py"]
+message = "Use the logger, not print()."
+```
+
+Comments are stripped by file type before matching. Hook mode exits 2 with the findings on stderr so
+Claude fixes the file. **Fails open:** a broken config or crash never blocks an edit; it reports the
+problem instead. [9]
+
+### Protected paths and commands
+
+```toml
+[protected]
+paths = ["vendor/**", "docs/originals/**"]
+commands = ["git push --force", "git push -f", "git reset --hard", "git clean -fdx"]
+```
+
+- **Primary:** the installer writes `Edit(/<path>)` deny rules into `settings.json` from `[protected]`
+  (root-anchored `/path` form, which in project settings anchors at the session's working directory:
+  the worktree in a lane). `kit check settings` fails if they drift apart. Deny rules cover built-in
+  file tools, shell file commands Claude Code recognizes (`sed`, `tee`, redirections), and Bash
+  prefix rules for `[protected].commands`.
+- **Backstop:** a PreToolUse hook on Bash/PowerShell that normalizes and checks commands against
+  `[protected].commands`, catching forms prefix rules miss (`git -C . push --force`, extra spaces).
+  **Fails closed** with a clear message. [9]
+- **Stated limits (README):** neither stops a script that opens files itself. The OS-level answer is
+  Claude Code's sandbox, which runs on macOS, Linux and WSL2 but **not native Windows**. On Windows,
+  the deny rules plus this backstop are the protection, which is why both exist. [15]
+
+## 8. Shared docs without merge conflicts [13]
+
+| Doc | How lanes write to it |
+| --- | --- |
+| `docs/changelog.d/<lane>-<task>.md` | one fragment per task branch; `kit changelog build` compiles them into `CHANGELOG.md` at release |
+| `docs/backlog/<slug>.md` | one file per item with a header (`status`, `lane`, `size`); done = file moves to `docs/backlog/done/` |
+| `docs/plans/NN-name.md` | one file per plan already |
+| `docs/BUILD-STATE.md` | regenerated by a skill; on conflict take either side and regenerate |
+| `docs/design/decisions-log.md` | newest-first entries; a lane adds at most one entry per task (small conflict surface, kept as one file for readability) |
+
+## 9. Skills and the reviewer
+
+| Skill | Model | Does | Calls |
+| --- | --- | --- | --- |
+| `/onboard` | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes; writes on approval | `kit check settings` |
+| `/plan-feature` | opus | Interview → plan file → stop for approval | `kit lanes start` |
+| `/implement` | sonnet | Build one approved plan, tests first | `kit lanes status` |
+| `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK | `kit lanes finish` |
+| `/code-health` | opus | Parallel area audits → dated report; changes no code | — |
+| `/design` | opus | Read one design-doc section → discuss → log the decision | — |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane | `kit lanes status` |
+
+Every skill's step 0 is the lane check (the hook output, plus `kit lanes status` when needed).
+Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,
+`sonnet`), not dated IDs.
+
+**Reviewer** (`.claude/agents/reviewer.md`): fresh context; reads the diff, `AGENTS.md`, matching
+rules files, the plan and the checklist; numbered checks; severities 🔴 fix now / 🟠 fix soon /
+🟡 polish; judges only changed lines; "over-engineering is a defect too". Checklist =
+`universal.md` (kit-owned) + `project.md` (project-owned) + each pack's stack checklist.
+
+## 10. Installer and onboarding [17] [19]
+
+```
+install.ps1 / install.sh
+  └─ check git, Python ≥ 3.11 (real interpreter, not the Windows Store alias), Claude Code, gh (optional)
+     └─ kit_setup.py [--dry-run] [--target DIR] [--pack unity]
+          1. detect: new folder or existing repo; existing CLAUDE.md / AGENTS.md / .claude/
+          2. ask only what can't be detected (name, one-line description, lanes, packs)
+          3. plan the file list; --dry-run prints it and stops
+          4. existing file → ask: skip / keep both (writes .kit-new beside it) / overwrite
+          5. copy kit-owned, render templates, write manifest, write hook commands with the
+             interpreter's full path (quoted: paths with spaces)
+          6. print next steps: open Claude Code, run /onboard
+/onboard (agentic): stack, test command, rules files, lane split → owner approves → written
+```
+
+## 11. Packs
+
+A pack is a folder with `pack.toml` (name, description, what it adds), `kit-owned/`, `templates/`,
+optional `kit.toml` fragments (checks, protected paths, lane resources), `settings` fragments
+(permissions), and a reviewer checklist. The installer merges fragments; the format doc (plan 10)
+is the contract for new packs. First pack: Unity (sibling-folder worktrees, per-lane editor + MCP
+instance, Unity ignores and attributes, reviewer items, pattern rules, test command).
+
+## 12. Distribution
+
+- **Now:** GitHub template repository plus the installer (works on existing repos too).
+- **Later:** a Claude Code plugin built from `payload/kit-owned/` (skills, agents, `hooks/hooks.json`
+  using `${CLAUDE_PLUGIN_ROOT}`). Project-owned templates still come from `kit_setup.py` or `/onboard`.
+- Semantic versioning; `CHANGELOG.md` in this repo; the installed version is in `.claude/kit/VERSION`.
+
+## 13. Testing
+
+| Level | What | Where | When |
+| --- | --- | --- | --- |
+| Unit | kitlib, each check, config parsing, command normalization | `tests/` | every push (Windows + Ubuntu, Python 3.11 + 3.13) |
+| Integration | lanes commands on throwaway git repos (with a bare repo as `origin`); installer into temp folders, including paths with spaces | `tests/` | every push |
+| Hook protocol | feed recorded Claude Code hook JSON on stdin; assert exit codes and output | `tests/` | every push |
+| Evals | `claude -p --output-format json` sessions on the example project: reviewer finds a planted bug, backstop blocks a force-push, `/next` reports correctly | `evals/` | on demand / nightly |
+
+## 14. Platform notes (Windows first)
+
+- Python: `python` may be the Microsoft Store alias; `python3` usually doesn't exist on Windows. The
+  installer resolves a real interpreter and writes its full path. [19]
+- Paths with spaces everywhere (this repo lives in `D:\1 office\...`): quote every path in hook
+  commands; tests cover it.
+- Line endings: `.gitattributes` forces LF in the repo; `.ps1` keeps CRLF.
+- Permission patterns are matched in POSIX form (`C:\x` → `/c/x`).
+- The sandbox isn't available on native Windows (see §7).
+
+## 15. Open questions
+
+| Question | Answered by |
+| --- | --- |
+| Which shell runs hook commands on native Windows? (`$CLAUDE_PROJECT_DIR` expansion in the first implementation suggests Git Bash; not in the docs) | plan 08, by test on Windows |
+| Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session? (Design avoids depending on it: §6 uses `cwd`) | plan 04 |
+| Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? | plan 08 |
+| `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
+| Pre-commit: native `.githooks` (stdlib, sets `core.hooksPath`) vs also shipping `.pre-commit-hooks.yaml` for teams using the pre-commit framework | plan 02 |
+
+## References
+
+- Permissions (path anchoring, what deny rules cover): https://code.claude.com/docs/en/permissions
+- Sandboxing (platforms, scope): https://code.claude.com/docs/en/sandboxing
+- Hooks: https://code.claude.com/docs/en/hooks
+- Skills: https://code.claude.com/docs/en/skills
+- Subagents: https://code.claude.com/docs/en/sub-agents
+- Memory, rules, `@` imports, AGENTS.md: https://code.claude.com/docs/en/memory
+- Worktrees: https://code.claude.com/docs/en/worktrees
+- Plugins: https://code.claude.com/docs/en/plugins
+- Headless mode: https://code.claude.com/docs/en/headless

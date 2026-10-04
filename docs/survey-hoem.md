@@ -3,6 +3,13 @@
 Build step 1. Every workflow file in the source project (a Unity 6 game built with Claude Code across
 three parallel lanes), sorted into what the kit takes and how. Surveyed 2026-10-04.
 
+> **Reference, not spec** (decision 10). This was a first attempt at the workflow. Its lessons inform
+> the kit, but where it differs from current best practice the kit follows best practice instead.
+> Superseded since this survey: the shared-branch merge (now PR mode by default, decision 12),
+> long-lived lane branches (now one branch per task, decision 11), and `merge=union` for shared
+> docs (now fragments and one-file-per-item backlog, decision 13). `docs/ARCHITECTURE.md` is the
+> current design.
+
 **Legend:** **Kit** = kit-owned, generalized, replaceable on update · **Template** = project-owned,
 filled in once by setup · **Unity** = Unity pack · **Example** = shipped as a sample to copy, not
 installed · **Leave** = specific to that game.
