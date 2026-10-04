@@ -1,6 +1,6 @@
 # 00 — Architecture and plan series
 
-**Status:** In progress
+**Status:** Done
 **Branch / PR:** `plan/00-architecture`
 **Builds on:** `docs/decisions-log.md` (2026-10-04 kickoff), `docs/survey-hoem.md`
 
@@ -50,7 +50,7 @@ into a numbered series of plans, one PR each.
 - [x] ARCHITECTURE.md covers layout, ownership, lanes, configs, checks, installer, distribution, testing
 - [x] Plans 01–12 listed with scope and order
 - [x] Reviewer report attached to the PR
-- [ ] Owner approves the PR
+- [x] Owner approves the PR
 
 ## Notes after implementation
 <!-- Filled in at wrap-up. -->

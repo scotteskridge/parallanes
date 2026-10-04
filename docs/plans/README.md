@@ -6,7 +6,7 @@ Design they build on: `../ARCHITECTURE.md`.
 
 | # | Plan | Scope | Status |
 | --- | --- | --- | --- |
-| 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | In progress |
+| 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | Done |
 | 01 | Instruction templates | `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` templates, docs scaffolding, changelog and backlog fragments | Not started |
 | 02 | Check library + rules-check | Shared `kitlib` (config loading, globs, comment stripping, reporting); rules-check as hook, CLI and pre-commit | Not started |
 | 03 | Protected paths | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | Not started |
