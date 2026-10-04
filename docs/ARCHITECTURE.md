@@ -251,7 +251,7 @@ commands = ["git push --force", "git push -f", "git reset --hard", "git clean -f
 | `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; if the owner corrected the same thing twice, proposes one rule line (never adds it unasked) | `kit lanes finish` |
 | `/code-health` | opus | Parallel area audits → dated report; changes no code | — |
 | `/design` | opus | Read one design-doc section → discuss → log the decision | — |
-| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane | `kit lanes status` |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `.claude/skills/next/` [26] | `kit lanes status` |
 
 Every skill's step 0 is the lane check (the hook output, plus `kit lanes status` when needed).
 Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,

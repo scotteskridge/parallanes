@@ -3,6 +3,16 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-04: The repo's own `/next`
+
+26. **This repo gets its own `/next` skill now, as a prototype for plan 07's installable one.** It
+    reads the branch, open PRs and CI, the plans index and plan statuses, and ARCHITECTURE §15; it
+    prints where the build stands and **one recommended prompt**, and changes nothing (its granted
+    tools are read-only, enforced by `tests/test_repo_skills.py`). It also reports docs that
+    disagree, without fixing them. *Why:* the owner wants a fresh session to know where things
+    stand in one command; building the simple version first gives plan 07 real usage to learn
+    from. The installable version (lanes, backlog files) stays in plan 07.
+
 ## 2026-10-04: Plan 02 questions
 
 23. **Comment stripping is simple and errs towards missing, never false alarms.** Line comments by
