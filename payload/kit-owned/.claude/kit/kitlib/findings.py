@@ -12,9 +12,13 @@ class Finding:
 
 
 def format_findings(findings) -> str:
-    """One `path:line: [check/rule] message` line per finding, sorted by location."""
+    """One `path:line: [check/rule] message` line per finding, sorted by location.
+
+    Line 0 means the finding is about the whole file (a protected path changed): no line is shown.
+    """
     lines = []
     for finding in sorted(findings):
         tag = f"{finding.check}/{finding.rule}" if finding.rule else finding.check
-        lines.append(f"{finding.path}:{finding.line}: [{tag}] {finding.message}")
+        where = f"{finding.path}:{finding.line}:" if finding.line else f"{finding.path}:"
+        lines.append(f"{where} [{tag}] {finding.message}")
     return "\n".join(lines)

@@ -1,9 +1,10 @@
-"""The kit's command line: `kit check`, `kit hook`, `kit changelog`.
+"""The kit's command line: `kit check`, `kit hook`, `kit settings`, `kit changelog`.
 
 Run from anywhere inside a project: `python .claude/kit/cli.py <command>` (or the shim the installer
 sets up). Exit codes. CLI: 0 clean, 1 findings, 2 usage or config error. Hook mode follows Claude
 Code's protocol instead: 0 nothing to report, 2 findings for Claude to fix, 1 a kit error that
-is shown but never blocks the edit (decision 9).
+is shown but never blocks the edit (decision 9). The protected hook is the exception: it fails
+closed, so every error is an exit 2 (decision 33).
 """
 import argparse
 import datetime
@@ -14,14 +15,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from kitlib import changelog, gitfiles, rules_check  # noqa: E402
+from kitlib import changelog, gitfiles, protected, rules_check  # noqa: E402
 from kitlib.config import ConfigError, ConfigMissing, find_root, load  # noqa: E402
 from kitlib.findings import format_findings  # noqa: E402
+from kitlib.globs import normalize  # noqa: E402
 
 OK, FINDINGS, USAGE = 0, 1, 2
 HOOK_OK, HOOK_ERROR, HOOK_BLOCK = 0, 1, 2
 
-CHECKS = {"rules": rules_check.check}  # plan 03 adds "protected"
+CHECKS = ("rules", "protected")
 
 
 class UsageError(Exception):
@@ -61,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.set_defaults(run=run_check)
 
     hook = commands.add_parser("hook", help="Claude Code hook entry points (JSON on stdin)")
-    hook.add_argument("name", choices=["rules-check"])
+    hook.add_argument("name", choices=["rules-check", "protected"])
     hook.set_defaults(run=run_hook)
 
     log = commands.add_parser("changelog", help="changelog fragments")
@@ -77,20 +79,52 @@ def build_parser() -> argparse.ArgumentParser:
 # ---- kit check -------------------------------------------------------------------------------
 
 def run_check(args) -> int:
+    names = list(CHECKS) if args.name == "all" else [args.name]
     try:
         root = find_root(Path.cwd())
         config = load(root)
-        files = list(collect_files(root, config, args))
+        findings = []
+        if "rules" in names:
+            findings += rules_check.check(config, collect_files(root, config, args))
+        if "protected" in names:
+            findings += check_protected(root, config, args)
     except (ConfigError, gitfiles.GitError, UsageError) as error:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
-    names = list(CHECKS) if args.name == "all" else [args.name]
-    findings = [finding for name in names for finding in CHECKS[name](config, files)]
     if findings:
         print(format_findings(findings))
         print(f"\n{len(findings)} finding(s). Rules live in .claude/kit.toml.", file=sys.stderr)
         return FINDINGS
     return OK
+
+
+def check_protected(root: Path, config, args) -> list:
+    """Changes to protected paths. A whole-project run has no change to judge, so it checks nothing."""
+    if args.staged:
+        paths = gitfiles.touched_staged(root)
+    elif args.diff:
+        paths = gitfiles.touched_since(root, args.diff)
+    elif args.files:
+        paths = explicit_paths(root, args.files)
+    else:
+        return []
+    findings = protected.check(config, paths)
+    if findings and protected.allowed_by_human():
+        print(
+            f"kit: {len(findings)} protected path change(s) allowed by {protected.ALLOW_VARIABLE}=1.",
+            file=sys.stderr,
+        )
+        return []
+    return findings
+
+
+def explicit_paths(root: Path, names) -> list[str]:
+    # `vendor\a.py` means the same file on every platform, as in kit.toml globs.
+    paths = [relative_to_root(root, Path(normalize(name))) for name in names]
+    for name, path in zip(names, paths):
+        if not (root / path).is_file():
+            raise UsageError(f"{name}: not a file")  # a typo must not pass as "clean"
+    return paths
 
 
 def collect_files(root: Path, config, args):
@@ -109,10 +143,7 @@ def collect_files(root: Path, config, args):
     if args.diff:
         paths = gitfiles.changed_since(root, args.diff)
     elif args.files:
-        paths = [relative_to_root(root, Path(name)) for name in args.files]
-        for name, path in zip(args.files, paths):
-            if not (root / path).is_file():
-                raise UsageError(f"{name}: not a file")  # a typo must not pass as "clean"
+        paths = explicit_paths(root, args.files)
     else:
         paths = gitfiles.tracked(root)
     for path in paths:
@@ -134,12 +165,51 @@ def relative_to_root(root: Path, path: Path) -> str:
 # ---- kit hook ----------------------------------------------------------------------------------
 
 def run_hook(args) -> int:
-    """Hooks fail open: any problem with the kit itself is reported (exit 1) and never blocks."""
+    if args.name == "protected":
+        return run_hook_protected()
+    # rules-check fails open: any problem with the kit itself is reported (exit 1) and never blocks.
     try:
         return hook_rules_check(json.loads(sys.stdin.read()))
     except Exception as error:  # noqa: BLE001 - the hook must never crash with a traceback
         print(f"kit hook {args.name}: {type(error).__name__}: {error}", file=sys.stderr)
         return HOOK_ERROR
+
+
+def run_hook_protected() -> int:
+    """PreToolUse backstop. Fails closed: in PreToolUse only exit 2 blocks, so every error exits 2."""
+    try:
+        payload = json.loads(sys.stdin.read())
+        if not isinstance(payload, dict):
+            raise ValueError("hook input is not a JSON object")
+        root = find_root(Path(payload.get("cwd") or os.getcwd()))
+        try:
+            config = load(root)
+        except ConfigMissing:
+            return HOOK_OK  # the kit isn't set up here: nothing to enforce (decision 33)
+        reason = protected.check_tool_call(payload, root, config)
+    except ConfigError as error:
+        print(
+            f"Blocked: the kit's protected-paths guard can't read its config: {error}\n"
+            "Fix .claude/kit.toml (or ask the user to) before running commands or editing files.",
+            file=sys.stderr,
+        )
+        return HOOK_BLOCK
+    except Exception as error:  # noqa: BLE001 - fail closed, without a traceback
+        print(
+            f"Blocked: the kit's protected-paths guard failed ({type(error).__name__}: {error}).\n"
+            "Tell the user; this is a bug in the kit or its install, not something to work around.",
+            file=sys.stderr,
+        )
+        return HOOK_BLOCK
+    if reason is None:
+        return HOOK_OK
+    print(
+        f"Blocked by the kit's protected-paths guard: {reason}.\n"
+        "Don't look for another way to do this. If it is needed, ask the user to do it themselves "
+        "or to change .claude/kit.toml.",
+        file=sys.stderr,
+    )
+    return HOOK_BLOCK
 
 
 def hook_rules_check(payload: dict) -> int:

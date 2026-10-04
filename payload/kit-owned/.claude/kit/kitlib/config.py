@@ -1,8 +1,8 @@
 """Find the project root and load `.claude/kit.toml`.
 
 Validation is strict (decision 24): an unknown key or a wrong type is an error naming the key, so a
-typo can't silently switch a rule off. Tables that later parts of the kit own (`lanes`,
-`protected`) are accepted here and validated by the code that reads them.
+typo can't silently switch a rule off. Tables that later parts of the kit own (`lanes`) are accepted
+here and validated by the code that reads them.
 """
 import re
 import subprocess
@@ -10,7 +10,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import globs
+from . import commands, globs
 
 CONFIG_REL = Path(".claude") / "kit.toml"
 
@@ -26,6 +26,20 @@ _PROJECT_KEYS = {
     "shared_paths": list,
 }
 _CHECKS_KEYS = {"rules": list}
+_PROTECTED_KEYS = {"paths": list, "commands": list, "secrets": list, "guard_kit": bool}
+
+# Used when [protected] leaves a key out, so a project that never wrote the table is still guarded.
+# `git clean -f` rather than `-fdx`: every flag in a pattern must be present, and `-fd` destroys too.
+DEFAULT_COMMANDS = [
+    "git push --force",
+    "git push -f",
+    "git reset --hard",
+    "git clean -f",
+    "git commit --no-verify",
+    "git commit -n",
+]
+# File names, not `.env.*`: an allow rule can't carve `.env.example` out of a deny (decision 31).
+DEFAULT_SECRETS = [".env", ".env.local", ".env.*.local"]
 _RULE_KEYS = {
     "id": (str, True),
     "pattern": (str, True),
@@ -55,10 +69,19 @@ class Rule:
 
 
 @dataclass(frozen=True)
+class Protected:
+    paths: list = field(default_factory=list)
+    commands: list = field(default_factory=lambda: list(DEFAULT_COMMANDS))
+    secrets: list = field(default_factory=lambda: list(DEFAULT_SECRETS))
+    guard_kit: bool = True
+
+
+@dataclass(frozen=True)
 class Config:
     project: dict
     rules: list
     raw: dict
+    protected: Protected = field(default_factory=Protected)
 
 
 def find_root(start: Path) -> Path:
@@ -106,7 +129,41 @@ def load(root: Path) -> Config:
         if rule.id in seen:
             raise ConfigError(f"{CONFIG_REL.as_posix()}: duplicate rule id {rule.id!r}")
         seen.add(rule.id)
-    return Config(project=project, rules=rules, raw=raw)
+    return Config(project=project, rules=rules, raw=raw, protected=_protected(raw.get("protected", {})))
+
+
+def _protected(table) -> Protected:
+    where = "[protected]"
+    _check_table(table, where)
+    _check_keys(table, _PROTECTED_KEYS, where)
+    for key in ("paths", "secrets"):
+        for value in _strings(table, key, where):
+            # Patterns are project-relative: the same text becomes a root-anchored deny rule.
+            if value.startswith(("//", "~")) or ".." in value.replace("\\", "/").split("/"):
+                _fail(f"{where}: {key!r}: {value!r} must be a path inside the project")
+            try:
+                globs.validate(value)
+            except ValueError as error:
+                _fail(f"{where}: {key!r}: {error}")
+    for value in _strings(table, "commands", where):
+        try:
+            commands.parse_pattern(value)
+        except ValueError as error:
+            _fail(f"{where}: 'commands': {value!r}: {error}")
+    defaults = Protected()
+    return Protected(
+        paths=list(table.get("paths", defaults.paths)),
+        commands=list(table.get("commands", defaults.commands)),
+        secrets=list(table.get("secrets", defaults.secrets)),
+        guard_kit=table.get("guard_kit", defaults.guard_kit),
+    )
+
+
+def _strings(table: dict, key: str, where: str) -> list:
+    values = table.get(key, [])
+    if not all(isinstance(value, str) for value in values):
+        _fail(f"{where}: {key!r} must be a list of strings")
+    return values
 
 
 def _rule(entry, number: int) -> Rule:
