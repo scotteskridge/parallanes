@@ -3,18 +3,22 @@
 **Status:** Draft
 **Branch / PR:** `plan/03-protected-paths`
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode); ARCHITECTURE §5, §7 (protected paths and
-commands), §14; decisions 9 (fails closed), 14, 15 (deny rules primary, hook a backstop)
+commands), §14; decisions 7 (manifest), 9 (fails closed), 14, 15 (deny rules primary, hook a backstop)
 
 ## Goal
 A project lists paths and commands in `[protected]` in `.claude/kit.toml`, and the kit turns that
 into protection: deny rules in `.claude/settings.json` (Claude Code enforces them), a PreToolUse
-hook that catches command forms deny rules miss, and `kit check protected` for pre-commit and CI.
-The docs say plainly what none of this stops.
+hook that catches forms deny rules miss, and `kit check protected` for pre-commit and CI. The docs
+say plainly what none of this stops, and that the real gate is the server (CI, branch protection).
 
 ## Out of scope
 - Wiring the hook into `settings.json`, the installer asking before touching an existing
-  `settings.json`, and the full allow/deny template: plan 08 (it calls `kit settings sync`).
+  `settings.json`, and the full allow/deny template: plan 08 (it calls `kit settings sync`). Plan 08
+  may fold the generated-rules record (question 3) into its manifest (decision 7).
 - The CI workflow file: plan 09 (it runs `kit check all --diff`, which now includes `protected`).
+  **Note for plan 09:** generate `CODEOWNERS` entries from `[protected].paths` and document branch
+  protection (required review, no force-pushes). That's the industry-standard enforcement for
+  protected paths; everything in this plan is local and guards against mistakes.
 - The README's guarantees table: plan 12 (it links the doc this plan writes).
 - Sandbox *configuration*: we recommend it; we don't generate it.
 
@@ -24,52 +28,67 @@ The docs say plainly what none of this stops.
   the `/` form. An `Edit` deny also blocks Write, NotebookEdit, and recognized shell writes (`sed`,
   `tee`, redirections). Coverage of PowerShell cmdlets (`Set-Content`, `Out-File`) is **not
   documented**.
-- `Bash(...)` rules split compound commands (`&&`, `;`, `|`) and strip a few wrappers (`timeout`,
-  `nohup`, bare `xargs`), but do **not** match past options: `Bash(git push --force *)` misses
+- Deny rules can't be carved out: an allow rule never overrides a matching deny. A deny at any
+  settings level wins over an allow at any other.
+- `Bash(...)` deny rules apply to every subcommand (`&&`, `;`, `|`, subshells, `$(...)`, loop
+  bodies), strip wrappers (`timeout`, `nohup`, bare `xargs`) and match past leading `FOO=bar`
+  assignments. They do **not** match past options: `Bash(git push --force *)` misses
   `git -C . push --force` and `git push origin main --force`. `PowerShell(...)` rules exist and match
   case-insensitively.
-- A deny at any settings level can't be overridden by an allow at another.
+- `bypassPermissions` skips permission prompts, so **ask rules don't hold in that mode**. Whether
+  they prompt in `acceptEdits` mode isn't stated; the plan verifies it by hand and records the result.
 - PreToolUse: **only exit 2 (or JSON `permissionDecision: "deny"`) blocks**; exit 1 lets the call
-  through, and so does a hook timeout. A hook deny holds even in `bypassPermissions` mode. So
-  "fails closed" means: every error path exits 2.
+  through, and so does a hook timeout. A hook deny holds even in `bypassPermissions`. The hook input
+  carries `cwd` and `permission_mode`. So "fails closed" means: every error path exits 2.
 
 ## Open questions
 1. **What does the backstop hook watch?** *Recommendation:* `Bash|PowerShell` commands against
-   `[protected].commands` (as designed), **plus** `Edit|Write|NotebookEdit` file paths against
-   `[protected].paths`. The path check is exact and cheap, and it still protects when
-   `settings.json` has drifted or a user's settings were edited by hand. No guessing at write targets
-   inside shell commands (documented limit instead).
-2. **How does command matching work?** *Recommendation:* split on `&&`, `||`, `;`, `|`, newlines and
-   `$(`/backticks; tokenize (POSIX `shlex` for Bash, whitespace and quotes for PowerShell,
-   case-insensitive); strip wrappers (`env`, `sudo`, `timeout`, `nohup`, `command`, `xargs`) and git
-   global options (`-C x`, `-c k=v`, `--git-dir=`, `--work-tree=`, `--no-pager`). A protected command
-   matches when the program and subcommand match and **every remaining token of the pattern appears
-   somewhere** in the arguments, order-free; short-flag clusters expand (`-xdf` contains `-f`, `-d`,
-   `-x`). So `git push origin main --force` and `git clean -xdf` are caught; `--force-with-lease` is
-   not (it's the safe form). Known misses, documented: `git push origin +main`, aliases, scripts,
-   `bash -c "..."` strings (we recurse into `bash -c`/`sh -c`/`pwsh -c` one level; deeper is a miss).
+   `[protected].commands`; `Edit|Write|NotebookEdit` file paths against `[protected].paths` (exact,
+   cheap, and still protects if `settings.json` drifted); and, because Windows comes first and has no
+   sandbox, the target paths of common PowerShell write cmdlets (`Set-Content`, `Add-Content`,
+   `Out-File`, `New-Item`, `Remove-Item`, `Move-Item`, `Copy-Item`, `Rename-Item`, and their aliases)
+   from `-Path`/`-LiteralPath`/`-Destination` or the first positional argument. Documented as best
+   effort. No guessing at write targets of arbitrary Bash or scripts (documented limit).
+2. **How clever should command matching be?** It guards against mistakes, not adversaries, so keep
+   it to the cheap cases. *Recommendation:* split on `&&`, `||`, `;`, `|`, newlines; tokenize (POSIX
+   `shlex` for Bash, quotes and whitespace for PowerShell, case-insensitive); strip leading `FOO=bar`
+   assignments, wrappers (`env`, `sudo`, `timeout`, `nohup`, `command`, `xargs`) and git global
+   options (`-C x`, `-c k=v`, `--git-dir=`, `--work-tree=`, `--no-pager`). A protected command
+   matches when program and subcommand match and **every other pattern token appears somewhere** in
+   the arguments, order-free, with short-flag clusters expanded (`-xdf` contains `-f`). So
+   `git push origin main --force` and `git clean -xdf` are caught; `--force-with-lease` is not (the
+   safe form). Known misses, documented, not chased: `git push origin +main`, git aliases, scripts,
+   commands inside `bash -c "..."` strings or `$(...)`.
 3. **How does `kit settings sync` tell its rules from the owner's?** JSON has no comments.
-   *Recommendation:* sync only ever **adds** missing rules and removes rules it wrote before, listed
-   in `.claude/kit/generated-rules.json` (committed, kit-owned). Owner-written rules are never
-   touched. `kit check settings` fails when an expected rule is missing or a recorded rule is stale.
-   `--dry-run` prints the change. (The alternative, a marker key inside `settings.json`, risks Claude
-   Code's settings validation.)
-4. **Protecting the kit's own config.** An agent that can edit `kit.toml` or `settings.json` can
-   switch the protection off. But `/onboard` (plan 07) must write `kit.toml`, and deny rules can't be
-   approved case by case. *Recommendation:* generate **ask** rules (not deny) for
-   `/.claude/settings.json`, `/.claude/kit.toml`, `/.claude/kit/**`, `/.githooks/**`, so every change
-   needs the owner's click, even in accept-edits mode. On by default; `[protected] guard_kit = false`
-   turns it off.
-5. **Secrets.** ARCHITECTURE §5 lists "secrets" under deny rules, but `[protected]` has no key for
-   them. *Recommendation:* add `[protected].secrets` (default `[".env", ".env.*"]`, bare names so they
-   match at any depth) → `Read(...)` and `Edit(...)` deny rules. Same generator, small addition.
-6. **What does `kit check protected` (pre-commit, CI) do when a human changes a protected path on
-   purpose?** *Recommendation:* it's a finding (exit 1), and the escape is explicit:
-   `KIT_ALLOW_PROTECTED=1` for a local commit; how a PR declares it (label or trailer) is plan 09's
-   call. Commands aren't checked here: there is nothing to check in a diff.
-7. **Missing or broken config in the hook.** *Recommendation:* no `kit.toml` → allow (the kit isn't
-   set up there); a `kit.toml` that fails to load, bad stdin JSON, or any crash → block (exit 2) with
-   a message saying what to fix. This is decision 9's "fails closed".
+   *Recommendation:* sync only **adds** missing rules and removes rules it wrote before, listed in
+   `.claude/kit/generated-rules.json` (committed, kit-owned). Owner rules are never touched.
+   `kit check settings` fails when an expected rule is missing or a recorded rule is stale.
+   `--dry-run` prints the change. (A marker key inside `settings.json` risks settings validation.)
+4. **Protecting the kit's own config** (`/.claude/settings.json`, `/.claude/kit.toml`,
+   `/.claude/kit/**`, `/.githooks/**`). An agent that edits these can switch protection off, but
+   `/onboard` (plan 07) must write `kit.toml`. Deny rules can't be approved case by case; ask rules
+   can, but vanish in `bypassPermissions`; a hook deny holds everywhere but would block `/onboard`.
+   *Recommendation:* **ask rules, plus the hook denies edits to these paths only when
+   `permission_mode` is `bypassPermissions`** (no human is there to answer the ask). The doc tells
+   owners who want more to set `permissions.disableBypassPermissionsMode`. On by default;
+   `[protected] guard_kit = false` turns both off.
+5. **Secrets.** ARCHITECTURE §5 lists secrets under deny rules, but `[protected]` has no key.
+   *Recommendation:* add `[protected].secrets` → `Read(...)` and `Edit(...)` deny rules (bare names,
+   so they match at any depth). Since a deny can't be carved out, the default names files rather than
+   `.env.*` (which would block the committed `.env.example`): `[".env", ".env.local", ".env.*.local"]`.
+   The template comment tells projects to add their own (`.env.production`, key files).
+6. **A human changing a protected path on purpose.** *Recommendation:* `kit check protected` reports
+   it (exit 1); the local escape is `KIT_ALLOW_PROTECTED=1` on the commit; how a PR declares it
+   (label, trailer, `CODEOWNERS` review) is plan 09's call.
+7. **Missing or broken config in the hook.** *Recommendation:* the hook finds the project root from
+   the input's `cwd`, so a lane uses its own worktree's `kit.toml`. No `kit.toml` → allow (kit not set
+   up there); a `kit.toml` that fails to load, bad stdin JSON, or any crash → block (exit 2) saying
+   what to fix (decision 9).
+8. **The agent switching off the local checks itself.** It could set `KIT_ALLOW_PROTECTED=1` or run
+   `git commit --no-verify`. *Recommendation:* the default `[protected].commands` include
+   `git commit --no-verify` and `git commit -n` (the cluster rule catches `-nm`); the hook blocks any
+   command that sets `KIT_ALLOW_PROTECTED` (it's for humans at a terminal) or changes
+   `core.hooksPath`. The doc states that the local checks are a convenience and CI is the gate.
 
 ## Reuse
 - `kitlib/config.py`: already accepts the `protected` table; this plan validates its keys.
@@ -82,12 +101,12 @@ The docs say plainly what none of this stops.
 | File | New / Edit | What |
 | --- | --- | --- |
 | `payload/kit-owned/.claude/kit/kitlib/config.py` | Edit | `Protected(paths, commands, secrets, guard_kit)`; validation with key-naming errors |
-| `.../kitlib/commands.py` | New | Split, tokenize, strip wrappers and git global options, match (question 2) |
-| `.../kitlib/protected.py` | New | `check(paths)` → findings; `check_command(text, shell)`; `check_tool_call(json)` for the hook |
-| `.../kitlib/settings.py` | New | Expected rules from `[protected]`; read/merge/write `settings.json` (LF, 2-space, key order kept); generated-rules record |
+| `.../kitlib/commands.py` | New | Split, tokenize, strip assignments, wrappers and git global options, match (question 2); PowerShell write targets (question 1) |
+| `.../kitlib/protected.py` | New | `check(paths)` → findings; `check_command(text, shell)`; `check_tool_call(json)` for the hook (questions 1, 4, 8) |
+| `.../kitlib/settings.py` | New | Expected deny and ask rules; read/merge/write `settings.json` (LF, 2-space, key order kept); generated-rules record |
 | `payload/kit-owned/.claude/kit/cli.py` | Edit | `check protected`, `check settings`, `settings sync [--dry-run]`, `hook protected` |
-| `payload/templates/.claude/kit.toml.tmpl` | Edit | `[protected]` with the default commands and secrets, commented paths example |
-| `payload/templates/docs/ai/protected-paths.md.tmpl` | New | What each layer stops, what it doesn't, sandbox on macOS/Linux/WSL2, the Windows gap |
+| `payload/templates/.claude/kit.toml.tmpl` | Edit | `[protected]` with default commands and secrets, commented paths example |
+| `payload/templates/docs/ai/protected-paths.md.tmpl` | New | What each layer stops and misses; sandbox on macOS/Linux/WSL2 and the Windows gap; CI, `CODEOWNERS` and branch protection as the real gate; `disableBypassPermissionsMode` |
 | `payload/templates/docs/ai/WORKFLOW.md.tmpl` | Edit | Link the new doc from its guarantees table |
 | `tests/test_commands.py`, `test_protected.py`, `test_settings.py`, `test_hook_protected.py`, `test_cli.py` | New / Edit | See Tests |
 
@@ -98,26 +117,28 @@ for a match *and* for every error (question 7). Must stay well under 1 s.
 1. Tests then code: `[protected]` config validation.
 2. Tests then code: `commands.py` (a table of command strings → match / no match, both shells).
 3. Tests then code: `protected.py` path and command checks; `check protected` in the CLI and `check all`.
-4. Tests then code: `hook protected` on recorded PreToolUse JSON (Bash, PowerShell, Edit, Write).
+4. Tests then code: `hook protected` on recorded PreToolUse JSON (Bash, PowerShell, Edit, Write,
+   each permission mode).
 5. Tests then code: `settings.py`, `settings sync`, `check settings` on temp projects with and
    without an existing `settings.json`.
-6. Template and doc changes; template tests render them.
+6. Template and doc changes; template tests render them. Check by hand in a real session whether an
+   ask rule prompts in `acceptEdits` mode; record it in the doc.
 7. Fresh-context review, fix findings with tests, open the PR.
 
 ## Tests
 | Test | Proves |
 | --- | --- |
 | `test_config` (added) | Valid `[protected]` loads; unknown key, wrong type, bad glob, empty command each name the key |
-| `test_commands` | Each form in question 2 caught: reordered flags, `-C`/`-c`, extra spaces, quotes, `&&`/`;`/`|`, wrappers, flag clusters, `bash -c`, PowerShell casing; `--force-with-lease`, `git push` and look-alikes (`git pushx`) allowed |
+| `test_commands` | Caught: reordered flags, `-C`/`-c`, extra spaces, quotes, `&&`/`;`/`|`, `FOO=bar` prefixes, wrappers, flag clusters, PowerShell casing, `git commit -nm x`. Allowed: `--force-with-lease`, plain `git push`, look-alikes (`git pushx`). PowerShell write targets found by named and positional argument and alias |
 | `test_protected` | Path findings for protected files only; Windows `\` paths; staged and diff modes; `KIT_ALLOW_PROTECTED=1` |
-| `test_hook_protected` | Blocks with exit 2 and a clear reason; allows clean calls; exit 2 on broken config, bad JSON and an injected crash; exit 0 with no `kit.toml`; never a traceback; runs from a path with spaces |
-| `test_settings` | Rules are `/`-anchored, secrets bare; sync adds, removes only recorded rules, keeps owner rules and every other key; idempotent; `--dry-run` writes nothing; `check settings` flags missing and stale rules; output is LF |
-| `test_templates` (added) | Rendered `kit.toml` loads and its `[protected]` generates the expected rules |
+| `test_hook_protected` | Blocks with exit 2 and a clear reason; allows clean calls; kit-config edits blocked only in `bypassPermissions`; commands setting `KIT_ALLOW_PROTECTED` or `core.hooksPath` blocked; root found from `cwd` (two worktrees, different `kit.toml`); exit 2 on broken config, bad JSON, injected crash; exit 0 with no `kit.toml`; never a traceback; path with spaces |
+| `test_settings` | Paths `/`-anchored, secrets bare, kit-config ask rules (absent with `guard_kit = false`); sync adds, removes only recorded rules, keeps owner rules and other keys; idempotent; `--dry-run` writes nothing; `check settings` flags missing and stale rules; LF output |
+| `test_templates` (added) | Rendered `kit.toml` loads; its default secrets don't match `.env.example` |
 
 ## Done when
 - [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
 - [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §7 and §15, and decisions log updated
+- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §7 and §15 (incl. the plan 09 note), decisions log updated
 
 ## Notes after implementation
 <!-- Filled in at wrap-up: what changed from the plan and why. -->
