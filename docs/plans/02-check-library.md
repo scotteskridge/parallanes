@@ -1,6 +1,6 @@
 # 02 — Check library, `kit` CLI and rules-check
 
-**Status:** In progress
+**Status:** Done
 **Branch / PR:** `plan/02-check-library`
 **Builds on:** ARCHITECTURE §4 (`.claude/kit/`, `kit.toml`), §7 (one module, three entry points),
 §8 (changelog fragments); decisions 8, 9, 13, 14
@@ -85,9 +85,9 @@ covered, 2 findings (stderr to Claude), 1 kit error (visible, non-blocking).
 | `test_precommit` | The script blocks a commit with a violation and allows a clean one (real `git commit` in a temp repo) |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §15 (answered questions) and decisions log updated
+- [x] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE §15 (answered questions) and decisions log updated
 
 ## Notes after implementation
 Changes from the plan:
