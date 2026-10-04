@@ -96,7 +96,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 ## 13. Documentation and presentation
 - **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table
 - **MVP** Example Python project set up with the kit, showing a plan, a review report and a lane merge
-- **Later** Demo GIF of `lanes create` → two agents working → `lanes merge`
+- **Later** Demo GIF of `lanes create` → two agents working → `lanes finish`
 - **Later** FAQ, troubleshooting, "why this design" page
 
 ## 14. Quality of the kit itself
