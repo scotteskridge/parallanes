@@ -33,7 +33,7 @@ def router_text(cwd: Path) -> str:
     settings = config.lane_settings
     lines = [f"Lane: {lane.name} (this folder is its worktree: {root})"]
     if lane.scope:
-        lines.append(f"Scope: {lane.scope}")
+        lines.append(f"Scope: {_one_line(lane.scope)}")
     lines.append(f"Owns: {', '.join(lane.owns)}")
     if settings.shared_paths:
         lines.append(f"Shared with every lane: {', '.join(settings.shared_paths)}")
@@ -83,16 +83,16 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
 def _merged(root: Path, branch: str, tip: str) -> bool:
     """The branch has commits of its own and all of them are in tip.
 
-    The branch's creation point comes from its reflog; without one (expired, or created elsewhere)
-    nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR instead.
+    "Its own" comes from the branch's reflog: a commit, amend or cherry-pick made on it. A fresh
+    branch fast-forwarded to a newer tip has none. Without a reflog (expired, or the branch came
+    from elsewhere) nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
     """
-    created = lanes.git(root, "reflog", "show", "--format=%H", f"refs/heads/{branch}", check=False).split()
-    if not created:
-        return False
-    head = lanes.git(root, "rev-parse", "HEAD").strip()
-    if head == created[-1]:
-        return False  # no commits of its own yet
-    return lanes.is_ancestor(root, "HEAD", tip)
+    subjects = lanes.git(root, "reflog", "show", "--format=%gs", f"refs/heads/{branch}", check=False).splitlines()
+    own = any(
+        subject.startswith(("commit:", "commit (amend):", "commit (initial):", "cherry-pick:", "revert:"))
+        for subject in subjects
+    )
+    return own and lanes.is_ancestor(root, "HEAD", tip)
 
 
 def _config_differs(root: Path, tip: str) -> bool:
@@ -127,12 +127,42 @@ def ownership_reason(payload: dict) -> str | None:
         return None
     rel = relative(root, cwd, target, git_bash=False)
     if rel is None:
-        return None  # outside the project: not a lane question
+        return _elsewhere(root, cwd, target, config, lane)
     allowed = list(lane.owns) + list(config.lane_settings.shared_paths)
-    if globs.matches_any(rel, allowed):
+    if _matches(rel, allowed):
         return None
     return (
         f"{rel} is outside lane {lane.name!r}, which owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
     )
+
+
+def _matches(rel: str, patterns) -> bool:
+    if os.name == "nt":  # the file system ignores case, so ownership does too
+        return globs.matches_any(rel.lower(), [pattern.lower() for pattern in patterns])
+    return globs.matches_any(rel, patterns)
+
+
+def _elsewhere(root: Path, cwd: Path, target: str, config, lane) -> str | None:
+    """An edit outside this lane's folder: another lane's folder or the main checkout asks too."""
+    main = lanes.main_checkout(root)
+    for other in config.lanes:
+        if other.name != lane.name and relative(lanes.lane_folder(main, config, other), cwd, target, git_bash=False) is not None:
+            return (
+                f"{target} is in lane {other.name!r}'s folder, not this lane's ({lane.name!r}). Edit files "
+                "here, in this lane's own folder; another session may be working there."
+            )
+    rel = relative(main, cwd, target, git_bash=False)
+    if rel is None:
+        return None  # outside the repository: not a lane question
+    return (
+        f"{target} is in the main checkout, not this lane's folder ({root}). Edit the copy here "
+        "instead; the main checkout may hold someone else's work."
+    )
+
+
+def _one_line(text: str, limit: int = 200) -> str:
+    """A multi-line TOML string would break the briefing's line budget."""
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1] + "…"

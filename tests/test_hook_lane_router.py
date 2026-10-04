@@ -134,3 +134,71 @@ def test_bad_input_never_blocks(repo, stdin):
     assert result.returncode == 0
     assert "Lane check failed" in result.stdout
     assert "Traceback" not in result.stdout + result.stderr
+
+
+# ---- from the first review ---------------------------------------------------------------------
+
+def test_fresh_branch_fast_forwarded_is_not_merged(repo):
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/task")
+    commit(repo, "src/api/b.py", "y = 2\n")
+    git(repo, "push", "-q", "origin", "main")
+    git(folder, "merge", "-q", "--ff-only", "origin/main")  # what syncing a fresh branch does
+    assert "already merged" not in brief(folder)
+
+
+def test_amended_and_merged_branch_is_reported(repo):
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/task")
+    commit(folder, "src/core/b.py", "y = 1\n")
+    git(folder, "commit", "-q", "--amend", "-m", "amended")
+    git(folder, "push", "-q", "origin", "core/task:main")
+    git(folder, "fetch", "-q")
+    assert "already merged" in brief(folder)
+
+
+def test_local_mode_measures_against_the_local_branch(tmp_path):
+    config = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nmerge_mode = "local"')
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create", "core").returncode == 0
+    commit(repo, "src/api/b.py", "y = 2\n")  # local main moves on; origin isn't used in local mode
+    assert "1 commit(s) behind main" in brief(lane_dir(repo, "core"))
+
+
+def test_worst_case_briefing_stays_in_budget(tmp_path):
+    config = LANES_TOML.replace(
+        'scope = "Domain logic and its tests"', 'scope = """Domain logic\nand its tests\nand more\nlines"""'
+    ).replace('integration_branch = "main"', 'integration_branch = "main"\nshared_paths = ["docs/**"]')
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create", "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "api/task")  # wrong lane prefix
+    commit(folder, "src/core/b.py", "y = 1\n")
+    git(folder, "push", "-q", "origin", "api/task:main")  # merged
+    commit(repo, "README.md", "x\n")  # and behind
+    git(repo, "pull", "-q", "--no-rebase", "--no-edit")
+    commit(repo, ".claude/kit.toml", config + "\n# changed\n")  # kit.toml drift
+    git(repo, "push", "-q")
+    write(folder, "src/core/a.py", "dirty\n")  # uncommitted
+    git(folder, "fetch", "-q")
+    text = brief(folder)
+    for word in ("not a core/<task>", "already merged", "behind", "kit.toml differs", "uncommitted"):
+        assert word in text, text
+    assert "Scope: Domain logic and its tests and more lines" in text
+    assert len(text.splitlines()) <= 15, text
+
+
+def test_crash_inside_the_router_tells_the_agent(monkeypatch, capsys, repo):
+    import io
+    import sys
+
+    from kitlib import hooks, lane_hooks
+
+    def boom(cwd):
+        raise RuntimeError("injected")
+
+    monkeypatch.setattr(lane_hooks, "router_text", boom)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps({"cwd": str(repo)})))
+    assert hooks.run_lane_router() == 0
+    out = capsys.readouterr().out
+    assert "Lane check failed (RuntimeError: injected)" in out

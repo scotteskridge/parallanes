@@ -90,3 +90,14 @@ def test_lane_errors_name_the_key(tmp_path, lanes, expected):
 def test_project_lane_keys_are_validated(tmp_path, old, new, expected):
     message = config_error(tmp_path, RULES_TOML.replace(old, new))
     assert expected in message, message
+
+
+@pytest.mark.parametrize("name", ["con", "aux", "nul", "prn", "com1", "lpt9"])
+def test_windows_device_names_are_rejected(tmp_path, name):
+    message = config_error(tmp_path, RULES_TOML + f'\n[[lanes]]\nname = "{name}"\nowns = ["a/**"]\n')
+    assert repr(name) in message and "Windows" in message
+
+
+def test_unknown_worktree_root_placeholder_is_rejected(tmp_path):
+    text = RULES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{name}-lanes"')
+    assert "{name}" in config_error(tmp_path, text)

@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
-    from kitlib import changelog, gitfiles, hooks, lane_status, lanes, protected, rules_check, settings
+    from kitlib import changelog, gitfiles, hooks, protected, rules_check, settings
     from kitlib.config import ConfigError, find_root, load
     from kitlib.findings import format_findings
     from kitlib.globs import normalize
@@ -111,7 +111,8 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
     remove = lane_commands.add_parser("remove", help="remove a lane's worktree (refuses uncommitted changes)")
     remove.add_argument("name", metavar="lane")
-    lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False)
+    remove.add_argument("--force", action="store_true", help="also delete ignored files that hold work (.env, local settings)")
+    lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
     perms_commands = perms.add_subparsers(title="settings commands")
@@ -226,15 +227,22 @@ def run_hook(args) -> int:
 # ---- kit lanes ---------------------------------------------------------------------------------
 
 def run_lanes(args) -> int:
+    # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
+    from kitlib import lane_status, lanes
+
     try:
         root = find_root(Path.cwd())
         config = load(root)
         if args.lanes_command == "create":
             print("\n".join(lanes.create(Path.cwd(), config, args.names, args.dry_run)))
         elif args.lanes_command == "remove":
-            print(lanes.remove(Path.cwd(), config, args.name))
+            print(lanes.remove(Path.cwd(), config, args.name, args.force))
         else:
             print(lane_status.format_status(lane_status.status(Path.cwd(), config, args.offline)))
+    except lanes.PartialCreate as error:
+        print("\n".join(error.lines))
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
     except (ConfigError, lanes.LaneError) as error:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE

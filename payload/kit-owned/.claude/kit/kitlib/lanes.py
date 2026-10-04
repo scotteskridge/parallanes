@@ -20,6 +20,14 @@ class LaneError(Exception):
     """A lanes command can't go ahead; the message says why and what to do."""
 
 
+class PartialCreate(LaneError):
+    """Some lanes failed; lines still says what happened to every lane."""
+
+    def __init__(self, message: str, lines: list[str]):
+        super().__init__(message)
+        self.lines = lines
+
+
 def git(folder: Path, *args: str, check: bool = True) -> str:
     try:
         result = subprocess.run(
@@ -43,12 +51,27 @@ def toplevel(folder: Path) -> Path | None:
 
 
 def main_checkout(folder: Path) -> Path:
-    """The main working tree, found from any folder of the repository (a lane included)."""
+    """The main working tree, found from any folder of the repository (a lane included).
+
+    In the main checkout it is the git top level. From a linked worktree, git lists it first in
+    `worktree list`, except when the repository was set up with a separate git dir (git then lists
+    the git dir itself), which can't be traced back from a lane: that case is an error, not a guess.
+    """
+    git_dir = git(folder, "rev-parse", "--path-format=absolute", "--git-dir").strip()
     common = git(folder, "rev-parse", "--path-format=absolute", "--git-common-dir").strip()
-    common = Path(common)
-    if common.name != ".git":
-        raise LaneError(f"{common} is not inside a working tree: lanes need a normal (non-bare) repository")
-    return common.parent
+    if same_path(Path(git_dir), Path(common)):
+        top = toplevel(folder)
+        if top is None:
+            raise LaneError("this repository has no working tree (it is bare): lanes need one")
+        return top
+    first = git(folder, "worktree", "list", "--porcelain", "-z").split("\0\0")[0].split("\0")
+    main = Path(first[0][len("worktree "):]) if first[0].startswith("worktree ") else None
+    if main is None or "bare" in first or same_path(main, Path(common)):
+        raise LaneError(
+            "can't find the main checkout from this worktree (the repository is bare or uses a separate "
+            "git dir); lanes need a normal checkout"
+        )
+    return main
 
 
 def worktree_root(main: Path, config) -> Path:
@@ -87,13 +110,16 @@ def find_lane(config, name: str):
 
 
 def integration_tip(folder: Path, config) -> str | None:
-    """`origin/<integration>` when that ref exists locally, else the local branch; None if neither.
+    """Where finished work lands: PR mode prefers `origin/<integration>`, local mode the local
+    branch (ARCHITECTURE §6); each falls back to the other. None if neither exists.
 
-    No fetch: everything here works offline (decision 39). PR mode merges into origin, so its copy
-    is the better guess at the tip.
+    No fetch: everything here works offline (decision 39).
     """
     branch = config.lane_settings.integration_branch
-    for ref in (f"origin/{branch}", branch):
+    refs = (f"origin/{branch}", branch)
+    if config.lane_settings.merge_mode == "local":
+        refs = refs[::-1]
+    for ref in refs:
         if git(folder, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}", check=False).strip():
             return ref
     return None
@@ -150,23 +176,39 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
         if folder.exists():
             if is_registered(main, folder):
                 lines.append(f"{lane.name}: already created at {folder}")
+                todo.append((lane, folder, False))  # re-run the steps a failed run may have missed
                 continue
             raise LaneError(f"{lane.name}: {folder} exists but is not this lane's worktree; move it away first")
-        todo.append((lane, folder))
+        todo.append((lane, folder, True))
         lines.append(f"{lane.name}: {'would create' if dry_run else 'created'} {folder}, detached at {tip}")
     if dry_run:
         return lines
 
     include = _worktreeinclude_files(main, root)
-    for lane, folder in todo:
-        git(main, "worktree", "add", "--detach", str(folder), tip)
-        for rel in include:
-            target = folder / rel
+    errors = []
+    for lane, folder, new in todo:
+        try:
+            if new:
+                git(main, "worktree", "add", "--detach", str(folder), tip)
+                _copy(main, folder, include)
+            if is_nested(main, folder):
+                exclude_main_instructions(main, folder)
+        except LaneError as error:
+            errors.append(f"{lane.name}: {error}")
+    if errors:
+        # Every lane is attempted and reported, so a rerun after a fix finishes the job.
+        raise PartialCreate("\n".join(errors), lines)
+    return lines
+
+
+def _copy(main: Path, folder: Path, include: list[str]) -> None:
+    for rel in include:
+        target = folder / rel
+        try:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(main / rel, target)
-        if is_nested(main, folder):
-            exclude_main_instructions(main, folder)
-    return lines
+        except OSError as error:
+            raise LaneError(f"couldn't copy {rel} into the lane: {error}") from None
 
 
 def _not_ignored(main: Path, rel: str) -> bool:
@@ -217,16 +259,22 @@ def exclude_main_instructions(main: Path, folder: Path) -> None:
     excludes = data.get("claudeMdExcludes", [])
     if not isinstance(excludes, list):
         raise LaneError(f"{what}: 'claudeMdExcludes' must be a list; left untouched")
-    wanted = [Path(os.path.realpath(main / name)).as_posix() for name in INSTRUCTION_FILES]
-    added = [entry for entry in wanted if entry not in excludes]
+    added = [entry for entry in main_instruction_excludes(main) if entry not in excludes]
     if added:
         data["claudeMdExcludes"] = excludes + added
-        write_json(path, data, style_of(path) if path.is_file() else Style())
+        try:
+            write_json(path, data, style_of(path) if path.is_file() else Style())
+        except OSError as error:
+            raise LaneError(f"{what}: can't write it: {error}") from None
+
+
+def main_instruction_excludes(main: Path) -> list[str]:
+    return [Path(os.path.realpath(main / name)).as_posix() for name in INSTRUCTION_FILES]
 
 
 # ---- remove ------------------------------------------------------------------------------------
 
-def remove(start: Path, config, name: str) -> str:
+def remove(start: Path, config, name: str, force: bool = False) -> str:
     lane = find_lane(config, name)
     main = main_checkout(start)
     folder = lane_folder(main, config, lane)
@@ -238,8 +286,46 @@ def remove(start: Path, config, name: str) -> str:
     changes = git(folder, "status", "--porcelain").splitlines()
     if changes:
         raise LaneError(f"{name}: {len(changes)} uncommitted change(s) in {folder}; commit or discard them first")
-    git(main, "worktree", "remove", str(folder))
+    if not force:
+        # git ignores ignored files, but they can hold work: a lane's .env, its local settings.
+        kept = ignored_work(main, folder)
+        if kept:
+            shown = ", ".join(kept[:10]) + (f" and {len(kept) - 10} more" if len(kept) > 10 else "")
+            raise LaneError(
+                f"{name}: removing {folder} would delete ignored files: {shown}. "
+                "Save what you need, then run again with --force"
+            )
+    git(main, "worktree", "remove", *(["--force"] if force else []), str(folder))
     return f"{name}: removed {folder}"
+
+
+def ignored_work(main: Path, folder: Path) -> list[str]:
+    """Ignored files and folders in the lane, except those `create` put there and nobody changed."""
+    out = git(folder, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory")
+    lost = []
+    for rel in (name for name in out.split("\0") if name):
+        mine, original = folder / rel, main / rel
+        if rel == LOCAL_SETTINGS_REL.as_posix() and _only_our_excludes(main, mine, original):
+            continue
+        if mine.is_file() and original.is_file() and mine.read_bytes() == original.read_bytes():
+            continue  # copied from .worktreeinclude and unchanged
+        lost.append(rel)
+    return lost
+
+
+def _only_our_excludes(main: Path, mine: Path, original: Path) -> bool:
+    """The lane's settings.local.json differs from the main checkout's only by create's excludes."""
+    try:
+        data = read_json(mine, mine.name)
+        before = read_json(original, original.name)
+    except SettingsError:
+        return False
+    ours = set(main_instruction_excludes(main))
+    excludes = [entry for entry in data.get("claudeMdExcludes", []) if entry not in ours]
+    data = {key: value for key, value in data.items() if key != "claudeMdExcludes"}
+    if excludes:
+        data["claudeMdExcludes"] = excludes
+    return data == before
 
 
 # ---- state of one folder ------------------------------------------------------------------------

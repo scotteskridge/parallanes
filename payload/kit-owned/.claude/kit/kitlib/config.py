@@ -165,6 +165,7 @@ _CHOICES = {"merge_mode": ("pr", "local"), "ownership": ("ask", "off")}
 # Lane names become folder names and the `<lane>/` prefix of task branches (decision 42).
 _LANE_NAME = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
 _LANE_KEYS = {"name": str, "scope": str, "owns": list, "resources": dict}
+_WINDOWS_RESERVED = {"con", "prn", "aux", "nul", *(f"com{n}" for n in range(1, 10)), *(f"lpt{n}" for n in range(1, 10))}
 
 
 def _lane_settings(project: dict) -> LaneSettings:
@@ -176,6 +177,9 @@ def _lane_settings(project: dict) -> LaneSettings:
         if key in project and project[key] not in choices:
             _fail(f"{where}: {key!r} must be one of {', '.join(map(repr, choices))}, not {project[key]!r}")
     _globs(project, "shared_paths", where)
+    unknown = set(re.findall(r"\{[^}]*\}", project.get("worktree_root", ""))) - {"{project}"}
+    if unknown:
+        _fail(f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists")
     defaults = LaneSettings()
     return LaneSettings(
         integration_branch=project.get("integration_branch", defaults.integration_branch),
@@ -201,6 +205,8 @@ def _lanes(entries, settings: LaneSettings) -> list:
         name = entry["name"]
         if not _LANE_NAME.match(name):
             _fail(f"{where}: name {name!r} must be lowercase letters, digits and '-', starting with a letter or digit")
+        if name in _WINDOWS_RESERVED:
+            _fail(f"{where}: name {name!r} is a reserved device name on Windows, which can't create that folder")
         if name == settings.integration_branch:
             _fail(f"{where}: a lane can't be named after the integration branch ({name!r})")
         if any(lane.name == name for lane in lanes):

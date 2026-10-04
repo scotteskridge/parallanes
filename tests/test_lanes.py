@@ -364,3 +364,105 @@ def test_lanes_commands_report_a_broken_config(tmp_path):
         result = run_cli(repo, *args)
         assert result.returncode == 2
         assert "'API'" in result.stderr and "Traceback" not in result.stderr
+
+
+# ---- from the first review ---------------------------------------------------------------------
+
+def test_local_mode_creates_from_the_local_branch(tmp_path):
+    config = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nmerge_mode = "local"')
+    repo = lanes_repo(tmp_path, config=config)
+    tip = commit(repo, "src/api/b.py", "y = 2\n")  # not pushed: local mode doesn't use origin
+    result = create(repo, "core")
+    assert "detached at main" in result.stdout
+    assert head(lane_dir(repo, "core")) == tip
+
+
+def test_remove_refuses_ignored_work_unless_forced(repo):
+    assert create(repo, "core").returncode == 0
+    write(lane_dir(repo, "core"), ".env", "SECRET=work-in-progress\n")
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2
+    assert ".env" in result.stderr and "--force" in result.stderr
+    assert (lane_dir(repo, "core") / ".env").is_file()
+    forced = run_cli(repo, "lanes", "remove", "core", "--force")
+    assert forced.returncode == 0, forced.stderr
+    assert not lane_dir(repo, "core").exists()
+
+
+def test_remove_ignores_files_create_put_there(repo):
+    write(repo, ".worktreeinclude", ".env\n")
+    write(repo, ".env", "A=1\n")
+    assert create(repo, "core").returncode == 0  # copies .env and writes settings.local.json
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 0, result.stderr
+
+
+def test_remove_reports_a_changed_local_settings_file(repo):
+    assert create(repo, "core").returncode == 0
+    path = lane_dir(repo, "core") / ".claude/settings.local.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["permissions"] = {"allow": ["Bash(make *)"]}
+    path.write_text(json.dumps(data), encoding="utf-8")
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2 and "settings.local.json" in result.stderr
+
+
+def test_separate_git_dir_works_from_the_main_checkout_and_fails_clearly_in_a_lane(tmp_path):
+    # git lists the git dir, not the working tree, as the main worktree here: nothing to trace back.
+    repo = lanes_repo(tmp_path, origin=False)
+    git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'git store'}")
+    assert create(repo, "core").returncode == 0
+    assert status(repo).returncode == 0
+    assert lanes.main_checkout(repo).resolve() == repo.resolve()
+    with pytest.raises(lanes.LaneError, match="separate git dir"):
+        lanes.current_lane(lane_dir(repo, "core"), load(repo))
+
+
+def test_submodule_is_its_own_main_checkout(tmp_path, repo):
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    git(outer, "init", "-q", "-b", "main")
+    git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(repo), "inner")
+    inner = outer / "inner"
+    assert lanes.main_checkout(inner / "src").resolve() == inner.resolve()
+
+
+@pytest.mark.parametrize("response", [{"message": "rate limited"}, ["x"], [{"number": None}], "text"])
+def test_status_survives_odd_gh_output(tmp_path, repo, response):
+    assert create(repo, "core").returncode == 0
+    git(lane_dir(repo, "core"), "switch", "-q", "-c", "core/t")
+    result = status(repo, env=fake_gh(tmp_path / "bin", response))
+    assert result.returncode == 0, result.stderr
+    assert "PR: unknown" in lane_line(result.stdout, "core")
+
+
+def test_create_reports_every_lane_and_finishes_the_rest_after_an_error(repo):
+    write(repo, ".worktreeinclude", ".claude/settings.local.json\n")
+    write(repo, ".claude/settings.local.json", "{ not json")
+    first = create(repo)
+    assert first.returncode == 2
+    assert "core: created" in first.stdout and "api: created" in first.stdout
+    assert first.stderr.count("settings.local.json") == 2
+    # Fixed by hand, a rerun finishes the step it missed.
+    for name in ("core", "api"):
+        write(lane_dir(repo, name), ".claude/settings.local.json", "{}")
+    second = create(repo)
+    assert second.returncode == 0, second.stderr
+    local = json.loads((lane_dir(repo, "core") / ".claude/settings.local.json").read_text(encoding="utf-8"))
+    assert len(local["claudeMdExcludes"]) == 3
+
+
+def test_copy_error_is_reported_not_a_traceback(repo, monkeypatch):
+    import shutil
+
+    write(repo, ".worktreeinclude", ".env\n")
+    write(repo, ".env", "A=1\n")
+
+    def fail(*args, **kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(shutil, "copy2", fail)
+    with pytest.raises(lanes.LaneError) as caught:
+        lanes.create(repo, load(repo))
+    assert "denied" in str(caught.value) and ".env" in str(caught.value)
+    assert lane_dir(repo, "api").is_dir()  # the other lane was still created

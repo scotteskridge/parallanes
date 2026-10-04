@@ -12,6 +12,9 @@ from .lanes import (ahead_behind, branch_of, dirty_count, integration_tip, is_re
                     main_checkout, same_path, toplevel, unpushed_count)
 
 
+UNKNOWN = "PR: unknown"
+
+
 @dataclass
 class LaneStatus:
     name: str
@@ -22,7 +25,7 @@ class LaneStatus:
     behind: int = 0
     dirty: int = 0
     unpushed: int | None = None  # None: no upstream
-    pr: str = "PR: unknown"
+    pr: str = UNKNOWN
     here: bool = False
 
 
@@ -65,6 +68,8 @@ def status(start: Path, config, offline: bool = False) -> Status:
             entry.unpushed = unpushed_count(folder)
             if gh:
                 entry.pr = pr_state(gh, main, entry.branch)
+                if entry.pr == UNKNOWN:
+                    gh = None  # gh failed or hung: don't make every other lane wait for it too
         result.lanes.append(entry)
     result.notes += overlaps(config)
     return result
@@ -75,16 +80,21 @@ def pr_state(gh: str, main: Path, branch: str) -> str:
     try:
         result = subprocess.run(
             [gh, "pr", "list", "--head", branch, "--state", "all", "--limit", "1", "--json", "number,state,url"],
-            cwd=main, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+            cwd=main, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
         )
         if result.returncode != 0:
-            return "PR: unknown"
+            return UNKNOWN
         prs = json.loads(result.stdout or "[]")
     except (OSError, subprocess.SubprocessError, ValueError):
-        return "PR: unknown"
+        return UNKNOWN
+    if not isinstance(prs, list):
+        return UNKNOWN
     if not prs:
         return "PR: none"
-    return f"PR #{prs[0].get('number')} {prs[0].get('state')}"
+    pr = prs[0]
+    if not isinstance(pr, dict) or not isinstance(pr.get("number"), int) or not isinstance(pr.get("state"), str):
+        return UNKNOWN
+    return f"PR #{pr['number']} {pr['state']}"
 
 
 def _base(pattern: str) -> str:

@@ -6,7 +6,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 ## 2026-10-04: Plan 04 questions
 
 35. **Lanes stay nested; each lane skips the main checkout's instructions.** `lanes create` adds
-    `claudeMdExcludes` entries for the main checkout's `CLAUDE.md` and `AGENTS.md` to the lane's own
+    `claudeMdExcludes` entries for the main checkout's `CLAUDE.md`, `.claude/CLAUDE.md` and `AGENTS.md` to the lane's own
     `.claude/settings.local.json` (gitignored, specific to one machine; other keys kept). *Why:* Claude Code loads every
     `CLAUDE.md` from the session folder up to the filesystem root, so a nested lane would also read
     the main checkout's copy, which may be stale. If the live check shows the setting doesn't
@@ -25,8 +25,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     mode, warns when the integration branch is checked out there, with the command to fix it.
     *Why:* never surprise the owner; local mode's fast-forward (plan 05) needs it detached.
 
-39. **`lanes create` works offline and refuses unsafe layouts.** It creates from
-    `origin/<integration>` when present, else the local branch. It refuses a nested
+39. **`lanes create` works offline and refuses unsafe layouts.** It creates from the integration
+    tip: `origin/<integration>` in PR mode, the local branch in local mode (where work lands), each
+    falling back to the other; the router and `status` measure against the same ref. It refuses a nested
     `worktree_root` that isn't gitignored, and any existing folder that isn't already that lane's
     worktree. It copies `.worktreeinclude` files that are also gitignored, matched by git itself.
     *Why:* Claude Code honours `.worktreeinclude` only for worktrees it creates itself, and the
@@ -49,6 +50,16 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 43. **`lanes status` shows PR state when `gh` is available, "unknown" otherwise**, never failing,
     with `--offline` to skip it. *Why:* status must work offline and without `gh`; head-commit
     matching stays with plan 05.
+
+44. **From a lane, edits to the main checkout or another lane's folder ask too.** *Settled during
+    review, for the owner to confirm in the PR:* the plan said "outside the project → allowed", but
+    an agent writing to the main checkout by absolute path is exactly the cross-lane conflict
+    ownership exists to catch. Paths outside the repository are still not judged.
+
+45. **`lanes remove` refuses when ignored files hold work** (`.env`, changed local settings, build
+    output), listing them; `--force` deletes anyway. Files `create` copied in unchanged, and the
+    `claudeMdExcludes` it added, don't count. *Why:* git doesn't count ignored files as changes, so
+    `git worktree remove` would delete them without a word.
 
 ## 2026-10-04: Plan 03 questions
 

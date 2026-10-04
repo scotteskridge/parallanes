@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import gitfiles, lane_hooks, protected, rules_check
+from . import gitfiles, protected, rules_check
 from .config import ConfigError, ConfigMissing, find_root, load
 from .findings import format_findings
 
@@ -111,6 +111,8 @@ def run_lane_router() -> int:
         payload = json.loads(sys.stdin.read())
         if not isinstance(payload, dict):
             raise ValueError("hook input is not a JSON object")
+        from . import lane_hooks  # here, so a fault in the lane code can't break the other hooks
+
         text = lane_hooks.router_text(Path(payload.get("cwd") or os.getcwd()))
     except Exception as error:  # noqa: BLE001 - never a traceback; say the check failed instead
         text = (
@@ -124,6 +126,8 @@ def run_lane_router() -> int:
 
 def ownership(payload: dict) -> int:
     """PreToolUse on file tools: an out-of-lane edit asks the human (decision 41)."""
+    from . import lane_hooks  # here, so a fault in the lane code can't break the other hooks
+
     reason = lane_hooks.ownership_reason(payload)
     if reason is None:
         return HOOK_OK

@@ -177,7 +177,7 @@ checkout's instruction files in their `settings.local.json` (decision 35).
 
 A PreToolUse hook (`kit hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
 file with the lane's `owns` plus `shared_paths` (default: changelog fragments, backlog, plans). It
-fails open (decision 41). With
+fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
 

@@ -115,3 +115,38 @@ def test_broken_config_fails_open(lane):
     result = hook(lane, lane / "src/api/x.py")
     assert result.returncode == 1
     assert "kit.toml" in result.stderr and "Traceback" not in result.stderr
+
+
+# ---- from the first review ---------------------------------------------------------------------
+
+def test_editing_the_main_checkout_or_another_lane_asks(lane):
+    main = lane.parents[2]
+    assert_asks(hook(lane, main / "src/core/x.py"), "main checkout")
+    assert_asks(hook(lane, main / ".claude/worktrees/api/src/core/x.py"), "lane 'api'")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows paths are case-insensitive")
+def test_owned_path_in_another_case_is_allowed(lane):
+    assert_allowed(hook(lane, lane / "SRC/Core/x.py"))
+
+
+@pytest.mark.parametrize("name, event", [("ownership", "PreToolUse"), ("lane-router", "SessionStart"),
+                                         ("rules-check", "PreToolUse")])
+def test_kit_that_cannot_import_fails_open_for_the_lane_hooks(tmp_path, name, event):
+    # Only the protected guard fails closed on an old Python (decisions 9, 33, 40, 41).
+    import subprocess
+    import sys
+
+    from helpers import CLI
+
+    fake = tmp_path / "fakes"
+    fake.mkdir()
+    (fake / "tomllib.py").write_text("raise ImportError('simulated: no tomllib')\n", encoding="utf-8")
+    payload = json.dumps({"cwd": str(tmp_path), "hook_event_name": event, "tool_name": "Edit",
+                          "tool_input": {"file_path": str(tmp_path / "a.py")}})
+    result = subprocess.run(
+        [sys.executable, str(CLI), "hook", name], cwd=tmp_path, input=payload, capture_output=True,
+        text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+    )
+    assert result.returncode == 1, result
+    assert "simulated: no tomllib" in result.stderr
