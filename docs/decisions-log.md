@@ -57,8 +57,10 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     ownership exists to catch. Paths outside the repository are still not judged.
 
 45. **`lanes remove` refuses when ignored files hold work** (`.env`, changed local settings, build
-    output), listing them; `--force` deletes anyway. Files `create` copied in unchanged, and the
-    `claudeMdExcludes` it added, don't count. *Why:* git doesn't count ignored files as changes, so
+    output), listing them; `--force` deletes anyway. Not counted: files and folders identical to the
+    main checkout's *current* copy (what `create` copied in), the `claudeMdExcludes` it added, and
+    caches tools rebuild (`__pycache__`, `.pytest_cache`, `node_modules`, `.venv`...; counting them
+    would make `--force` routine). *Why:* git doesn't count ignored files as changes, so
     `git worktree remove` would delete them without a word.
 
 ## 2026-10-04: Plan 03 questions

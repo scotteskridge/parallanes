@@ -5,7 +5,7 @@ import os
 import pytest
 
 from helpers import git, run_cli, write
-from kitlib import lanes
+from kitlib import lane_setup, lanes
 from kitlib.config import load
 from lane_helpers import LANES_TOML, commit, fake_gh, lane_dir, lanes_repo, no_gh_env
 
@@ -463,6 +463,6 @@ def test_copy_error_is_reported_not_a_traceback(repo, monkeypatch):
 
     monkeypatch.setattr(shutil, "copy2", fail)
     with pytest.raises(lanes.LaneError) as caught:
-        lanes.create(repo, load(repo))
+        lane_setup.create(repo, load(repo))
     assert "denied" in str(caught.value) and ".env" in str(caught.value)
     assert lane_dir(repo, "api").is_dir()  # the other lane was still created

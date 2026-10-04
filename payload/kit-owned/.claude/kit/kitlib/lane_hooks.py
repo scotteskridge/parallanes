@@ -66,7 +66,8 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
         _, behind = lanes.ahead_behind(root, tip)
         if behind:
             warnings.append(
-                f"{behind} commit(s) behind {tip} (as of the last fetch). "
+                f"{behind} commit(s) behind {tip}"
+                + (" (as of the last fetch). " if tip.startswith("origin/") else ". ")
                 + ("`kit lanes sync` brings them in." if branch else "The next task starts from the tip.")
             )
         if _config_differs(root, tip):
@@ -83,16 +84,22 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
 def _merged(root: Path, branch: str, tip: str) -> bool:
     """The branch has commits of its own and all of them are in tip.
 
-    "Its own" comes from the branch's reflog: a commit, amend or cherry-pick made on it. A fresh
-    branch fast-forwarded to a newer tip has none. Without a reflog (expired, or the branch came
-    from elsewhere) nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
+    "Its own" comes from the branch's reflog (newest first): a commit, amend, cherry-pick, revert or
+    applied patch made since the branch was last created or reset, so work reset away or an old
+    branch of the same name doesn't count, and a fresh branch fast-forwarded to a newer tip has none.
+    Without a reflog nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
     """
     subjects = lanes.git(root, "reflog", "show", "--format=%gs", f"refs/heads/{branch}", check=False).splitlines()
-    own = any(
-        subject.startswith(("commit:", "commit (amend):", "commit (initial):", "cherry-pick:", "revert:"))
-        for subject in subjects
-    )
-    return own and lanes.is_ancestor(root, "HEAD", tip)
+    for subject in subjects:
+        if subject.startswith(OWN_WORK):
+            return lanes.is_ancestor(root, "HEAD", tip)
+        if subject.startswith(FRESH_START):
+            return False
+    return False
+
+
+OWN_WORK = ("commit:", "commit (amend):", "commit (initial):", "cherry-pick:", "revert:", "am:")
+FRESH_START = ("branch: Created", "branch: Reset", "reset:")
 
 
 def _config_differs(root: Path, tip: str) -> bool:
@@ -122,12 +129,12 @@ def ownership_reason(payload: dict) -> str | None:
         return None
     if config.lane_settings.ownership == "off" or not config.lanes:
         return None
-    lane = lanes.current_lane(root, config)
+    lane, _, main = lanes.find_current(root, config)
     if lane is None:
         return None
     rel = relative(root, cwd, target, git_bash=False)
     if rel is None:
-        return _elsewhere(root, cwd, target, config, lane)
+        return _elsewhere(root, main, cwd, target, config, lane)
     allowed = list(lane.owns) + list(config.lane_settings.shared_paths)
     if _matches(rel, allowed):
         return None
@@ -144,21 +151,22 @@ def _matches(rel: str, patterns) -> bool:
     return globs.matches_any(rel, patterns)
 
 
-def _elsewhere(root: Path, cwd: Path, target: str, config, lane) -> str | None:
+def _elsewhere(root: Path, main: Path, cwd: Path, target: str, config, lane) -> str | None:
     """An edit outside this lane's folder: another lane's folder or the main checkout asks too."""
-    main = lanes.main_checkout(root)
     for other in config.lanes:
         if other.name != lane.name and relative(lanes.lane_folder(main, config, other), cwd, target, git_bash=False) is not None:
             return (
-                f"{target} is in lane {other.name!r}'s folder, not this lane's ({lane.name!r}). Edit files "
-                "here, in this lane's own folder; another session may be working there."
+                f"{target} is in the folder of lane {other.name!r}, not this lane's ({lane.name!r}). Edit "
+                "files in this lane's own folder; another session may be working there."
             )
     rel = relative(main, cwd, target, git_bash=False)
     if rel is None:
         return None  # outside the repository: not a lane question
+    if rel == ".git" or rel.startswith(".git/"):
+        return f"{target} is the repository's git data, shared by every lane. Change it only if the user asked."
     return (
-        f"{target} is in the main checkout, not this lane's folder ({root}). Edit the copy here "
-        "instead; the main checkout may hold someone else's work."
+        f"{target} is in the main checkout, not this lane's folder ({root}). Edit the copy in this "
+        "lane's folder instead; the main checkout may hold someone else's work."
     )
 
 

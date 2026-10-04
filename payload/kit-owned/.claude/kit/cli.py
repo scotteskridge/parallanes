@@ -227,19 +227,23 @@ def run_hook(args) -> int:
 # ---- kit lanes ---------------------------------------------------------------------------------
 
 def run_lanes(args) -> int:
-    # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
-    from kitlib import lane_status, lanes
+    try:
+        # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
+        from kitlib import lane_setup, lane_status, lanes
+    except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
+        print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
+        return USAGE
 
     try:
         root = find_root(Path.cwd())
         config = load(root)
         if args.lanes_command == "create":
-            print("\n".join(lanes.create(Path.cwd(), config, args.names, args.dry_run)))
+            print("\n".join(lane_setup.create(Path.cwd(), config, args.names, args.dry_run)))
         elif args.lanes_command == "remove":
-            print(lanes.remove(Path.cwd(), config, args.name, args.force))
+            print(lane_setup.remove(Path.cwd(), config, args.name, args.force))
         else:
             print(lane_status.format_status(lane_status.status(Path.cwd(), config, args.offline)))
-    except lanes.PartialCreate as error:
+    except lane_setup.PartialCreate as error:
         print("\n".join(error.lines))
         print(f"kit: {error}", file=sys.stderr)
         return USAGE

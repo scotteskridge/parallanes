@@ -89,8 +89,8 @@ branch is pushed, merge after, so nothing under review is rewritten).
 ## Removing a lane
 
 `{{kit_command}} lanes remove <lane>` deletes its worktree. It refuses if there are uncommitted changes, or
-ignored files that hold work (a changed `.env`, local settings, build output); it lists them, and
-`--force` deletes them anyway. The lane's entry stays in `kit.toml` until you delete it.
+ignored files that may hold work (a changed `.env`, local settings, build output; not caches such as
+`__pycache__` or `node_modules`); it lists them, and `--force` deletes them anyway. The lane's entry stays in `kit.toml` until you delete it.
 
 ## Lanes or agent teams?
 
