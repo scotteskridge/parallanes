@@ -1,0 +1,15 @@
+[project]
+name = "claude-code-lanes-starter"
+version = "0.1.0.dev0"
+description = "Starter kit for multi-lane Claude Code projects: instructions, skills, reviewer, hooks and parallel git-worktree lanes."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "Scott Eskridge" }]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

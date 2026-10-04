@@ -1,0 +1,11 @@
+# LF everywhere in the repo, so hooks and templates behave the same on Windows and Unix.
+* text=auto eol=lf
+
+# Windows scripts keep CRLF: PowerShell 5.1 and cmd expect it.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.png binary
+*.gif binary
+*.jpg binary

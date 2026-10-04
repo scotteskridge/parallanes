@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Secrets: never committed
+.env
+.env.*
+!.env.example
+
+# Claude Code: personal settings and local worktrees
+.claude/settings.local.json
+.claude/worktrees/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
