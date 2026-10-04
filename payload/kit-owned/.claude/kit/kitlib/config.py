@@ -10,6 +10,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import globs
+
 CONFIG_REL = Path(".claude") / "kit.toml"
 
 _TOP_LEVEL = {"project", "checks", "lanes", "protected"}
@@ -54,7 +56,6 @@ class Rule:
 
 @dataclass(frozen=True)
 class Config:
-    root: Path
     project: dict
     rules: list
     raw: dict
@@ -86,7 +87,8 @@ def load(root: Path) -> Config:
     if not path.is_file():
         raise ConfigMissing(f"{CONFIG_REL.as_posix()} not found in {root}")
     try:
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        # utf-8-sig: Windows PowerShell 5.1 writes a byte-order mark that TOML rejects.
+        raw = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except tomllib.TOMLDecodeError as error:
         raise ConfigError(f"{CONFIG_REL.as_posix()}: not valid TOML: {error}") from None
 
@@ -104,7 +106,7 @@ def load(root: Path) -> Config:
         if rule.id in seen:
             raise ConfigError(f"{CONFIG_REL.as_posix()}: duplicate rule id {rule.id!r}")
         seen.add(rule.id)
-    return Config(root=Path(root), project=project, rules=rules, raw=raw)
+    return Config(project=project, rules=rules, raw=raw)
 
 
 def _rule(entry, number: int) -> Rule:
@@ -116,10 +118,18 @@ def _rule(entry, number: int) -> Rule:
     for key, (_, required) in _RULE_KEYS.items():
         if required and key not in entry:
             _fail(f"{where}: missing required key {key!r}")
+    for key in ("id", "pattern", "message"):
+        if not entry[key].strip():
+            _fail(f"{where}: {key!r} must not be empty")
     for key in ("paths", "exclude"):
         values = entry.get(key, [])
         if not all(isinstance(value, str) for value in values):
             _fail(f"{where}: {key!r} must be a list of strings")
+        for value in values:
+            try:
+                globs.validate(value)
+            except ValueError as error:
+                _fail(f"{where}: {key!r}: {error}")
     if not entry["paths"]:
         _fail(f"{where}: 'paths' must list at least one glob")
     try:

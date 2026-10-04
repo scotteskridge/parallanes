@@ -74,6 +74,32 @@ def test_tables_owned_by_later_plans_are_tolerated(tmp_path):
     assert load(repo).raw["lanes"][0]["name"] == "core"
 
 
+def test_invalid_glob_is_a_config_error_not_a_crash(tmp_path):
+    message = config_error(tmp_path, RULES_TOML.replace('paths = ["src/**/*.py"]', 'paths = ["src/a[]b"]'))
+    assert "paths" in message and "no-print" in message
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [
+        ("pattern = '\\bprint\\('", "pattern = ''"),  # would flag every line
+        ('id = "no-print"', 'id = " "'),
+        ('paths = ["src/**/*.py"]', 'paths = [""]'),  # would silently match nothing
+    ],
+)
+def test_empty_strings_are_rejected(tmp_path, old, new):
+    assert old in RULES_TOML
+    assert "empty" in config_error(tmp_path, RULES_TOML.replace(old, new))
+
+
+def test_byte_order_mark_is_accepted(tmp_path):
+    # Windows PowerShell 5.1 writes UTF-8 with a BOM.
+    repo = make_repo(tmp_path, config=None)
+    (repo / ".claude").mkdir()
+    (repo / ".claude" / "kit.toml").write_bytes(b"\xef\xbb\xbf" + RULES_TOML.encode())
+    assert load(repo).rules[0].id == "no-print"
+
+
 def test_config_without_rules_is_valid(tmp_path):
     repo = make_repo(tmp_path, config='[project]\nname = "x"\n')
     assert load(repo).rules == []

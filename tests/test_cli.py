@@ -56,6 +56,49 @@ def test_file_outside_the_project_is_a_usage_error(tmp_path):
     outside = write(tmp_path, "elsewhere.py", "print(1)\n")
     result = run_cli(repo, "check", "rules", str(outside))
     assert result.returncode == 2
+    assert "outside the project" in result.stderr
+
+
+def test_missing_or_folder_argument_is_an_error_not_clean(tmp_path):
+    repo = make_repo(tmp_path)
+    (repo / "src").mkdir()
+    for name in ("src/mian.py", "src"):
+        result = run_cli(repo, "check", "rules", name)
+        assert result.returncode == 2, name
+        assert "not a file" in result.stderr
+
+
+def test_non_ascii_findings_print_without_crashing(tmp_path):
+    # On Windows a pipe or cp1252 console used to raise UnicodeEncodeError here.
+    repo = make_repo(tmp_path, config=RULES_TOML.replace("Use the logger, not print().", "Use log → not print"))
+    write(repo, "src/données.py", "print(1)\n")
+    result = run_cli(repo, "check", "rules", "src/données.py")
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "→" in result.stdout and "données" in result.stdout
+
+
+def test_staged_submodule_is_skipped(tmp_path):
+    repo = make_repo(tmp_path)
+    write(repo, "src/a.py", "x = 1\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "start")
+    # A gitlink to a commit that only exists in the submodule's own repository (as in real life),
+    # at a path a rule covers: reading it with `git show` would fail.
+    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{'1' * 40},src/sub.py")
+    result = run_cli(repo, "check", "all", "--staged")
+    assert result.returncode == 0, result.stderr
+
+
+def test_staged_rename_checks_the_new_name(tmp_path):
+    repo = make_repo(tmp_path)
+    write(repo, "src/old name.py", "print(1)\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "start")
+    git(repo, "mv", "src/old name.py", "src/new name.py")
+    result = run_cli(repo, "check", "all", "--staged")
+    assert result.returncode == 1
+    assert "src/new name.py:1" in result.stdout
 
 
 def test_staged_reads_index_not_worktree(tmp_path):

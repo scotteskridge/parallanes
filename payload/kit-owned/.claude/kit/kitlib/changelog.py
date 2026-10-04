@@ -38,7 +38,7 @@ def parse_fragment(path: Path) -> dict:
     """{heading: [entry lines]}; an entry is a bullet plus any indented continuation lines."""
     sections: dict = {}
     current = None
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
         if line.startswith("### "):
             heading = line[4:].strip()
             if heading not in HEADINGS:
@@ -65,7 +65,7 @@ def build(root: Path, version: str, date: str) -> Release:
     changelog = root / CHANGELOG_REL
     if not changelog.is_file():
         raise ChangelogError(f"{CHANGELOG_REL.as_posix()} not found")
-    text = changelog.read_text(encoding="utf-8")
+    text = changelog.read_text(encoding="utf-8-sig")
     if UNRELEASED not in text:
         raise ChangelogError(f"{CHANGELOG_REL.as_posix()} has no '{UNRELEASED}' heading to release under")
 
@@ -82,6 +82,12 @@ def build(root: Path, version: str, date: str) -> Release:
 
     before, after = text.split(UNRELEASED, 1)
     rest = after.lstrip("\n")
+    pending = rest.split("\n## ", 1)[0] if not rest.startswith("## ") else ""
+    if pending.strip():
+        raise ChangelogError(
+            f"{CHANGELOG_REL.as_posix()} has entries under '{UNRELEASED}'; "
+            "move them into a fragment in docs/changelog.d/ so nothing is released out of order"
+        )
     new_text = f"{before}{UNRELEASED}\n\n{section}" + (f"{rest}" if rest else "")
     return Release(section=section, new_text=new_text, fragments=fragments)
 

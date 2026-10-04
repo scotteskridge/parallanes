@@ -29,8 +29,19 @@ class UsageError(Exception):
 
 
 def main(argv=None) -> int:
+    # Findings can contain any text; a Windows console or pipe would otherwise crash on it.
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    argv = sys.argv[1:] if argv is None else argv
     parser = build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as stop:
+        # In hook mode, exit 2 would send usage text to Claude after every edit: report it
+        # as a non-blocking hook error instead (a typo in settings.json, decision 9).
+        if argv[:1] == ["hook"] and stop.code == USAGE:
+            return HOOK_ERROR
+        raise
     if not hasattr(args, "run"):
         parser.print_help()
         return USAGE
@@ -69,7 +80,7 @@ def run_check(args) -> int:
     try:
         root = find_root(Path.cwd())
         config = load(root)
-        files = list(collect_files(root, args))
+        files = list(collect_files(root, config, args))
     except (ConfigError, gitfiles.GitError, UsageError) as error:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
@@ -82,10 +93,15 @@ def run_check(args) -> int:
     return OK
 
 
-def collect_files(root: Path, args):
-    """(project-relative path, text) for each file to check; binary and missing files are skipped."""
+def collect_files(root: Path, config, args):
+    """(project-relative path, text) for each file some rule covers; binary files are skipped.
+
+    Paths are filtered before anything is read, so large repos only pay for covered files.
+    """
     if args.staged:
         for path in gitfiles.staged(root):
+            if not rules_check.covered(config, path):
+                continue
             text = gitfiles.read_staged(root, path)
             if text is not None:
                 yield path, text
@@ -94,9 +110,14 @@ def collect_files(root: Path, args):
         paths = gitfiles.changed_since(root, args.diff)
     elif args.files:
         paths = [relative_to_root(root, Path(name)) for name in args.files]
+        for name, path in zip(args.files, paths):
+            if not (root / path).is_file():
+                raise UsageError(f"{name}: not a file")  # a typo must not pass as "clean"
     else:
         paths = gitfiles.tracked(root)
     for path in paths:
+        if not rules_check.covered(config, path):
+            continue
         text = gitfiles.read_worktree(root, path)
         if text is not None:
             yield path, text
@@ -140,6 +161,8 @@ def hook_rules_check(payload: dict) -> int:
         rel = (cwd / file_path).resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
         return HOOK_OK  # outside the project
+    if not rules_check.covered(config, rel):
+        return HOOK_OK
     text = gitfiles.read_worktree(root, rel)
     if text is None:
         return HOOK_OK  # deleted or binary

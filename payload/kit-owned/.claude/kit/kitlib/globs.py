@@ -19,9 +19,9 @@ def normalize(path: str) -> str:
 @functools.lru_cache(maxsize=512)
 def _compile(pattern: str) -> re.Pattern:
     pattern = normalize(pattern)
+    anchored = "/" in pattern.rstrip("/")  # decided before a trailing / expands
     if pattern.endswith("/"):
         pattern += "**"
-    anchored = "/" in pattern.rstrip("/")
     pattern = pattern.lstrip("/")
 
     out = []
@@ -56,6 +56,16 @@ def _compile(pattern: str) -> re.Pattern:
 
     prefix = "" if anchored else "(?:.*/)?"
     return re.compile(prefix + "".join(out) + r"\Z")
+
+
+def validate(pattern: str) -> None:
+    """Raise ValueError if pattern is empty or can't be compiled (e.g. an empty `[]` class)."""
+    if not pattern.strip():
+        raise ValueError("empty glob")
+    try:
+        _compile(pattern)
+    except re.error as error:
+        raise ValueError(f"invalid glob {pattern!r}: {error}") from None
 
 
 def matches(path: str, pattern: str) -> bool:

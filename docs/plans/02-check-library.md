@@ -99,6 +99,15 @@ Changes from the plan:
 - **Binary files are skipped** (a NUL byte in the first 8 KB).
 - `test_templates.py` gained a test that the rendered `kit.toml` loads as a valid config.
 - `test_findings.py` added for the output format.
+- **From the review** (each fix has a test that fails on the old code, checked by running the new
+  tests against the pre-fix code): UTF-8 output so non-ASCII findings can't crash a Windows
+  console; staged submodules and symlinks skipped; a missing or folder argument is an error, not
+  "clean"; a lone trailing-slash glob (`build/`) matches at any depth, like gitignore; empty or
+  uncompilable globs, patterns and ids are config errors; files are filtered by rule coverage before
+  being read (the hook and `check all` stay cheap in asset-heavy repos); UTF-8 byte-order marks
+  accepted; a removed block comment leaves a space so tokens can't join; line numbers follow editor
+  numbering; a hook-name typo is a non-blocking error; `changelog build` refuses when
+  `[Unreleased]` already has entries.
 
 Answered for later plans: hook commands on Windows run in Git Bash by default (PowerShell if Git
 Bash is missing), and Claude Code's `args` form runs a program with no shell at all, which avoids

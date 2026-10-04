@@ -75,6 +75,20 @@ def test_no_fragments_is_an_error(tmp_path):
     assert "no fragments" in result.stderr.lower()
 
 
+def test_entries_already_under_unreleased_are_refused(tmp_path):
+    repo = setup(tmp_path)
+    write(repo, "docs/CHANGELOG.md", CHANGELOG.replace("## [Unreleased]\n", "## [Unreleased]\n### Fixed\n- Hand-written.\n"))
+    result = run_cli(repo, "changelog", "build", "--version", "0.2.0")
+    assert result.returncode == 2
+    assert "fragment" in result.stderr
+
+
+def test_fragment_with_byte_order_mark_is_accepted(tmp_path):
+    repo = setup(tmp_path)
+    (repo / "docs/changelog.d/core-export.md").write_bytes(b"\xef\xbb\xbf### Added\n- CSV export.\n")
+    assert run_cli(repo, "changelog", "build", "--version", "0.2.0").returncode == 0
+
+
 def test_changelog_without_unreleased_heading_is_an_error(tmp_path):
     repo = setup(tmp_path)
     write(repo, "docs/CHANGELOG.md", "# Changelog\n")

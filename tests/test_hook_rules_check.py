@@ -72,6 +72,13 @@ def test_payload_without_a_file_path_exits_0(tmp_path):
     assert hook(repo, payload).returncode == 0
 
 
+def test_unknown_hook_name_is_a_non_blocking_error(tmp_path):
+    # A typo in settings.json must not send usage text to Claude (exit 2) after every edit.
+    repo = make_repo(tmp_path)
+    result = run_cli(repo, "hook", "rules-chek", stdin=hook_payload(repo, "src/a.py"))
+    assert result.returncode == 1
+
+
 def test_notebook_edits_use_notebook_path(tmp_path):
     text = RULES_TOML.replace('paths = ["src/**/*.py"]', 'paths = ["**/*.ipynb"]')
     repo = make_repo(tmp_path, config=text)

@@ -7,11 +7,11 @@ def test_hash_comments_removed():
 
 def test_slash_comments_and_blocks_removed():
     text = "a(); // b()\n/* c()\n d() */ e();\nf(); /* g() */ h();\n"
-    assert strip_comments(text, ".ts") == ["a(); ", "", " e();", "f();  h();"]
+    assert strip_comments(text, ".ts") == ["a(); ", "", " e();", "f();   h();"]
 
 
 def test_html_comments_removed_in_markdown():
-    assert strip_comments("keep <!-- drop --> keep\n", ".md") == ["keep  keep"]
+    assert strip_comments("keep <!-- drop --> keep\n", ".md") == ["keep   keep"]
 
 
 def test_sql_dash_comments():
@@ -32,3 +32,14 @@ def test_marker_inside_string_can_only_hide_code_never_invent_it():
     # but nothing that wasn't in the code appears in the output (no false alarm).
     stripped = strip_comments('url = "http://x"; print(1)\n', ".js")
     assert stripped == ['url = "http:']
+
+
+def test_removed_block_comment_cannot_join_tokens():
+    # Decision 23: stripping must never create a match that isn't in the code.
+    assert "foobar" not in strip_comments("foo/* c */bar\n", ".c")[0]
+
+
+def test_form_feed_does_not_shift_line_numbers():
+    from kitlib.comments import split_lines
+
+    assert split_lines("a\x0cb\nc\r\nd\n") == ["a\x0cb", "c", "d"]

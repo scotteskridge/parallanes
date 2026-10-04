@@ -28,16 +28,34 @@ def decode(data: bytes) -> str | None:
     """Text of a file, or None for a binary file (a NUL byte near the start)."""
     if b"\0" in data[:_SNIFF]:
         return None
-    return data.decode("utf-8", "replace")
+    return data.decode("utf-8-sig", "replace")
 
 
 def tracked(root: Path) -> list[str]:
     return _names(_git(root, "ls-files", "-z"))
 
 
+_REGULAR_FILE_MODES = {"100644", "100755"}  # not submodules (160000) or symlinks (120000)
+
+
 def staged(root: Path) -> list[str]:
-    """Files added, copied, modified or renamed in the index (deleted files have nothing to check)."""
-    return _names(_git(root, "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"))
+    """Regular files added, copied, modified or renamed in the index.
+
+    Deleted files have nothing to check; submodules and symlinks have no text to read.
+    """
+    fields = _names(_git(root, "diff", "--cached", "--raw", "-z", "--diff-filter=ACMR"))
+    paths = []
+    i = 0
+    while i < len(fields):
+        # Each entry: ":oldmode newmode oldsha newsha status", then one path (two for R/C).
+        meta = fields[i].lstrip(":").split(" ")
+        new_mode, status = meta[1], meta[4]
+        count = 2 if status[:1] in "RC" else 1
+        path = fields[i + count]  # the new name for a rename or copy
+        if new_mode in _REGULAR_FILE_MODES:
+            paths.append(path)
+        i += 1 + count
+    return paths
 
 
 def changed_since(root: Path, base: str) -> list[str]:

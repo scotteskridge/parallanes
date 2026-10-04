@@ -2,8 +2,9 @@
 
 Deliberately simple (decision 23): line comments by file type plus block comments, and no string
 parsing. A comment marker inside a string ends checking for that line, so a rule can miss a
-violation there, but stripping never adds text, so it can't cause a false alarm. Line numbers are
-preserved: the result has one entry per input line.
+violation there, but stripping only ever removes text (a removed comment leaves a space, so tokens
+on either side can't join), so it can't cause a false alarm. Line numbers are
+preserved: the result has one entry per input line, split the way editors number lines.
 """
 
 _HASH = (("#",), ())
@@ -28,10 +29,19 @@ _STYLES = {
 }
 
 
+def split_lines(text: str) -> list[str]:
+    """Lines as an editor numbers them. str.splitlines() also breaks on form feeds and other
+    separators, which would shift every later line number."""
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return lines
+
+
 def strip_comments(text: str, suffix: str) -> list[str]:
     """Lines of text with comments removed, for a file with this extension (e.g. ".py")."""
     style = _STYLES.get(suffix.lower())
-    lines = text.splitlines()
+    lines = split_lines(text)
     if style is None:
         return lines
     line_markers, blocks = style
@@ -68,5 +78,6 @@ def strip_comments(text: str, suffix: str) -> list[str]:
                 break  # line comment: the rest of the line is gone
             block_end = end
             i = at + len(marker)
-        out.append("".join(kept))
+        # A space where a comment was, so `foo/* c */bar` can't become a new token `foobar`.
+        out.append(" ".join(kept))
     return out
