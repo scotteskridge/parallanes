@@ -61,8 +61,11 @@ def test_every_template_renders_with_sample_values():
     entries = registry()
     values = {name: entry["example"] for name, entry in entries.items()}
     for path in template_files():
-        out = render(path.read_text(encoding="utf-8"), values, set(entries))
-        assert "{{" not in out.replace("\\{{", ""), f"{installed_name(path)} left braces behind"
+        source = path.read_text(encoding="utf-8")
+        out = render(source, values, set(entries))
+        # The only braces allowed in the output are ones the template escaped on purpose.
+        escaped = source.count("\\{{")
+        assert out.count("{{") == escaped, f"{installed_name(path)} left braces behind"
 
 
 @pytest.mark.parametrize(
@@ -91,7 +94,10 @@ def test_rules_files_have_paths_frontmatter():
         text = path.read_text(encoding="utf-8")
         match = re.match(r"---\n(.*?)\n---\n", text, re.DOTALL)
         assert match, f"{path.name} has no frontmatter"
-        assert re.search(r"^paths:", match.group(1), re.MULTILINE), f"{path.name} has no paths:"
+        # An empty `paths:` loads in every session, so at least one glob must follow it.
+        assert re.search(r"^paths:\s*\n(\s+- \S.*\n?)+", match.group(1) + "\n", re.MULTILINE), (
+            f"{path.name} has no paths: globs"
+        )
 
 
 def test_relative_links_resolve():

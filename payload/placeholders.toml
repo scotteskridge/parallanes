@@ -22,6 +22,10 @@ example = "python -m pytest -q"
 description = "Where finished work lands."
 example = "main"
 
+[kit_command]
+description = "How to run the kit CLI from the project root (decided in plan 08: a shim, or python with the script path)."
+example = "python .claude/kit/cli.py"
+
 [kit_version]
 description = "Version of the kit that installed these files."
 example = "0.1.0"

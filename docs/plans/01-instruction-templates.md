@@ -99,6 +99,12 @@ Changes from the plan:
   the tests and the installer both read, with a description and example per placeholder.
 - **No `.claude/rules/README.md`:** Claude Code loads every `.md` in `.claude/rules/`, so a README
   there would load in every session. The guidance moved to `WORKFLOW.md` §7.
+- **`render(text, values, registry)`** takes the registry as a third argument, so it can tell an
+  unknown placeholder (a typo) from a known one without a value, and report both in one run.
+- **Plans in installed projects are named `YYYY-MM-DD-slug.md` with no index table** (review
+  finding): a shared table and number sequence would collide across lanes, against decision 13.
+- **`{{kit_command}}` placeholder** for the CLI invocation, so plan 08's choice (shim or
+  `python .claude/kit/cli.py`) only sets a value.
 - Template tests were checked by planting five broken templates (unknown placeholder, CRLF,
   missing `paths:`, broken link, leftover braces); each was caught.
 
