@@ -5,7 +5,7 @@ writes. The documented misses are pinned too, so a change in behaviour is a visi
 """
 import pytest
 
-from kitlib import commands
+from kitlib import commands, file_commands
 from kitlib.config import DEFAULT_COMMANDS
 
 
@@ -152,7 +152,7 @@ def test_unbalanced_quotes_in_a_command_do_not_crash():
     ],
 )
 def test_powershell_write_targets(text, expected):
-    assert commands.write_targets(text, "powershell") == expected
+    assert file_commands.write_targets(text, "powershell") == expected
 
 
 @pytest.mark.parametrize(
@@ -173,7 +173,7 @@ def test_powershell_write_targets(text, expected):
     ],
 )
 def test_bash_write_targets(text, expected):
-    assert commands.write_targets(text, "bash") == expected
+    assert file_commands.write_targets(text, "bash") == expected
 
 
 # ---- the agent switching the checks off (question 8) --------------------------------------------
@@ -215,4 +215,4 @@ def test_reading_hook_config_is_allowed(text):
     ],
 )
 def test_removed_targets(text, shell, expected):
-    assert commands.removed_targets(text, shell) == expected
+    assert file_commands.removed_targets(text, shell) == expected

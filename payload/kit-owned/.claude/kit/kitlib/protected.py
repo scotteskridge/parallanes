@@ -8,7 +8,7 @@ import os
 import re
 from pathlib import Path
 
-from . import commands
+from . import commands, file_commands
 from .findings import Finding
 from .globs import matches, normalize
 
@@ -105,11 +105,11 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
         return reason
     for offending, pattern in commands.find_protected(text, shell, protected.commands):
         return f"`{offending}` matches the protected command {pattern!r} ([protected].commands, .claude/kit.toml)"
-    for target in commands.write_targets(text, shell):
+    for target in file_commands.write_targets(text, shell):
         reason = _target_reason(protected, root, cwd, target, bypass)
         if reason:
             return reason
-    for target in commands.removed_targets(text, shell):
+    for target in file_commands.removed_targets(text, shell):
         reason = _target_reason(protected, root, cwd, target, bypass, removes=True)
         if reason:
             return reason
