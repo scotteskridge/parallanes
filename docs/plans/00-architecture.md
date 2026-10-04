@@ -1,6 +1,6 @@
 # 00 — Architecture and plan series
 
-**Status:** Done
+**Status:** In progress
 **Branch / PR:** `plan/00-architecture`
 **Builds on:** `docs/decisions-log.md` (2026-10-04 kickoff), `docs/survey-hoem.md`
 
@@ -28,7 +28,7 @@ into a numbered series of plans, one PR each.
 | `docs/plans/README.md` | New | Plans index: the series 00–12 and their status |
 | `docs/plans/_TEMPLATE.md` | New | The kit's plan format (later shipped as a template, plan 01) |
 | `docs/plans/00-architecture.md` | New | This plan |
-| `docs/decisions-log.md` | Edit | Decisions 10–19 from the best-practice review |
+| `docs/decisions-log.md` | Edit | Decisions 10–20 from the best-practice review |
 | `docs/ROADMAP.md` | Edit | Scope changes: PR-mode merge, task branches, fragments, CI template and `/next`, `/onboard`, evals in MVP |
 | `docs/survey-hoem.md` | Edit | Reframed as reference, not spec; superseded items marked |
 | `README.md`, `CHANGELOG.md` | Edit | Status table; Unreleased entry |

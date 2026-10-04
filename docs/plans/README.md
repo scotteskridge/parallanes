@@ -6,11 +6,11 @@ Design they build on: `../ARCHITECTURE.md`.
 
 | # | Plan | Scope | Status |
 | --- | --- | --- | --- |
-| 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | Done |
+| 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | In progress |
 | 01 | Instruction templates | `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` templates, docs scaffolding, changelog and backlog fragments | Not started |
 | 02 | Check library + rules-check | Shared `kitlib` (config loading, globs, comment stripping, reporting); rules-check as hook, CLI and pre-commit | Not started |
 | 03 | Protected paths | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | Not started |
-| 04 | Lanes core | `lanes.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Not started |
+| 04 | Lanes core | `[[lanes]]` in `.claude/kit.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Not started |
 | 05 | Lane task cycle | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Not started |
 | 06 | Reviewer | `reviewer` subagent, universal checklist, stack checklist mechanism | Not started |
 | 07 | Skills | `/plan-feature`, `/implement`, `/wrap-up`, `/code-health`, `/design`, `/next`, `/onboard` and their templates | Not started |

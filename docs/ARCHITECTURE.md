@@ -16,7 +16,7 @@ e.g. [11], point there). Claude Code behaviour cited here was checked against th
 3. **Evidence, not claims.** Every guardrail has tests; every workflow has an eval; every merge has
    a test run behind it. [16]
 4. **The repo is the source of truth.** Lanes, rules and process are committed files shared by
-   everyone who clones the repo, not settings in someone's personal app. [14]
+   everyone who clones the repo, not settings in someone's personal app.
 5. **Never surprise the owner.** The installer never overwrites without asking; agents never settle a
    design question silently; nothing is pushed or merged without a visible step.
 6. **Stdlib Python 3.11+ only** in anything installed into a project. [3]
@@ -70,9 +70,10 @@ my-project/
 ├── .github/workflows/kit.yml      P  CI: tests + checks on every push and PR                     (plan 09)
 └── docs/
     ├── ai/WORKFLOW.md             P  the human guide: the daily loop and why each rule exists
+    ├── ai/parallel-lanes.md       P  the lane workflow for humans: setup, the task cycle, conflicts
     ├── plans/  (+ finished/)      P  one file per plan, from _TEMPLATE.md
     ├── backlog/<slug>.md          P  one file per backlog item                                    [13]
-    ├── changelog.d/<branch>.md    P  changelog fragments, compiled into CHANGELOG.md at release   [13]
+    ├── changelog.d/<lane>-<task>.md  P  changelog fragments, compiled into CHANGELOG.md at release [13]
     ├── CHANGELOG.md · BUILD-STATE.md · CODE-STANDARDS.md
     └── design/  VISION.md · DESIGN.md · decisions-log.md
 ```
@@ -113,6 +114,8 @@ Claude Code also reads `AGENTS.md` natively when no `CLAUDE.md` exists; the kit 
   latest integration branch. Deleted once merged. No long-lived lane branch exists.
 - **Integration branch:** where finished work lands; `main` by default. In local mode no folder keeps
   it checked out (git refuses to fast-forward a branch checked out elsewhere).
+- **Between tasks** a lane worktree sits on a detached HEAD at the integration branch. Lane names
+  are never branch names themselves: git can't have both a branch `ui` and branches `ui/<task>`.
 
 ### Configuration (`.claude/kit.toml`)
 
@@ -123,7 +126,7 @@ test_command = "python -m pytest -q"
 integration_branch = "main"
 merge_mode = "pr"                      # "pr" (default) or "local"           [12]
 worktree_root = ".claude/worktrees"    # or "../{project}-lanes" (Unity)    [2]
-ownership = "ask"                      # out-of-lane edit: "ask" | "warn" | "block" | "off"
+ownership = "ask"                      # out-of-lane edit: "ask" (a permission prompt) or "off"
 shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
 
 [[lanes]]
@@ -146,11 +149,11 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 
 | Command | Does |
 | --- | --- |
-| `create [lane...]` | Worktree per lane under `worktree_root`; copies `.worktreeinclude` files; optional link of Claude's per-folder auto-memory to the main one |
+| `create [lane...]` | Worktree per lane under `worktree_root`, detached at the integration branch; copies `.worktreeinclude` files |
 | `status` | Every lane: folder, current branch, ahead/behind integration, uncommitted changes, unpushed commits, PR state |
-| `start <task>` | Fetch → check the lane's previous task branch is merged (PR mode: `gh`; local: `git branch --merged`) → delete it → create `<lane>/<task>` from `origin/<integration>`. Refuses with uncommitted changes |
+| `start <task>` | Check the lane's previous task branch is merged (PR mode: fetch, then the PR's state via `gh`; local mode: `git branch --merged`) → delete it → create `<lane>/<task>` from the integration tip (`origin/<integration>` in PR mode, the local `<integration>` in local mode). Refuses with uncommitted changes; `--abandon` drops an unmerged previous branch on purpose |
 | `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review) |
-| `finish` | Run `test_command` → push → **PR mode:** open a PR whose body carries the plan link and the review report; **local mode:** fast-forward the integration branch with `git push . HEAD:<integration>`, retrying after `sync` if refused |
+| `finish` | Run `test_command` → **PR mode:** push the task branch and open a PR whose body carries the plan link and the review report; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, retrying after `sync` if refused |
 | `remove <lane>` | Remove the worktree (refuses with uncommitted changes) |
 
 ### Drift is prevented, then detected
@@ -169,7 +172,8 @@ A PreToolUse hook on Edit/Write compares the file with the lane's `owns` plus `s
 
 ### Relation to Claude Code's own features [20]
 
-Lane worktrees sit where `claude --worktree` puts its own, so Claude Code recognizes them. Lanes are
+Lane worktrees sit in the same folder `claude --worktree` uses, so the layout is familiar; they are
+ordinary git worktrees, not ones Claude Code created and manages itself. Lanes are
 for persistent, human-supervised workstreams; agent teams are for fanning one task out. A lane
 session can still use agent teams or `isolation: worktree` subagents inside its task.
 
@@ -298,8 +302,10 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 
 - Python: `python` may be the Microsoft Store alias; `python3` usually doesn't exist on Windows. The
   installer resolves a real interpreter and writes its full path. [19]
-- Paths with spaces everywhere (this repo lives in `D:\1 office\...`): quote every path in hook
-  commands; tests cover it.
+- Paths with spaces everywhere (e.g. `D:\My Projects\...`): quote every path in hook commands;
+  tests cover it.
+- Files the kit writes are written with LF endings explicitly (Python's text mode on Windows
+  writes CRLF).
 - Line endings: `.gitattributes` forces LF in the repo; `.ps1` keeps CRLF.
 - Permission patterns are matched in POSIX form (`C:\x` → `/c/x`).
 - The sandbox isn't available on native Windows (see §7).
@@ -313,6 +319,10 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
 | Pre-commit: native `.githooks` (stdlib, sets `core.hooksPath`) vs also shipping `.pre-commit-hooks.yaml` for teams using the pre-commit framework | plan 02 |
+| Worktrees nested in the main checkout: does a lane session also load the root's (possibly older) `CLAUDE.md` from the parent folder? Root tools must skip `.claude/worktrees/` (pytest `norecursedirs`, linters). If nesting causes real problems, the default `worktree_root` becomes a sibling folder | plan 04 |
+| What the main checkout holds when it isn't a lane (detached HEAD at the integration branch, so local mode can fast-forward it) | plan 04 |
+| PR-mode merge detection: match the PR by head commit, not branch name (a reused task slug could match an old PR); closed-unmerged PRs need the `--abandon` path | plan 05 |
+| Claude Code's auto memory: the docs now describe it as shared across a repo's worktrees (the first implementation had to link folders by hand); confirm on Windows | plan 04 |
 
 ## References
 

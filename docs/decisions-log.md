@@ -22,12 +22,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     work. *Why:* industry practice is branch → PR → CI → human review; verification is now the
     bottleneck, not generation.
 
-13. **No shared append-only files.** Changelog entries are fragments (`docs/changelog.d/<branch>.md`)
+13. **No shared append-only files.** Changelog entries are fragments (`docs/changelog.d/`)
     compiled at release. Backlog items are one file each (`docs/backlog/<slug>.md` with a small header:
     status, lane, size), like plans already are. `BUILD-STATE.md` is regenerated, never hand-merged.
     *Why:* every lane's wrap-up edited the same files, the main source of merge conflicts.
     Fragments (the towncrier/changesets pattern) make those conflicts impossible; `merge=union` was
-    considered and rejected as fragile.
+    considered and rejected as fragile. Fragments are named `<lane>-<task>.md`, because branch
+    names contain `/`.
 
 14. **Every check is one Python module with three entry points:** a Claude Code hook (JSON on stdin),
     a command a human or agent runs on files or a diff, and a git pre-commit check. CI runs the same
@@ -98,6 +99,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 8. **Human-edited config is TOML** (`lanes.toml`, rules-check patterns), read with `tomllib`.
    *Why:* comments allowed, stdlib reader, friendlier than JSON for hand edits.
+   *Revised in plan 00:* one file, `.claude/kit.toml`, holds lanes, checks and protected paths.
 
 9. **Fail modes differ per hook.** The rules-check hook fails *open* (a crash never blocks an edit).
    The protected-paths hook fails *closed* (a broken config blocks with a clear message), because a

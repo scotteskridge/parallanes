@@ -34,6 +34,9 @@ def test_every_plan_has_a_known_status():
 def test_index_status_matches_plan_file():
     index = (PLANS / "README.md").read_text(encoding="utf-8")
     for plan in plan_files():
-        row = next(line for line in index.splitlines() if f"]({plan.name})" in line)
-        status = re.search(r"^\*\*Status:\*\* (.+)$", plan.read_text(encoding="utf-8"), re.MULTILINE).group(1)
-        assert row.rstrip(" |").endswith(status.strip()), f"index row for {plan.name} doesn't say {status!r}"
+        row = next((line for line in index.splitlines() if f"]({plan.name})" in line), None)
+        assert row is not None, f"{plan.name} has no row in docs/plans/README.md"
+        match = re.search(r"^\*\*Status:\*\* (.+)$", plan.read_text(encoding="utf-8"), re.MULTILINE)
+        assert match, f"{plan.name} has no **Status:** line"
+        status = match.group(1).strip()
+        assert row.rstrip(" |").endswith(status), f"index row for {plan.name} doesn't say {status!r}"
