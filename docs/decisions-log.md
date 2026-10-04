@@ -3,6 +3,15 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-04: Plan 01 questions
+
+21. **No `BUILD-STATE.md` in the MVP templates.** It arrives with the `/sync-state` skill that keeps
+    it true. *Why:* a status doc nothing maintains goes stale, and a stale status doc misleads agents.
+
+22. **Every project gets `docs/design/decisions-log.md`; `VISION.md` and `DESIGN.md` ship as short
+    stubs marked "delete if you don't need this".** *Why:* every project makes decisions worth a
+    why, but a small library may never need a vision document.
+
 ## 2026-10-04: Best-practice review (plan 00)
 
 10. **Hall of Echoing Mirrors is a reference, not a spec.** It was a first attempt. Where it and

@@ -41,7 +41,9 @@ claude-code-lanes-starter/
 │   │       ├── kit/                Python: kitlib, lanes, checks, hook entry points           (02–05)
 │   │       ├── skills/<name>/SKILL.md                                                          (07)
 │   │       └── agents/reviewer.md                                                              (06)
-│   └── templates/                  rendered once ({{placeholders}}), then project-owned        (01)
+│   ├── templates/                  rendered once ({{placeholders}}), then project-owned        (01)
+│   │                               every file ends in .tmpl, stripped on install
+│   └── placeholders.toml           the placeholder registry: name, description, example        (01)
 ├── packs/<name>/                   optional stack add-ons, same kit-owned/templates split      (10)
 ├── examples/hello-lanes/           small Python project installed with the kit                 (11)
 ├── evals/                          scenario tests that drive `claude -p`                       (11)
@@ -74,8 +76,8 @@ my-project/
     ├── plans/  (+ finished/)      P  one file per plan, from _TEMPLATE.md
     ├── backlog/<slug>.md          P  one file per backlog item                                    [13]
     ├── changelog.d/<lane>-<task>.md  P  changelog fragments, compiled into CHANGELOG.md at release [13]
-    ├── CHANGELOG.md · BUILD-STATE.md · CODE-STANDARDS.md
-    └── design/  VISION.md · DESIGN.md · decisions-log.md
+    ├── CHANGELOG.md · CODE-STANDARDS.md        (BUILD-STATE.md arrives with /sync-state [21])
+    └── design/  decisions-log.md · VISION.md and DESIGN.md as optional stubs [22]
 ```
 
 **K** = kit-owned, **P** = project-owned.
@@ -318,6 +320,8 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session? (Design avoids depending on it: §6 uses `cwd`) | plan 04 |
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
+| `kit changelog build` and `/next` must skip the `README.md` and `_TEMPLATE.md` beside fragments and backlog items | plans 02, 07 |
+| Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`); use the `.tmpl`-style guard or accept it as dogfooding | plan 07 |
 | Pre-commit: native `.githooks` (stdlib, sets `core.hooksPath`) vs also shipping `.pre-commit-hooks.yaml` for teams using the pre-commit framework | plan 02 |
 | Worktrees nested in the main checkout: does a lane session also load the root's (possibly older) `CLAUDE.md` from the parent folder? Root tools must skip `.claude/worktrees/` (pytest `norecursedirs`, linters). If nesting causes real problems, the default `worktree_root` becomes a sibling folder | plan 04 |
 | What the main checkout holds when it isn't a lane (detached HEAD at the integration branch, so local mode can fast-forward it) | plan 04 |

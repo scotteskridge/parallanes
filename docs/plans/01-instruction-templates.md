@@ -1,6 +1,6 @@
 # 01 — Instruction templates
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/01-instruction-templates`
 **Builds on:** ARCHITECTURE §4 (installed project), §5 (where instructions live), §8 (shared docs);
 decisions 4, 7, 13
@@ -22,10 +22,12 @@ renders cleanly from a known set of placeholders and stays inside its size budge
 1. **`BUILD-STATE.md` in MVP?** It's only useful if something keeps it true, and the skill that
    regenerates it (`/sync-state`) is a Later item. A stale status doc misleads agents.
    *Recommendation:* leave it out of the MVP templates; add it together with `/sync-state`.
+   **Answer (owner, 2026-10-04):** as recommended. Decision 21.
 2. **Design docs for every project?** `docs/design/` (VISION, DESIGN, decisions-log) fits
    product and game work; a small library may never use VISION.
    *Recommendation:* always ship `decisions-log.md` (every project makes decisions), and ship
    VISION and DESIGN as short stubs that say "delete if you don't need this".
+   **Answer (owner, 2026-10-04):** as recommended. Decision 22.
 
 ## Reuse
 - `docs/plans/_TEMPLATE.md` (this repo): becomes the project plan template, minus kit-specific lines.
@@ -88,4 +90,18 @@ Placeholders (initial set): `project_name`, `project_description`, `stack`, `tes
 - [ ] CHANGELOG, ROADMAP and plans index updated; open questions 1–2 answered and logged
 
 ## Notes after implementation
-<!-- Filled in at wrap-up. -->
+Changes from the plan:
+- **Every template ends in `.tmpl`** (stripped by the installer; `.gitkeep` excepted). Without it,
+  this repo's own tools would treat the templates as live files: Claude Code would load
+  `payload/templates/CLAUDE.md` when an agent reads files there, and git would apply
+  `payload/templates/.gitignore` to that folder. A test enforces the suffix.
+- **Registry is `payload/placeholders.toml`, not `PLACEHOLDERS.md`:** one machine-readable source
+  the tests and the installer both read, with a description and example per placeholder.
+- **No `.claude/rules/README.md`:** Claude Code loads every `.md` in `.claude/rules/`, so a README
+  there would load in every session. The guidance moved to `WORKFLOW.md` §7.
+- Template tests were checked by planting five broken templates (unknown placeholder, CRLF,
+  missing `paths:`, broken link, leftover braces); each was caught.
+
+Found for later plans (added to ARCHITECTURE §15): `kit changelog build` and `/next` must skip
+the `README.md` and `_TEMPLATE.md` files that sit beside fragments and backlog items; kit-owned
+skills inside `payload/` may be discovered by Claude Code while developing the kit.

@@ -75,8 +75,9 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **Later** Optional test-count and coverage report
 
 ## 9. Project documentation scaffolding
-- **MVP** `docs/plans/` (+ `finished/`), `docs/CHANGELOG.md` built from `docs/changelog.d/` fragments, `docs/backlog/` (one file per item), `docs/BUILD-STATE.md`, `docs/CODE-STANDARDS.md`
-- **MVP** Design folder: `VISION`-style doc, living design doc and a dated decisions log
+- **MVP** `docs/plans/` (+ `finished/`), `docs/CHANGELOG.md` built from `docs/changelog.d/` fragments, `docs/backlog/` (one file per item), `docs/CODE-STANDARDS.md`
+- **Later** `docs/BUILD-STATE.md`, together with `/sync-state` that keeps it true
+- **MVP** Design folder: a dated decisions log, plus optional `VISION.md` and `DESIGN.md` stubs
 - **MVP** `docs/ai/parallel-lanes.md` explaining the lane workflow
 
 ## 10. Stack packs (optional add-ons)
