@@ -22,7 +22,7 @@ and the prototype for the installable `/next` in plan 07.)
   plans not drafted yet have no link; that's expected.
 - `Grep` `^\*\*Status:\*\*` in `docs/plans/[0-9][0-9]-*.md`: each plan file's own status.
 - Only when step 2 lands on a plan (states 3–5): find its open questions with `Grep -i` for
-  `^\|.*plans? ([0-9]{2}, )*NN` (NN = its number, e.g. `03`) in `docs/ARCHITECTURE.md`; those
+  `^\|.*\bplans? ([0-9]{2}, )*NN\b` (NN = its number, e.g. `03`) in `docs/ARCHITECTURE.md`; those
   are the §15 table rows it owns. Also read its file's *Open questions* and `**Builds on:**` lines
   if the file exists.
 

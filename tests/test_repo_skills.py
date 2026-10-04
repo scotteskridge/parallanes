@@ -62,3 +62,11 @@ def test_next_skill_is_granted_only_read_only_tools():
 
 def test_next_skill_ends_with_a_recommended_prompt():
     assert "**Recommended prompt:**" in (SKILLS / "next" / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_skill_files_have_no_control_characters():
+    # Scripted edits can turn "\b" into a backspace; invisible in review, but it breaks the regex.
+    for path in skill_files():
+        text = path.read_text(encoding="utf-8")
+        bad = sorted({hex(ord(c)) for c in text if ord(c) < 32 and c not in "\n\t"})
+        assert not bad, f"{path} contains control characters {bad}"
