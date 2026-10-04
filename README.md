@@ -14,15 +14,19 @@ Generalized from a real project, a Unity game built across three parallel agent 
 
 ## Status
 
-| Piece | State |
-| --- | --- |
-| Survey of the source setup | ✅ done |
-| Instructions, skills, reviewer | planned |
-| Hooks (rules-check, protected paths, lane router) | planned |
-| Lanes CLI (`create`, `status`, `sync`, `merge`) | planned |
-| Setup script (Windows first) | planned |
-| Unity pack | planned |
-| Example Python project | planned |
+Built as a numbered series of plans, one pull request each: [docs/plans/README.md](docs/plans/README.md).
+The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+| Piece | Plan | State |
+| --- | --- | --- |
+| Architecture and plan series | 00 | ✅ done |
+| Instruction templates | 01 | planned |
+| Checks: rules-check, protected paths (hook + CLI + pre-commit) | 02–03 | planned |
+| Lanes: create, status, start, sync, finish (PR and local mode) | 04–05 | planned |
+| Reviewer and skills (incl. `/next`, `/onboard`) | 06–07 | planned |
+| Installer (Windows first) and CI template | 08–09 | planned |
+| Unity pack | 10 | planned |
+| Example Python project and evals | 11 | planned |
 
 ## License
 
