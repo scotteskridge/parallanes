@@ -1,6 +1,6 @@
 # 03 — Protected paths and commands
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/03-protected-paths`
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode); ARCHITECTURE §5, §7 (protected paths and
 commands), §14; decisions 7 (manifest), 9 (fails closed), 14, 15 (deny rules primary, hook a backstop)
@@ -89,6 +89,8 @@ say plainly what none of this stops, and that the real gate is the server (CI, b
    `git commit --no-verify` and `git commit -n` (the cluster rule catches `-nm`); the hook blocks any
    command that sets `KIT_ALLOW_PROTECTED` (it's for humans at a terminal) or changes
    `core.hooksPath`. The doc states that the local checks are a convenience and CI is the gate.
+
+**Answers (owner, 2026-10-04):** all eight as recommended. Decisions 27–34.
 
 ## Reuse
 - `kitlib/config.py`: already accepts the `protected` table; this plan validates its keys.
