@@ -1,6 +1,6 @@
 # 04 — Lanes core
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/04-lanes-core` · PR link once open
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode), plan 03 (root from the hook's `cwd`, decision
 33); ARCHITECTURE §6 (lanes), §14, §15; decisions 2 (worktree location), 11 (lanes vs task branches),

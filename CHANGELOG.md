@@ -25,5 +25,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   PreToolUse backstop that fails closed, catches command forms deny rules miss, file-command and
   PowerShell writes, and the agent switching checks off; `kit check protected` reports protected
   changes in pre-commit and CI. Each project gets a doc stating what this does not stop.
+- Lanes core (plan 04): `[[lanes]]` in `.claude/kit.toml`, validated strictly; `kit lanes create`
+  (a worktree per lane, detached at the integration tip, `.worktreeinclude` files copied, the main
+  checkout's `CLAUDE.md` excluded from nested lanes), `kit lanes status` (branch, ahead/behind,
+  uncommitted, unpushed, PR state via `gh`, overlap notes, local-mode warning about the main
+  checkout) and `kit lanes remove`; `kit hook lane-router` (SessionStart briefing with drift
+  warnings) and `kit hook ownership` (out-of-lane edits ask the user). Hook handlers moved from
+  `cli.py` to `kitlib/hooks.py`.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).

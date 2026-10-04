@@ -150,3 +150,27 @@ def test_rendered_kit_toml_protects_with_the_documented_defaults(tmp_path):
     assert not matches_any(".env.example", protected.secrets)  # projects commit this one
     rules = expected_rules(protected)
     assert "Read(.env)" in rules["deny"] and "Bash(git push --force *)" in rules["deny"]
+
+
+def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
+    # The commented lane settings and [[lanes]] example are what owners copy; they must be valid.
+    from kitlib.config import LaneSettings, load
+
+    entries = registry()
+    values = {name: entry["example"] for name, entry in entries.items()}
+    lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
+    start = lines.index("# [[lanes]]")
+    keys = ("# merge_mode =", "# worktree_root =", "# ownership =", "# shared_paths =")
+    uncommented = [
+        line[2:] if (i >= start and line.startswith("# ")) or line.startswith(keys) else line
+        for i, line in enumerate(lines)
+    ]
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "kit.toml").write_text("\n".join(uncommented) + "\n", encoding="utf-8")
+    config = load(tmp_path)
+    assert [lane.name for lane in config.lanes] == ["core", "api"]
+    defaults = LaneSettings()
+    settings = config.lane_settings
+    # The commented values are documented as the defaults: they must be.
+    assert (settings.merge_mode, settings.worktree_root, settings.ownership, settings.shared_paths) == (
+        defaults.merge_mode, defaults.worktree_root, defaults.ownership, defaults.shared_paths)
