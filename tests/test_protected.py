@@ -202,3 +202,10 @@ def test_powershell_does_not_read_slash_letter_as_a_drive():
     from kitlib.protected import native_path
 
     assert native_path("/d/vendor", windows=True, git_bash=False) == "/d/vendor"
+
+
+def test_deleting_a_folder_says_it_would_remove_protected_files():
+    # Live test: "live-test is protected" misdescribed which path the pattern protects.
+    reason = path_reason(Protected(paths=["live-test/protected/**"], secrets=[]), "live-test", bypass=False, removes=True)
+    assert "removing live-test would delete protected files" in reason
+    assert "live-test/protected/**" in reason

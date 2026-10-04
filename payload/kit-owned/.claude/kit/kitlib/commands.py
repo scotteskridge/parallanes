@@ -190,21 +190,51 @@ def find_protected(text: str, shell: str, patterns) -> list[tuple[str, str]]:
 _CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"}
 
 
-# Setting the variable, not mentioning it: `grep KIT_ALLOW_PROTECTED docs` and `echo $KIT_...` pass.
-# Covers `X=1`, `X+=1`, `export`/`env`/`set X=1`, `${X:=1}`, `$env:X = 1`, `Set-Item env:X`,
-# `New-Item -Path Env: -Name X`, `setx X`, .NET.
-_SETS_ALLOW_VARIABLE = re.compile(
-    r"KIT_ALLOW_PROTECTED\s*[+:]?=|(?<!\$)env:\\?KIT_ALLOW_PROTECTED|setx\s+KIT_ALLOW_PROTECTED"
-    r"|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED|-Name\s+['\"]?KIT_ALLOW_PROTECTED",
-    re.IGNORECASE,
+# Setting the allow variable, judged per command word, not on the raw text: quoting the documented
+# usage in a commit message, PR body or grep (`"...KIT_ALLOW_PROTECTED=1..."`) must pass. Only two
+# forms that never appear in prose are matched on the raw text: `${X:=1}` and the .NET call.
+_ALLOW_NAME = "kit_allow_protected"
+_SETS_IN_CODE = re.compile(
+    r"\$\{KIT_ALLOW_PROTECTED:?=|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED", re.IGNORECASE
 )
+_PREFIX_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\+?=")
+_DECLARERS = {"export", "declare", "typeset", "local", "readonly", "set", "setx"}
+_ENV_CMDLETS = {"set-item", "new-item", "si", "ni"}
+_ALLOW_REASON = "KIT_ALLOW_PROTECTED is for a human committing at a terminal, not for an agent"
+
+
+def _sets_allow_variable(words: list[str]) -> bool:
+    i = 0
+    while i < len(words):  # `X=1 cmd`, `env X=1 cmd`, `sudo X=1 cmd`
+        assignment = _PREFIX_ASSIGNMENT.match(words[i])
+        if assignment:
+            if assignment.group(1).lower() == _ALLOW_NAME:
+                return True
+        elif program_name(words[i]) in _WRAPPERS:
+            while i + 1 < len(words) and words[i + 1].startswith("-"):
+                i += 1
+        else:
+            break
+        i += 1
+    if i >= len(words):
+        return False
+    first, args = words[i].lower(), [word.lower() for word in words[i + 1:]]
+    if first.startswith("$env:" + _ALLOW_NAME):  # `$env:X = 1`, `$env:X='1'`
+        return "=" in first or bool(args) and args[0].startswith("=")
+    if first in _DECLARERS:  # `export X=1`, `set X=1`, `setx X 1`
+        return any(re.match(_ALLOW_NAME + r"([+:]?=|$)", arg) for arg in args)
+    if first in _ENV_CMDLETS:  # `Set-Item env:X 1`, `New-Item -Path Env: -Name X`
+        return any(arg.endswith(_ALLOW_NAME) for arg in args) and any(arg.startswith("env:") for arg in args)
+    return False
 
 
 def disables_checks(text: str, shell: str) -> str | None:
     """Why text would switch the kit's local checks off, or None."""
-    if _SETS_ALLOW_VARIABLE.search(text):
-        return "KIT_ALLOW_PROTECTED is for a human committing at a terminal, not for an agent"
+    if _SETS_IN_CODE.search(text):
+        return _ALLOW_REASON
     for words in tokenize(text, shell):
+        if _sets_allow_variable(words):
+            return _ALLOW_REASON
         command = normalize(words)
         if command is None or command.program != "git":
             continue

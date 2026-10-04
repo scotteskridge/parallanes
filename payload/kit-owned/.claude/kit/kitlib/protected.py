@@ -80,12 +80,15 @@ def path_reason(protected, path: str, bypass: bool, removes: bool = False) -> st
     bypass: the session runs in bypassPermissions mode. removes: path is being deleted or moved
     away, so a protected path anywhere inside it counts too.
     """
-    pattern = _matching(path, protected.paths, removes)
-    if pattern:
-        return f"{normalize(path)} is protected (matches {pattern!r} in [protected].paths, .claude/kit.toml)"
-    pattern = _matching(path, protected.secrets, removes)
-    if pattern:
-        return f"{normalize(path)} holds secrets (matches {pattern!r} in [protected].secrets, .claude/kit.toml)"
+    shown = normalize(path)
+    for patterns, what, key in ((protected.paths, "is protected", "paths"), (protected.secrets, "holds secrets", "secrets")):
+        pattern = _matching(path, patterns)
+        if pattern:
+            return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+        pattern = _matching(path, patterns, removes=True) if removes else None
+        if pattern:
+            # The folder itself isn't protected; what's inside it is. Say so, or the reason misleads.
+            return f"removing {shown} would delete protected files (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
     if bypass and protected.guard_kit:
         pattern = _matching(path, KIT_GUARD, removes)
         if pattern:

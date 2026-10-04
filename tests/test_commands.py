@@ -255,3 +255,35 @@ def test_mentioning_the_allow_variable_is_not_disabling(text):
 )
 def test_other_ways_of_setting_the_allow_variable_are_caught(text, shell):
     assert commands.disables_checks(text, shell)
+
+
+@pytest.mark.parametrize(
+    "text, shell",
+    [
+        # Live test: quoting the variable's documented usage blocked a PR-description update.
+        ('git commit -m "docs: commit with KIT_ALLOW_PROTECTED=1 when intended"', "bash"),
+        ('gh pr edit 5 --body "Setting KIT_ALLOW_PROTECTED+=1 slipped past"', "bash"),
+        ('grep -c "KIT_ALLOW_PROTECTED=1" docs/ai/protected-paths.md', "bash"),
+        ('[[ $KIT_ALLOW_PROTECTED == 1 ]] && echo set', "bash"),
+        ("Write-Host 'run with $env:KIT_ALLOW_PROTECTED = 1'", "powershell"),
+        ('Select-String -Pattern "KIT_ALLOW_PROTECTED=1" -Path docs/*.md', "powershell"),
+    ],
+)
+def test_quoting_an_assignment_is_not_setting_it(text, shell):
+    assert commands.disables_checks(text, shell) is None
+
+
+@pytest.mark.parametrize(
+    "text, shell",
+    [
+        ("sudo KIT_ALLOW_PROTECTED=1 git commit -m x", "bash"),
+        ("cd sub && KIT_ALLOW_PROTECTED=1 git commit -m x", "bash"),
+        ("declare -x KIT_ALLOW_PROTECTED=1", "bash"),
+        ("setx KIT_ALLOW_PROTECTED 1", "powershell"),
+        ("$env:KIT_ALLOW_PROTECTED='1'", "powershell"),
+        ("$Env:kit_allow_protected = 1", "powershell"),
+        ("echo ${KIT_ALLOW_PROTECTED:=1}", "bash"),
+    ],
+)
+def test_setting_it_in_command_position_is_still_caught(text, shell):
+    assert commands.disables_checks(text, shell)

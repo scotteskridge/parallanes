@@ -178,6 +178,16 @@ Changes from the plan:
   (`12>`) are read as redirects; `X+=1` and `New-Item -Path Env: -Name X` count as setting
   `KIT_ALLOW_PROTECTED`; `/d/...` is a drive only for Bash, not PowerShell. Documented: `git checkout
   <commit> <path>` without `--`, and `git -C <dir>` paths.
+- **Live test** (owner wired the hook into this repo's `settings.local.json`, with a temporary
+  `kit.toml` protecting a fake folder and a harmless `echo` command): in a real Claude Code session
+  on Windows, the hook blocked a protected command (also with a `FOO=1` prefix and extra arguments),
+  `git clean -f -n`, a Write and a PowerShell `Set-Content` into the protected folder, and `rm -rf`
+  of its parent; ordinary commands, redirects, wildcard deletes and PowerShell file work went
+  through. A read-only verifier traced every outcome to the intended code path. The run found one
+  false positive: quoting `KIT_ALLOW_PROTECTED=1` (in a PR description) was blocked, because the
+  check scanned the raw text. It now judges command words, so quoting passes and setting it is still
+  blocked; the folder-delete reason now says "removing X would delete protected files". Not covered
+  live: deny rules from `settings sync`, other permission modes, fail-closed paths (ARCHITECTURE §15).
 - **Not done:** step 6's check of ask rules in `acceptEdits` mode. The headless `claude -p` run
   failed (CLI not logged in); the doc says "not yet verified" and ARCHITECTURE §15 carries it.
 
