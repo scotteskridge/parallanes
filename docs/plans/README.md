@@ -9,7 +9,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | Done |
 | 01 | [Instruction templates](01-instruction-templates.md) | `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` templates, docs scaffolding, changelog and backlog fragments, placeholder rendering | Done |
 | 02 | [Check library + rules-check](02-check-library.md) | Shared `kitlib` (`kit.toml` loading, globs, comment stripping, reporting); the `kit` CLI with `changelog build`; rules-check as hook, CLI and pre-commit | Done |
-| 03 | [Protected paths](03-protected-paths.md) | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | Approved |
+| 03 | [Protected paths](03-protected-paths.md) | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | In progress |
 | 04 | Lanes core | `[[lanes]]` in `.claude/kit.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Not started |
 | 05 | Lane task cycle | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Not started |
 | 06 | Reviewer | `reviewer` subagent, universal checklist, stack checklist mechanism | Not started |

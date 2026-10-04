@@ -215,21 +215,31 @@ problem instead. [9]
 
 ```toml
 [protected]
-paths = ["vendor/**", "docs/originals/**"]
-commands = ["git push --force", "git push -f", "git reset --hard", "git clean -fdx"]
+paths = ["vendor/**", "docs/originals/"]
+commands = ["git push --force", "git push -f", "git reset --hard", "git clean -f",
+            "git commit --no-verify", "git commit -n"]          # defaults when the key is absent
+secrets = [".env", ".env.local", ".env.*.local"]               # defaults when the key is absent
+guard_kit = true
 ```
 
-- **Primary:** the installer writes `Edit(/<path>)` deny rules into `settings.json` from `[protected]`
-  (root-anchored `/path` form, which in project settings anchors at the session's working directory:
-  the worktree in a lane). `kit check settings` fails if they drift apart. Deny rules cover built-in
-  file tools, shell file commands Claude Code recognizes (`sed`, `tee`, redirections), and Bash
-  prefix rules for `[protected].commands`.
-- **Backstop:** a PreToolUse hook on Bash/PowerShell that normalizes and checks commands against
-  `[protected].commands`, catching forms prefix rules miss (`git -C . push --force`, extra spaces).
-  **Fails closed** with a clear message. [9]
-- **Stated limits (README):** neither stops a script that opens files itself. The OS-level answer is
-  Claude Code's sandbox, which runs on macOS, Linux and WSL2 but **not native Windows**. On Windows,
-  the deny rules plus this backstop are the protection, which is why both exist. [15]
+- **Primary:** `kit settings sync` writes deny rules into `settings.json`: `Edit(/<path>)` per
+  protected path (root-anchored, which in project settings anchors at the session's working
+  directory: the worktree in a lane), `Read(...)` and `Edit(...)` per secret, `Bash(<cmd> *)` and
+  `PowerShell(<cmd> *)` per command; plus **ask** rules for the kit's own config when `guard_kit`
+  [30]. It records what it wrote in `.claude/kit/generated-rules.json` and never touches other rules
+  [29]. `kit check settings` (part of `check all`) reports missing and stale rules.
+- **Backstop:** `kit hook protected`, a PreToolUse hook on Bash, PowerShell and the file tools. It
+  matches commands with flags in any order, past `git -C`, wrappers and flag clusters [28]; checks
+  file-tool paths; checks the targets of common file commands and PowerShell cmdlets, best effort
+  (`kitlib/file_commands.py`) [27]; blocks edits to the kit's config in `bypassPermissions`; and
+  blocks the agent switching the local checks off [34]. **Fails closed:** in PreToolUse only exit 2
+  blocks, so every error, a broken `kit.toml`, bad input and a mistyped hook name all exit 2 [33].
+- **Pre-commit and CI:** `kit check protected` reports changed protected paths and added secret
+  files; `KIT_ALLOW_PROTECTED=1` lets a human commit an intended change [32].
+- **Stated limits** (`docs/ai/protected-paths.md` in each project): none of this stops a script that
+  opens files itself. The OS-level answer is Claude Code's sandbox, which runs on macOS, Linux and
+  WSL2 but **not native Windows**; the server-side answer is CI, branch protection and `CODEOWNERS`.
+  [15]
 
 ## 8. Shared docs without merge conflicts [13]
 
@@ -330,6 +340,9 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | What the main checkout holds when it isn't a lane (detached HEAD at the integration branch, so local mode can fast-forward it) | plan 04 |
 | PR-mode merge detection: match the PR by head commit, not branch name (a reused task slug could match an old PR); closed-unmerged PRs need the `--abandon` path | plan 05 |
 | Claude Code's auto memory: the docs now describe it as shared across a repo's worktrees (the first implementation had to link folders by hand); confirm on Windows | plan 04 |
+| Do ask rules still prompt in `acceptEdits` mode? Not documented; plan 03's headless check couldn't run (CLI not logged in). Verify in a live session; `protected-paths.md` says "not yet verified" until then | plan 08 |
+| Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
+| Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References
 

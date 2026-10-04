@@ -19,5 +19,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   enforced as a Claude Code PostToolUse hook, by `kit check` (files, `--staged`, `--diff BASE`),
   and by a git pre-commit hook; strict config validation; `kit changelog build` compiles
   fragments into a release section.
+- Protected paths and commands (plan 03): `[protected]` in `.claude/kit.toml` (paths, commands,
+  secrets, guard for the kit's own config). `kit settings sync` writes the matching deny and ask
+  rules into `settings.json` and `kit check settings` reports drift; `kit hook protected`, a
+  PreToolUse backstop that fails closed, catches command forms deny rules miss, file-command and
+  PowerShell writes, and the agent switching checks off; `kit check protected` reports protected
+  changes in pre-commit and CI. Each project gets a doc stating what this does not stop.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).

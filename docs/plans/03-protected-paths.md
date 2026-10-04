@@ -1,6 +1,6 @@
 # 03 — Protected paths and commands
 
-**Status:** Approved
+**Status:** In progress
 **Branch / PR:** `plan/03-protected-paths`
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode); ARCHITECTURE §5, §7 (protected paths and
 commands), §14; decisions 7 (manifest), 9 (fails closed), 14, 15 (deny rules primary, hook a backstop)
@@ -143,4 +143,22 @@ for a match *and* for every error (question 7). Must stay well under 1 s.
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE §7 and §15 (incl. the plan 09 note), decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **The hook also reads common Bash file commands** (`rm`, `rmdir`, `mv`, `cp`, `touch`,
+  `truncate`, `ln`), not only PowerShell cmdlets. Question 1 said no guessing for Bash, but on
+  Windows the Bash tool runs Git Bash with no sandbox, and deny rules don't cover `rm` or `mv`, so
+  the same reasoning applies. Parsing lives in `kitlib/file_commands.py` (split out of
+  `commands.py` past 300 lines).
+- **Deleting a folder that holds a protected path is blocked** (`rm -rf src` when `src/vendor/**` is
+  protected), for patterns with a folder in them. Found while writing the limits doc; writes into a
+  folder (`cp x src`) are not affected.
+- **Default `git clean -f`, not `-fdx`:** every flag in a pattern must be present, and `git clean
+  -fd` destroys too.
+- **A mistyped hook name fails closed in PreToolUse** (the input's `hook_event_name` tells the CLI
+  which event it is); in PostToolUse it stays a non-blocking error.
+- **`check all` includes `settings`**, so pre-commit and CI catch a `kit.toml` change that wasn't
+  synced. Test repos now get synced settings, as an installed project has.
+- **`MultiEdit`** is covered with the other file tools.
+- **Not done:** step 6's check of ask rules in `acceptEdits` mode. The headless `claude -p` run
+  failed (CLI not logged in); the doc says "not yet verified" and ARCHITECTURE §15 carries it.
+

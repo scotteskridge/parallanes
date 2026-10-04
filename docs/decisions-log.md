@@ -8,7 +8,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 27. **The protected-paths hook watches more than commands.** `Bash|PowerShell` commands against
     `[protected].commands`; `Edit|Write|NotebookEdit` paths against `[protected].paths` (still
     protects when `settings.json` drifts); and, best effort, the targets of common PowerShell write
-    cmdlets and output redirections. *Why:* native Windows has no sandbox, and Claude Code doesn't
+    cmdlets, Bash file commands (`rm`, `mv`, `cp`...) and output redirections. *Why:* native Windows has no sandbox, and Claude Code doesn't
     document whether deny rules cover PowerShell writes.
 
 28. **Command matching stays simple.** Split compound commands, strip assignments, wrappers and git
