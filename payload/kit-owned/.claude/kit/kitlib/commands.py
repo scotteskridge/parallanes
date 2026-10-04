@@ -239,11 +239,11 @@ def _redirections(words):
     return rest, targets
 
 
-def _powershell_targets(command: Command) -> list[str]:
+def _powershell_parse(command: Command):
+    """(cmdlet, [(path parameter, value)], positionals) for a known file cmdlet, else None."""
     name = _PS_ALIASES.get(command.program, command.program)
-    which = _PS_CMDLETS.get(name)
-    if which is None:
-        return []
+    if name not in _PS_CMDLETS:
+        return None
     named, positional = [], []
     args = list(command.args)
     while args:
@@ -258,6 +258,15 @@ def _powershell_targets(command: Command) -> list[str]:
         full = next((p for p in _PS_PATH_PARAMETERS if p.startswith(prefix)), None)
         if full and value:
             named.append((full, value))
+    return name, named, positional
+
+
+def _powershell_targets(command: Command) -> list[str]:
+    parsed = _powershell_parse(command)
+    if parsed is None:
+        return []
+    name, named, positional = parsed
+    which = _PS_CMDLETS[name]
     # A named -Path takes the first positional slot, so the positionals shift down by one.
     path_named = any(full != "destination" for full, _ in named)
     destinations = [value for full, value in named if full == "destination"]
@@ -271,10 +280,10 @@ def _powershell_targets(command: Command) -> list[str]:
     return chosen + [value for _, value in named]
 
 
-def _bash_targets(command: Command) -> list[str]:
-    which = _BASH_COMMANDS.get(command.program)
-    if which is None:
-        return []
+def _bash_parse(command: Command):
+    """(operands, -t target directory or None) for a known file command, else None."""
+    if command.program not in _BASH_COMMANDS:
+        return None
     operands, target_dir = [], None
     args = list(command.args)
     while args:
@@ -290,11 +299,48 @@ def _bash_targets(command: Command) -> list[str]:
                 target_dir = value
             continue
         operands.append(arg)
+    return operands, target_dir
+
+
+def _bash_targets(command: Command) -> list[str]:
+    parsed = _bash_parse(command)
+    if parsed is None:
+        return []
+    operands, target_dir = parsed
     if target_dir is not None:
         return [target_dir]
-    if which == "last":
+    if _BASH_COMMANDS[command.program] == "last":
         return operands[-1:]
     return operands
+
+
+def removed_targets(text: str, shell: str) -> list[str]:
+    """Paths the commands in text delete or move away; deleting a folder deletes what's inside it."""
+    removed = []
+    for words in tokenize(text, shell):
+        command = normalize(_redirections(words)[0])
+        if command is None:
+            continue
+        if shell == "powershell":
+            parsed = _powershell_parse(command)
+            if parsed is None:
+                continue
+            name, named, positional = parsed
+            paths = [value for full, value in named if full != "destination"]
+            if name == "remove-item":
+                removed += positional + paths
+            elif name == "move-item":
+                removed += paths or positional[:1]
+        else:
+            parsed = _bash_parse(command)
+            if parsed is None:
+                continue
+            operands, target_dir = parsed
+            if command.program in ("rm", "rmdir"):
+                removed += operands
+            elif command.program == "mv":
+                removed += operands if target_dir is not None else operands[:-1]
+    return removed
 
 
 # ---- the agent switching the checks off (decision 34) -------------------------------------------

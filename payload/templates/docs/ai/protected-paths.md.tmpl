@@ -1,0 +1,60 @@
+# Protected paths and commands
+
+What the kit does to keep agents away from files and commands you list in `[protected]` in
+`.claude/kit.toml`, and, just as important, what it does **not** stop. Short version: it reliably
+stops honest mistakes by Claude Code. It is not a security boundary. The boundary is the server:
+CI, required reviews and branch protection.
+
+## The layers
+
+| Layer | Where | Stops | Doesn't stop |
+| --- | --- | --- | --- |
+| Deny rules (main protection) | `.claude/settings.json`, written by `{{kit_command}} settings sync` | Claude's Edit/Write tools on protected paths; reads and edits of secrets; the shell file commands Claude Code recognizes (`sed`, `tee`, redirections); protected commands in the form written in `kit.toml`, also inside `&&`, `;`, pipes and subshells | Commands with options in between (`git -C . push --force`, `git push origin main --force`); writes by any program or script |
+| Hook (backstop) | `{{kit_command}} hook protected`, before every tool call | Protected commands with reordered flags, `git -C`, wrappers (`env`, `sudo`, `timeout`), flag clusters (`-xdf`); edits to protected paths even if `settings.json` drifted; the targets of common file commands (`rm`, `mv`, `cp`, `Set-Content`, `Remove-Item`, `Out-File`, redirections); the agent switching the checks off (`--no-verify`, `KIT_ALLOW_PROTECTED`, `core.hooksPath`) | The misses listed below |
+| Pre-commit | `.githooks/pre-commit` → `{{kit_command}} check all --staged` | A commit that changes a protected path or adds a secret file, from anyone; `kit.toml` and `settings.json` drifting apart | `git commit --no-verify` by a human; machines without the hook enabled |
+| CI | `{{kit_command}} check all --diff origin/{{integration_branch}}` | The same, for every pull request | Nothing it checks can be skipped locally, which is why it is the gate |
+
+The hook **fails closed**: if `kit.toml` can't be read or the hook itself breaks, Claude's tool calls
+are blocked with a message saying what to fix. A guard that silently switches off is worse than a
+noisy one.
+
+## The kit's own configuration
+
+Whoever can edit `.claude/settings.json`, `.claude/kit.toml`, `.claude/kit/` or `.githooks/` can
+switch all of this off. So edits to them get an **ask** rule: Claude must get your approval each
+time. Ask rules don't apply in `bypassPermissions` mode (nobody is there to answer), so in that
+mode the hook blocks those edits outright. *Not yet verified:* whether ask rules also prompt in
+`acceptEdits` mode. To rule bypass mode out entirely, set
+`"permissions": {"disableBypassPermissionsMode": "disable"}` in your settings. `guard_kit = false`
+in `[protected]` turns this guard off.
+
+## Known misses
+
+Each of these gets past the deny rules and the hook. They are listed so nobody mistakes the kit for
+more than it is:
+
+- Any script or program that opens files itself (`python fix.py`, `node build.js`).
+- Commands inside strings: `bash -c "git push --force"`, `pwsh -Command "..."`.
+- Git aliases (`git pf`), force pushes by refspec (`git push origin +main`), abbreviated options.
+- Write targets of commands the hook doesn't know. Deleting a folder that holds protected files is
+  caught for patterns with a folder in them (`rm -rf src` when `src/vendor/**` is protected), not for
+  bare file-name patterns (`rm -rf src` when `*.lock` is protected).
+- On Windows, whether Claude Code's deny rules cover PowerShell cmdlets isn't documented; the hook
+  covers the common ones, best effort.
+
+## A real boundary
+
+- **Sandbox.** Claude Code's sandbox restricts what shell commands and the programs they start can
+  write, at the operating-system level. It runs on macOS, Linux and WSL2. It does **not** run on
+  native Windows, which is why the deny rules and the hook both exist.
+- **The server.** Protect `{{integration_branch}}`: require pull requests and passing CI, and
+  refuse force pushes. Add a `CODEOWNERS` entry for each protected path so changes there need an
+  owner's review.
+
+## Changing a protected path on purpose
+
+- **You, at a terminal:** `KIT_ALLOW_PROTECTED=1 git commit ...` lets the commit through (bash; in
+  PowerShell set `$env:KIT_ALLOW_PROTECTED = "1"` first). The pre-commit output says it was allowed.
+  Agents are blocked from setting it.
+- **An agent:** it can't, by design. Ask it to explain the change, then make it yourself or remove
+  the path from `[protected]` (and run `{{kit_command}} settings sync`).

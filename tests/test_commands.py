@@ -198,3 +198,21 @@ def test_turning_the_checks_off_is_caught(text):
 @pytest.mark.parametrize("text", ["git config --get core.hooksPath", "git config core.autocrlf false", "git commit -m x"])
 def test_reading_hook_config_is_allowed(text):
     assert commands.disables_checks(text, "bash") is None
+
+
+@pytest.mark.parametrize(
+    "text, shell, expected",
+    [
+        ("rm -rf src", "bash", ["src"]),
+        ("rmdir a b", "bash", ["a", "b"]),
+        ("mv src/a dest/", "bash", ["src/a"]),
+        ("cp -r src dest", "bash", []),
+        ("touch src", "bash", []),
+        ("Remove-Item src -Recurse", "powershell", ["src"]),
+        ("Move-Item -Path src -Destination x", "powershell", ["src"]),
+        ("Move-Item src x", "powershell", ["src"]),
+        ("Copy-Item src x", "powershell", []),
+    ],
+)
+def test_removed_targets(text, shell, expected):
+    assert commands.removed_targets(text, shell) == expected

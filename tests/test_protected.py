@@ -154,3 +154,24 @@ def test_precommit_blocks_a_protected_change(tmp_path):
     result = subprocess.run(["git", "commit", "-q", "-m", "x"], cwd=repo, capture_output=True, text=True)
     assert result.returncode != 0
     assert "vendor/lib.py" in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("path", ["src", "src/", ".", "", "src/vendor"])
+def test_removing_a_folder_above_an_anchored_protected_path_is_reported(path):
+    # `rm -rf src` deletes src/vendor/ too.
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False, removes=True)
+
+
+@pytest.mark.parametrize("path", ["src", "."])
+def test_writing_into_a_folder_above_is_not(path):
+    # `cp x .` or `touch src` doesn't touch src/vendor/.
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False) is None
+
+
+@pytest.mark.parametrize("path", ["lib", "srcx", "src/other"])
+def test_removing_unrelated_folders_is_not(path):
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False, removes=True) is None
+
+
+def test_unanchored_patterns_say_nothing_about_a_folder():
+    assert path_reason(Protected(paths=["*.lock"], secrets=[]), "src", bypass=False, removes=True) is None

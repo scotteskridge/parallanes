@@ -202,3 +202,10 @@ def test_a_typo_in_the_hook_name_stays_non_blocking_after_an_edit(repo):
     # PostToolUse (rules-check) keeps failing open: exit 2 there would nag Claude after every edit.
     payload = json.dumps({"hook_event_name": "PostToolUse", "cwd": str(repo), "tool_name": "Edit", "tool_input": {}})
     assert run_cli(repo, "hook", "rules-chek", stdin=payload).returncode == 1
+
+
+def test_removing_a_folder_above_a_protected_path_is_blocked(tmp_path):
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**"]\n')
+    assert_blocked(bash(repo, "rm -rf src"), "src/vendor/**")
+    assert_blocked(bash(repo, "Remove-Item . -Recurse", tool="PowerShell"), "src/vendor/**")
+    assert_allowed(bash(repo, "cp README.md src"))

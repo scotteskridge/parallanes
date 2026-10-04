@@ -5,6 +5,7 @@ behind them, used by the PreToolUse hook (`check_tool_call`), and the check that
 run on changed files (`check`).
 """
 import os
+import re
 from pathlib import Path
 
 from . import commands
@@ -21,26 +22,43 @@ FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
 
 
-def _matching(path: str, patterns) -> str | None:
-    """The first pattern path falls under, also when path is a folder holding matching files
-    (`Remove-Item vendor` deletes everything `vendor/**` protects)."""
+def _matching(path: str, patterns, removes: bool = False) -> str | None:
+    """The first pattern path falls under, also when path is a folder holding matching files:
+    `Remove-Item vendor` deletes everything `vendor/**` protects, `rm -rf src` deletes `src/vendor/`."""
     path = normalize(path).rstrip("/")
+    path = "" if path == "." else path
     for pattern in patterns:
-        if matches(path, pattern) or matches(path + "/__kit_probe__", pattern):
+        if path and (matches(path, pattern) or matches(path + "/__kit_probe__", pattern)):
+            return pattern
+        if removes and _inside(pattern, path):
             return pattern
     return None
 
 
-def path_reason(protected, path: str, bypass: bool) -> str | None:
-    """Why changing path is blocked, or None. bypass: the session runs in bypassPermissions mode."""
-    pattern = _matching(path, protected.paths)
+def _inside(pattern: str, folder: str) -> bool:
+    """Whether an anchored pattern's fixed folders lie inside folder ("" is the project root).
+    A pattern without a slash can match at any depth, so it says nothing about a given folder."""
+    pattern = normalize(pattern).lstrip("/")
+    if "/" not in pattern.rstrip("/"):
+        return False
+    fixed = re.split(r"[*?\[]", pattern, maxsplit=1)[0]
+    return fixed.startswith(folder + "/") if folder else bool(fixed)
+
+
+def path_reason(protected, path: str, bypass: bool, removes: bool = False) -> str | None:
+    """Why changing path is blocked, or None.
+
+    bypass: the session runs in bypassPermissions mode. removes: path is being deleted or moved
+    away, so a protected path anywhere inside it counts too.
+    """
+    pattern = _matching(path, protected.paths, removes)
     if pattern:
         return f"{normalize(path)} is protected (matches {pattern!r} in [protected].paths, .claude/kit.toml)"
-    pattern = _matching(path, protected.secrets)
+    pattern = _matching(path, protected.secrets, removes)
     if pattern:
         return f"{normalize(path)} holds secrets (matches {pattern!r} in [protected].secrets, .claude/kit.toml)"
     if bypass and protected.guard_kit:
-        pattern = _matching(path, KIT_GUARD)
+        pattern = _matching(path, KIT_GUARD, removes)
         if pattern:
             return (
                 f"{normalize(path)} is the kit's own configuration, and edits to it need the owner's "
@@ -91,12 +109,16 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
         reason = _target_reason(protected, root, cwd, target, bypass)
         if reason:
             return reason
+    for target in commands.removed_targets(text, shell):
+        reason = _target_reason(protected, root, cwd, target, bypass, removes=True)
+        if reason:
+            return reason
     return None
 
 
-def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool) -> str | None:
+def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool, removes: bool = False) -> str | None:
     rel = relative(root, cwd, target)
-    return None if rel is None else path_reason(protected, rel, bypass)
+    return None if rel is None else path_reason(protected, rel, bypass, removes)
 
 
 def relative(root: Path, cwd: Path, target: str) -> str | None:

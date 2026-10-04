@@ -21,7 +21,7 @@ reviewer for what slips through, and small tasks so context stays clean.
 | Skills | `/plan-feature`, `/implement`, `/wrap-up`, `/next`… | Skipped steps: each workflow is written down once and followed the same way every time |
 | Independent reviewer | `reviewer` subagent | The author grading its own work; it sees only the diff, the rules and the plan |
 | Hooks | `.claude/settings.json` → `.claude/kit/` | Breaking a hard rule (forbidden patterns, protected files, dangerous git commands) even under pressure |
-| Permission deny rules | `.claude/settings.json` | Edits to protected paths and reads of secrets by Claude's own tools |
+| Permission deny rules | `.claude/settings.json` | Edits to protected paths and reads of secrets by Claude's own tools ([what they don't stop](protected-paths.md)) |
 | One branch per task + PR | `{{kit_command}} lanes start` / `finish` | Drift, untested merges, unreviewed changes reaching `{{integration_branch}}` |
 | Fragments, one file per item | `docs/changelog.d/`, `docs/backlog/` | Merge conflicts between parallel lanes over shared docs |
 | CI | `.github/workflows/` | Anything that bypassed the hooks: other tools, humans, skipped steps |

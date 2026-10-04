@@ -16,3 +16,20 @@ integration_branch = "{{integration_branch}}"
 # exclude = ["src/cli/**"]          # optional
 # message = "Use the logger, not print()."
 # ignore_comments = true            # optional (default true): skip matches inside comments
+
+# Protected paths, secrets and commands. `{{kit_command}} settings sync` writes the matching rules
+# into .claude/settings.json, which Claude Code enforces; a hook catches command forms those rules
+# miss; pre-commit and CI report changes to protected paths. What this stops and what it doesn't:
+# docs/ai/protected-paths.md. After editing this table, run `{{kit_command}} settings sync`.
+[protected]
+paths = []                          # agents may not edit these, e.g. ["vendor/**", "docs/originals/"]
+commands = [                        # agents may not run these (flags match in any order)
+    "git push --force",
+    "git push -f",
+    "git reset --hard",
+    "git clean -f",
+    "git commit --no-verify",
+    "git commit -n",
+]
+secrets = [".env", ".env.local", ".env.*.local"]  # agents may neither read nor edit these; add key files
+# guard_kit = true                  # edits to the kit's own config need your approval (false: off)
