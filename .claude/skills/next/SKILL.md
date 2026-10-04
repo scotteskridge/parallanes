@@ -21,14 +21,15 @@ and the prototype for the installable `/next` in plan 07.)
 - `Read` `docs/plans/README.md` (short): the `| NN |` rows give number, title, status. Rows for
   plans not drafted yet have no link; that's expected.
 - `Grep` `^\*\*Status:\*\*` in `docs/plans/[0-9][0-9]-*.md`: each plan file's own status.
-- For the plan that is next (step 2): `Grep -i` its number (e.g. `03`) in the `|` rows of
-  `docs/ARCHITECTURE.md` §15 *Open questions* (rows name owners like `plan 03` or `plans 02, 07`),
-  and read its file's *Open questions* and `**Builds on:**` lines if the file exists.
+- Only when step 2 lands on a plan (states 3–5): find its open questions with `Grep -i` for
+  `^\|.*plans? ([0-9]{2}, )*NN` (NN = its number, e.g. `03`) in `docs/ARCHITECTURE.md`; those
+  are the §15 table rows it owns. Also read its file's *Open questions* and `**Builds on:**` lines
+  if the file exists.
 
 ## 2. Work out the state, first match wins
 1. **Unfinished work without a PR:** uncommitted changes on any branch, or a branch other than
-   `main` that is ahead of `main` and has no open PR. Name the branch and what it holds (from the
-   branch name); the next step is to finish, commit, push and open its PR.
+   `main` that is ahead of `main` and has no open PR. Name the branch and what it holds (its last
+   commit subject, shown by `git branch -vv`); the next step is to finish, commit, push and open its PR.
 2. **An open PR:** waiting on the owner's review. Name it, its CI result, and its plan.
 3. **A plan file with Status Draft:** waiting on the owner's approval of the plan and its open
    questions.
@@ -46,7 +47,7 @@ and the prototype for the installable `/next` in plan 07.)
 
 ## 4. Answer in about 15 lines, exactly this shape
 ```
-**Where you are:** <branch> · <clean | N uncommitted> · <N ahead / N behind main, pushed or not>
+**Where you are:** <branch> · <clean | N uncommitted> · <N ahead / N behind main> · <pushed | N unpushed | not pushed (no upstream)>
 **Waiting on you:** <PRs to review (CI result) / draft plans to approve / open questions> or "nothing"
 **Ready next:** <unfinished branch to wrap up, or Plan NN <title>: one line on what it builds>
 **Blocked:** <plan and what it waits on> or "nothing"
