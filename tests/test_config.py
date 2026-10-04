@@ -1,7 +1,7 @@
 import pytest
 
 from helpers import RULES_TOML, make_repo, write
-from kitlib.config import ConfigError, ConfigMissing, find_root, load
+from kitlib.config import DEFAULT_COMMANDS, DEFAULT_SECRETS, ConfigError, ConfigMissing, find_root, load
 
 
 def test_root_is_found_from_a_subfolder(tmp_path):
@@ -103,3 +103,52 @@ def test_byte_order_mark_is_accepted(tmp_path):
 def test_config_without_rules_is_valid(tmp_path):
     repo = make_repo(tmp_path, config='[project]\nname = "x"\n')
     assert load(repo).rules == []
+
+
+# ---- [protected] (plan 03) ----------------------------------------------------------------------
+
+def test_protected_defaults_apply_without_the_table(tmp_path):
+    # A project that never wrote [protected] still gets the dangerous-command and secrets defaults.
+    protected = load(make_repo(tmp_path)).protected
+    assert protected.paths == []
+    assert protected.commands == DEFAULT_COMMANDS
+    assert protected.secrets == DEFAULT_SECRETS
+    assert protected.guard_kit is True
+    assert "git commit --no-verify" in DEFAULT_COMMANDS and "git commit -n" in DEFAULT_COMMANDS
+    assert ".env" in DEFAULT_SECRETS and ".env.example" not in DEFAULT_SECRETS
+
+
+def test_protected_table_loads(tmp_path):
+    text = RULES_TOML + '''
+[protected]
+paths = ["vendor/**", "docs/originals/"]
+commands = ["git push --force"]
+secrets = []
+guard_kit = false
+'''
+    protected = load(make_repo(tmp_path, config=text)).protected
+    assert protected.paths == ["vendor/**", "docs/originals/"]
+    assert protected.commands == ["git push --force"]
+    assert protected.secrets == []
+    assert protected.guard_kit is False
+
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ('pathes = ["x"]', "pathes"),
+        ('paths = "vendor/**"', "paths"),
+        ('paths = [1]', "paths"),
+        ('paths = ["a[]b"]', "paths"),
+        ('paths = ["../outside/**"]', "paths"),
+        ('paths = ["//c/abs/**"]', "paths"),
+        ('paths = ["~/home/**"]', "paths"),
+        ('commands = ["  "]', "commands"),
+        ("commands = [\"git push '--force\"]", "commands"),
+        ('secrets = [""]', "secrets"),
+        ('guard_kit = "no"', "guard_kit"),
+    ],
+)
+def test_protected_errors_name_the_key(tmp_path, body, expected):
+    message = config_error(tmp_path, f"{RULES_TOML}\n[protected]\n{body}\n")
+    assert "[protected]" in message and expected in message

@@ -22,7 +22,7 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Architecture and plan series | 00 | ✅ done |
 | Instruction templates | 01 | ✅ done |
 | Check library, `kit` CLI, rules-check (hook + CLI + pre-commit) | 02 | ✅ done |
-| Protected paths (deny rules + command backstop) | 03 | planned |
+| Protected paths (deny rules + command backstop) | 03 | ✅ done |
 | Lanes: create, status, start, sync, finish (PR and local mode) | 04–05 | planned |
 | Reviewer and skills (incl. `/next`, `/onboard`) | 06–07 | planned |
 | Installer (Windows first) and CI template | 08–09 | planned |

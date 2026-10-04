@@ -3,6 +3,47 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-04: Plan 03 questions
+
+27. **The protected-paths hook watches more than commands.** `Bash|PowerShell` commands against
+    `[protected].commands`; `Edit|Write|NotebookEdit` paths against `[protected].paths` (still
+    protects when `settings.json` drifts); and, best effort, the targets of common PowerShell write
+    cmdlets, Bash file commands (`rm`, `mv`, `cp`...) and output redirections. *Why:* native Windows has no sandbox, and Claude Code doesn't
+    document whether deny rules cover PowerShell writes.
+
+28. **Command matching stays simple.** Split compound commands, strip assignments, wrappers and git
+    global options, then match program and subcommand with the remaining flags in any order (short
+    flag clusters expanded). `bash -c` strings, aliases, `+refspec` pushes and scripts are documented
+    misses. *Why:* the hook guards against mistakes, not adversaries (decision 15); cleverness past
+    the cheap cases is maintenance without a guarantee.
+
+29. **`kit settings sync` only adds rules and removes rules it wrote**, recorded in
+    `.claude/kit/generated-rules.json`. Owner rules are never touched; `kit check settings` reports
+    missing and stale rules. *Why:* `settings.json` has no comments to mark ownership, and a marker
+    key could trip Claude Code's settings validation. Plan 08 may fold the record into its manifest.
+
+30. **The kit's own config gets ask rules, plus a hook block only in `bypassPermissions`.**
+    `settings.json`, `kit.toml`, `.claude/kit/**`, `.githooks/**`; `[protected] guard_kit = false`
+    turns both off. *Why:* `/onboard` must be able to write `kit.toml` with the owner's approval, but
+    ask rules don't prompt in bypass mode, where nobody is watching.
+
+31. **`[protected].secrets` → `Read` and `Edit` deny rules**, default `.env`, `.env.local`,
+    `.env.*.local`. *Why:* an allow can't carve an exception out of a deny, so `.env.*` would block the
+    committed `.env.example`.
+
+32. **`kit check protected` reports changes to protected paths; `KIT_ALLOW_PROTECTED=1` lets a human
+    commit them.** How a PR declares an intended change (label, trailer, `CODEOWNERS`) is plan 09's.
+    *Why:* intended changes happen; the escape must be explicit and visible.
+
+33. **The hook finds the project from the call's `cwd`; a missing `kit.toml` allows, anything broken
+    blocks** (exit 2: in PreToolUse, exit 1 and timeouts let the call through). *Why:* decision 9, made
+    true against the real hook protocol; a lane uses its own worktree's config.
+
+34. **The agent can't switch the local checks off.** Default commands include `git commit
+    --no-verify` / `-n`; the hook blocks commands that set `KIT_ALLOW_PROTECTED` or change
+    `core.hooksPath`. The docs say CI (and branch protection, plan 09) is the gate. *Why:* a guard the
+    guarded party can disable is a suggestion.
+
 ## 2026-10-04: The repo's own `/next`
 
 26. **This repo gets its own `/next` skill now, as a prototype for plan 07's installable one.** It

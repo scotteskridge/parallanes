@@ -63,6 +63,16 @@ def changed_since(root: Path, base: str) -> list[str]:
     return _names(_git(root, "diff", "--name-only", "--diff-filter=ACMR", "-z", f"{base}...HEAD"))
 
 
+def touched_staged(root: Path) -> list[str]:
+    """Every path the next commit adds, changes or deletes; a rename counts as both names."""
+    return _names(_git(root, "diff", "--cached", "--name-only", "--no-renames", "-z"))
+
+
+def touched_since(root: Path, base: str) -> list[str]:
+    """Every path this branch added, changed or deleted since it left base (both names of a rename)."""
+    return _names(_git(root, "diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"))
+
+
 def read_staged(root: Path, path: str) -> str | None:
     """The staged version of a file: what the commit will contain, not the working tree."""
     return decode(_git(root, "show", f":{path}"))

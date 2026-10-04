@@ -10,7 +10,7 @@ KIT_OWNED = ROOT / "payload" / "kit-owned"
 
 
 def install_hook(repo):
-    shutil.copytree(KIT_OWNED / ".claude" / "kit", repo / ".claude" / "kit")
+    shutil.copytree(KIT_OWNED / ".claude" / "kit", repo / ".claude" / "kit", dirs_exist_ok=True)
     shutil.copytree(KIT_OWNED / ".githooks", repo / ".githooks")
     hook = repo / ".githooks" / "pre-commit"
     hook.chmod(hook.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)

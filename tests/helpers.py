@@ -29,8 +29,12 @@ def git(repo: Path, *args: str) -> str:
     return result.stdout
 
 
-def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project") -> Path:
-    """A git repo whose path contains a space, with .claude/kit.toml written."""
+def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project", settings: bool = True) -> Path:
+    """A git repo whose path contains a space, with .claude/kit.toml written.
+
+    settings: also write the permission rules the config needs, as an installed project has them
+    (otherwise `check all` reports the missing rules). Skipped when the config doesn't load.
+    """
     repo = base / name
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
@@ -39,7 +43,20 @@ def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project") ->
     git(repo, "config", "core.autocrlf", "false")
     if config is not None:
         write(repo, ".claude/kit.toml", config)
+        if settings:
+            sync_settings(repo)
     return repo
+
+
+def sync_settings(repo: Path) -> None:
+    from kitlib.config import ConfigError, load
+    from kitlib.settings import apply_sync, plan_sync
+
+    try:
+        config = load(repo)
+    except ConfigError:
+        return  # a test of a broken config: nothing to generate
+    apply_sync(repo, plan_sync(repo, config))
 
 
 def write(repo: Path, rel: str, text: str) -> Path:

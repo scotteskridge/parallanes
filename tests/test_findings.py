@@ -15,3 +15,8 @@ def test_format_lists_each_finding_with_location_and_rule():
 
 def test_format_of_nothing_is_empty():
     assert format_findings([]) == ""
+
+
+def test_a_finding_about_a_whole_file_has_no_line_number():
+    finding = Finding(check="protected", path="vendor/a.c", line=0, message="Protected path changed.")
+    assert format_findings([finding]) == "vendor/a.c: [protected] Protected path changed."
