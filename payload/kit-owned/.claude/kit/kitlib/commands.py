@@ -69,6 +69,11 @@ def tokenize(text: str, shell: str) -> list[list[str]]:
                 in_word = True
         elif char in "'\"":
             quote, in_word = char, True
+        elif char == ">" and not re.fullmatch(r"[0-9*]*>?", "".join(word)):
+            # `x>.env` is `x` then a redirect: start a new word unless this one is only a
+            # descriptor (`2>`, `*>`) or the first `>` of `>>`.
+            end_word()
+            word, in_word = [char], True
         elif char in _SEPARATORS:
             end_word()
             if words:
@@ -183,9 +188,18 @@ def find_protected(text: str, shell: str, patterns) -> list[tuple[str, str]]:
 _CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"}
 
 
+# Setting the variable, not mentioning it: `grep KIT_ALLOW_PROTECTED docs` and `echo $KIT_...` pass.
+# Covers `X=1`, `export`/`env`/`set X=1`, `${X:=1}`, `$env:X = 1`, `Set-Item env:X`, `setx X`, .NET.
+_SETS_ALLOW_VARIABLE = re.compile(
+    r"KIT_ALLOW_PROTECTED\s*:?=|(?<!\$)env:\\?KIT_ALLOW_PROTECTED|setx\s+KIT_ALLOW_PROTECTED"
+    r"|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED",
+    re.IGNORECASE,
+)
+
+
 def disables_checks(text: str, shell: str) -> str | None:
     """Why text would switch the kit's local checks off, or None."""
-    if "kit_allow_protected" in text.lower():
+    if _SETS_ALLOW_VARIABLE.search(text):
         return "KIT_ALLOW_PROTECTED is for a human committing at a terminal, not for an agent"
     for words in tokenize(text, shell):
         command = normalize(words)

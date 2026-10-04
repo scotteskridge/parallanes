@@ -22,17 +22,36 @@ FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
 
 
+# Windows file names ignore case: `VENDOR\a.py` is the file `vendor/**` protects.
+CASE_INSENSITIVE = os.name == "nt"
+_WILDCARD = re.compile(r"[*?\[]")
+
+
 def _matching(path: str, patterns, removes: bool = False) -> str | None:
     """The first pattern path falls under, also when path is a folder holding matching files:
     `Remove-Item vendor` deletes everything `vendor/**` protects, `rm -rf src` deletes `src/vendor/`."""
     path = normalize(path).rstrip("/")
     path = "" if path == "." else path
+    if CASE_INSENSITIVE:
+        path = path.lower()
     for pattern in patterns:
+        original = pattern
+        if CASE_INSENSITIVE:
+            pattern = pattern.lower()
         if path and (matches(path, pattern) or matches(path + "/__kit_probe__", pattern)):
-            return pattern
-        if removes and _inside(pattern, path):
-            return pattern
+            return original
+        if removes and _inside(pattern, _fixed_folder(path)):
+            return original
     return None
+
+
+def _fixed_folder(path: str) -> str:
+    """The folders before the first wildcard: `rm -rf src/*` empties `src`, `rm -rf *` the root."""
+    parts = path.split("/") if path else []
+    for index, part in enumerate(parts):
+        if _WILDCARD.search(part):
+            return "/".join(parts[:index])
+    return path
 
 
 def _inside(pattern: str, folder: str) -> bool:
@@ -41,7 +60,7 @@ def _inside(pattern: str, folder: str) -> bool:
     pattern = normalize(pattern).lstrip("/")
     if "/" not in pattern.rstrip("/"):
         return False
-    fixed = re.split(r"[*?\[]", pattern, maxsplit=1)[0]
+    fixed = _WILDCARD.split(pattern, maxsplit=1)[0]
     return fixed.startswith(folder + "/") if folder else bool(fixed)
 
 
@@ -121,8 +140,17 @@ def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool, 
     return None if rel is None else path_reason(protected, rel, bypass, removes)
 
 
+def native_path(target: str, windows: bool | None = None) -> str:
+    """Git Bash writes `C:\\x` as `/c/x`; on Windows, Path would read that as a folder on the
+    current drive and the target would fall "outside the project" unchecked."""
+    windows = os.name == "nt" if windows is None else windows
+    found = re.match(r"^/([a-zA-Z])(?:/|$)", target) if windows else None
+    return f"{found.group(1).upper()}:/{target[3:]}" if found else target
+
+
 def relative(root: Path, cwd: Path, target: str) -> str | None:
     """target as a project-relative POSIX path, or None if it lies outside the project."""
+    target = native_path(target)
     path = Path(target.replace("\\", "/")) if os.sep == "/" else Path(target)
     absolute = Path(os.path.normpath(cwd / path))  # normpath, not resolve: the file may not exist yet
     try:

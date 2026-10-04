@@ -43,7 +43,9 @@ def write_targets(text: str, shell: str) -> list[str]:
         command = normalize(words)
         if command is None:
             continue
-        if shell == "powershell":
+        if command.program == "git":
+            targets.extend(_git_targets(command)[0])
+        elif shell == "powershell":
             targets.extend(_powershell_targets(command))
         else:
             targets.extend(_bash_targets(command))
@@ -150,7 +152,9 @@ def removed_targets(text: str, shell: str) -> list[str]:
         command = normalize(_redirections(words)[0])
         if command is None:
             continue
-        if shell == "powershell":
+        if command.program == "git":
+            removed += _git_targets(command)[1]
+        elif shell == "powershell":
             parsed = _powershell_parse(command)
             if parsed is None:
                 continue
@@ -170,3 +174,35 @@ def removed_targets(text: str, shell: str) -> list[str]:
             elif command.program == "mv":
                 removed += operands if target_dir is not None else operands[:-1]
     return removed
+
+
+_GIT_VALUE_OPTIONS = {"-s", "--source", "--pathspec-from-file"}
+
+
+def _git_targets(command: Command) -> tuple[list[str], list[str]]:
+    """(written, removed) paths for git's own file commands; the same in both shells."""
+    if not command.args:
+        return [], []
+    subcommand, args = command.args[0], list(command.args[1:])
+    if subcommand == "checkout":
+        # Only after `--` are the words certainly paths; `git checkout main` switches branches.
+        return (args[args.index("--") + 1:] if "--" in args else []), []
+    if subcommand not in ("rm", "mv", "restore"):
+        return [], []
+    operands = []
+    while args:
+        arg = args.pop(0)
+        if arg == "--":
+            operands += args
+            break
+        if arg.startswith("-") and len(arg) > 1:
+            name, has_value, _ = arg.partition("=")
+            if name in _GIT_VALUE_OPTIONS and not has_value and args:
+                args.pop(0)
+            continue
+        operands.append(arg)
+    if subcommand == "rm":
+        return [], operands
+    if subcommand == "mv":
+        return operands[-1:], operands[:-1]
+    return operands, []

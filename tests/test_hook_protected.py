@@ -209,3 +209,66 @@ def test_removing_a_folder_above_a_protected_path_is_blocked(tmp_path):
     assert_blocked(bash(repo, "rm -rf src"), "src/vendor/**")
     assert_blocked(bash(repo, "Remove-Item . -Recurse", tool="PowerShell"), "src/vendor/**")
     assert_allowed(bash(repo, "cp README.md src"))
+
+
+# ---- review findings ----------------------------------------------------------------------------
+
+def test_kit_that_cannot_import_blocks(repo):
+    # e.g. Python 3.10 (no tomllib): the hook must still exit 2, not crash with exit 1.
+    fake = repo / "fakes"
+    fake.mkdir()
+    (fake / "tomllib.py").write_text("raise ImportError('simulated: no tomllib')\n", encoding="utf-8")
+    import subprocess
+    import sys
+
+    from helpers import CLI
+
+    result = subprocess.run(
+        [sys.executable, str(CLI), "hook", "protected"],
+        cwd=repo, input=pre_tool_use(repo, "Bash", {"command": "git push --force"}),
+        capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+    )
+    assert_blocked(result, "simulated: no tomllib")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Git Bash drive paths exist only on Windows")
+def test_git_bash_drive_paths_are_checked(repo):
+    posix = "/" + str(repo)[0].lower() + str(repo)[2:].replace("\\", "/")
+    assert_blocked(bash(repo, f'rm "{posix}/vendor/lib.py"'), "vendor/lib.py")
+
+
+@pytest.mark.parametrize(
+    "command, tool",
+    [("echo x>vendor/lib.py", "Bash"), ("Write-Output x>.env", "PowerShell"), ("echo x 2>>vendor/log", "Bash")],
+)
+def test_redirections_without_spaces_are_caught(repo, command, tool):
+    assert_blocked(bash(repo, command, tool=tool))
+
+
+def test_wildcard_deletes_above_a_protected_path_are_blocked(tmp_path):
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**", "vendor/**"]\n')
+    assert_blocked(bash(repo, "rm -rf src/*"), "src/vendor/**")
+    assert_blocked(bash(repo, "rm -rf *"))
+    assert_allowed(bash(repo, "rm -rf build/*"))
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["git rm -r vendor", "git rm --cached vendor/lib.py", "git mv vendor old", "git checkout -- vendor/lib.py",
+     "git restore vendor/lib.py", "git restore --source HEAD~1 vendor/lib.py"],
+)
+def test_git_file_commands_on_protected_paths_are_blocked(repo, command):
+    assert_blocked(bash(repo, command), "vendor")
+
+
+@pytest.mark.parametrize("command", ["git checkout main", "git rm -r src/old", "git restore --staged src/a.py", "git mv a b"])
+def test_git_file_commands_elsewhere_are_allowed(repo, command):
+    assert_allowed(bash(repo, command))
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["grep -rn KIT_ALLOW_PROTECTED docs", "git commit -m 'document KIT_ALLOW_PROTECTED'", "echo $KIT_ALLOW_PROTECTED"],
+)
+def test_mentioning_the_allow_variable_is_allowed(repo, command):
+    assert_allowed(bash(repo, command))

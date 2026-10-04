@@ -175,3 +175,24 @@ def test_removing_unrelated_folders_is_not(path):
 
 def test_unanchored_patterns_say_nothing_about_a_folder():
     assert path_reason(Protected(paths=["*.lock"], secrets=[]), "src", bypass=False, removes=True) is None
+
+
+def test_paths_compare_case_insensitively_on_windows(monkeypatch):
+    from kitlib import protected as module
+
+    rules = Protected(paths=["vendor/**"])
+    monkeypatch.setattr(module, "CASE_INSENSITIVE", True)
+    assert path_reason(rules, "VENDOR/a.py", bypass=False)
+    assert path_reason(rules, "config/.ENV", bypass=False)
+    monkeypatch.setattr(module, "CASE_INSENSITIVE", False)
+    assert path_reason(rules, "VENDOR/a.py", bypass=False) is None
+
+
+def test_git_bash_drive_paths_map_to_windows_drives():
+    from kitlib.protected import native_path
+
+    assert native_path("/c/Users/me/x", windows=True) == "C:/Users/me/x"
+    assert native_path("/d", windows=True) == "D:/"
+    assert native_path("/c/Users/me/x", windows=False) == "/c/Users/me/x"
+    assert native_path("/usr/lib", windows=True) == "/usr/lib"
+    assert native_path("src/a", windows=True) == "src/a"

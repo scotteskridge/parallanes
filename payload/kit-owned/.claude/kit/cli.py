@@ -6,6 +6,8 @@ Code's protocol instead: 0 nothing to report, 2 findings for Claude to fix, 1 a 
 is shown but never blocks the edit (decision 9). The protected hook is the exception: it fails
 closed, so every error is an exit 2 (decision 33).
 """
+from __future__ import annotations  # so this file still loads on an old Python and can say so
+
 import argparse
 import datetime
 import json
@@ -15,10 +17,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from kitlib import changelog, gitfiles, protected, rules_check, settings  # noqa: E402
-from kitlib.config import ConfigError, ConfigMissing, find_root, load  # noqa: E402
-from kitlib.findings import format_findings  # noqa: E402
-from kitlib.globs import normalize  # noqa: E402
+try:
+    from kitlib import changelog, gitfiles, protected, rules_check, settings
+    from kitlib.config import ConfigError, ConfigMissing, find_root, load
+    from kitlib.findings import format_findings
+    from kitlib.globs import normalize
+except BaseException as error:  # noqa: BLE001 - reported by main(), which picks the exit code
+    # A Python older than 3.11 (no tomllib) or a broken install. Left uncaught, this would exit 1,
+    # which lets a PreToolUse call through: the protected hook must fail closed here too.
+    IMPORT_ERROR = error
+else:
+    IMPORT_ERROR = None
 
 OK, FINDINGS, USAGE = 0, 1, 2
 HOOK_OK, HOOK_ERROR, HOOK_BLOCK = 0, 1, 2
@@ -35,6 +44,8 @@ def main(argv=None) -> int:
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     argv = sys.argv[1:] if argv is None else argv
+    if IMPORT_ERROR is not None:
+        return import_failure(argv, IMPORT_ERROR)
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
@@ -49,6 +60,19 @@ def main(argv=None) -> int:
         parser.print_help()
         return USAGE
     return args.run(args)
+
+
+def import_failure(argv, error: BaseException) -> int:
+    print(
+        f"kit: can't load the kit ({type(error).__name__}: {error}). It needs Python 3.11 or newer; "
+        f"this is {sys.version.split()[0]}. Tell the user.",
+        file=sys.stderr,
+    )
+    if argv[:1] != ["hook"]:
+        return USAGE
+    if argv[1:2] == ["protected"] or _hook_event() == "PreToolUse":
+        return HOOK_BLOCK
+    return HOOK_ERROR
 
 
 def _hook_event() -> str | None:

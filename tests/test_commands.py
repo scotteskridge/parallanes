@@ -216,3 +216,42 @@ def test_reading_hook_config_is_allowed(text):
 )
 def test_removed_targets(text, shell, expected):
     assert file_commands.removed_targets(text, shell) == expected
+
+
+@pytest.mark.parametrize(
+    "text, shell, expected",
+    [
+        ("echo x>.env", "bash", [".env"]),
+        ("echo x>>vendor/a", "bash", ["vendor/a"]),
+        ("cmd 2>err.log", "bash", ["err.log"]),
+        ("Write-Output x>.env", "powershell", [".env"]),
+        ("echo 'a>b'", "bash", []),
+        ("echo x 2>&1", "bash", []),
+    ],
+)
+def test_redirections_inside_a_word(text, shell, expected):
+    assert file_commands.write_targets(text, shell) == expected
+
+
+def test_git_file_commands():
+    assert file_commands.removed_targets("git rm -r -- vendor src/x", "bash") == ["vendor", "src/x"]
+    assert file_commands.removed_targets("git mv vendor old", "bash") == ["vendor"]
+    assert file_commands.write_targets("git mv vendor old", "bash") == ["old"]
+    assert file_commands.write_targets("git checkout -- a b", "bash") == ["a", "b"]
+    assert file_commands.write_targets("git checkout main", "bash") == []
+    assert file_commands.write_targets("git restore -s HEAD a", "powershell") == ["a"]
+
+
+@pytest.mark.parametrize("text", ["grep -rn KIT_ALLOW_PROTECTED docs", "echo $KIT_ALLOW_PROTECTED"])
+def test_mentioning_the_allow_variable_is_not_disabling(text):
+    assert commands.disables_checks(text, "bash") is None
+
+
+@pytest.mark.parametrize(
+    "text, shell",
+    [("set KIT_ALLOW_PROTECTED=1", "bash"), ("Set-Item env:KIT_ALLOW_PROTECTED 1", "powershell"),
+     ("[Environment]::SetEnvironmentVariable('KIT_ALLOW_PROTECTED', '1')", "powershell"),
+     ("env KIT_ALLOW_PROTECTED=1 git commit -m x", "bash")],
+)
+def test_other_ways_of_setting_the_allow_variable_are_caught(text, shell):
+    assert commands.disables_checks(text, shell)

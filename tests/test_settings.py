@@ -159,3 +159,23 @@ def test_check_all_includes_settings(tmp_path):
     result = run_cli(repo, "check", "all")
     assert result.returncode == 1
     assert "settings sync" in result.stdout
+
+
+def test_owner_rule_that_the_kit_also_needs_survives_removal(tmp_path):
+    # The owner had this rule before the kit: the kit didn't write it, so it must never remove it.
+    repo = make_repo(tmp_path, config=PROTECTED_TOML, settings=False)
+    write(repo, ".claude/settings.json", json.dumps({"permissions": {"deny": ["Bash(git push --force *)"]}}))
+    sync(repo)
+    write(repo, ".claude/kit.toml", PROTECTED_TOML.replace('commands = ["git push --force"]', "commands = []"))
+    result = sync(repo)
+    assert "Bash(git push --force *)" in read_settings(repo)["permissions"]["deny"], result.stdout
+
+
+def test_sync_keeps_the_owners_formatting(tmp_path):
+    repo = make_repo(tmp_path, config=PROTECTED_TOML, settings=False)
+    original = json.dumps({"model": "opus"}, indent=4).replace("\n", "\r\n")
+    (repo / ".claude" / "settings.json").write_bytes(b"\xef\xbb\xbf" + original.encode())
+    assert sync(repo).returncode == 0
+    raw = (repo / ".claude" / "settings.json").read_bytes()
+    assert raw.startswith(b"\xef\xbb\xbf{\r\n    \"model\"")
+    assert b"\n" not in raw.replace(b"\r\n", b"")

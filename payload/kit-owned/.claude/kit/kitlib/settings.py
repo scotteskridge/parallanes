@@ -6,6 +6,8 @@ rules the kit wrote are recorded in `.claude/kit/generated-rules.json`; sync onl
 removes recorded ones, and never touches a rule the owner wrote.
 """
 import json
+import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +19,7 @@ SETTINGS_REL = Path(".claude") / "settings.json"
 RECORD_REL = Path(".claude") / "kit" / "generated-rules.json"
 LISTS = ("deny", "ask")
 CHECK = "settings"
+BOM = b"\xef\xbb\xbf"
 
 
 class SettingsError(Exception):
@@ -85,12 +88,32 @@ def _rule_lists(data: dict, what: str) -> dict:
     return lists
 
 
+@dataclass(frozen=True)
+class Style:
+    """How the owner's settings.json is formatted, so a sync changes only the rules."""
+    indent: str | int = 2
+    newline: str = "\n"
+    bom: bool = False
+
+
+def _style(path: Path) -> Style:
+    if not path.is_file():
+        return Style()
+    raw = path.read_bytes()
+    text = raw.decode("utf-8-sig", "replace")
+    found = re.search(r"\n([ \t]+)\S", text)
+    indent = 2 if not found else ("\t" if found.group(1).startswith("\t") else len(found.group(1)))
+    newline = "\r\n" if "\r\n" in text else "\n"
+    return Style(indent=indent, newline=newline, bom=raw.startswith(BOM))
+
+
 @dataclass
 class Sync:
     settings: dict
     record: dict
     added: dict = field(default_factory=dict)
     removed: dict = field(default_factory=dict)
+    style: Style = field(default_factory=Style)
 
     @property
     def changed(self) -> bool:
@@ -103,7 +126,7 @@ def plan_sync(root: Path, config) -> Sync:
     recorded = _rule_lists({"permissions": _read_json(root / RECORD_REL, RECORD_REL.as_posix())}, RECORD_REL.as_posix())
     expected = expected_rules(config.protected)
 
-    result = Sync(settings=settings, record=expected)
+    result = Sync(settings=settings, record={}, style=_style(root / SETTINGS_REL))
     permissions = settings.setdefault("permissions", {})
     for name in LISTS:
         stale = [rule for rule in recorded[name] if rule not in expected[name]]
@@ -113,18 +136,24 @@ def plan_sync(root: Path, config) -> Sync:
         result.added[name] = added
         if kept + added or name in permissions:
             permissions[name] = kept + added
+        # Only rules this kit wrote: a rule the owner already had stays theirs (decision 29).
+        result.record[name] = [rule for rule in expected[name] if rule in recorded[name] or rule in added]
     return result
 
 
 def apply_sync(root: Path, sync: Sync) -> None:
-    _write_json(root / SETTINGS_REL, sync.settings)
-    _write_json(root / RECORD_REL, sync.record)
+    _write_json(root / SETTINGS_REL, sync.settings, sync.style)
+    _write_json(root / RECORD_REL, sync.record, Style())
 
 
-def _write_json(path: Path, data: dict) -> None:
+def _write_json(path: Path, data: dict, style: Style) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    # LF on every platform (Python's text mode would write CRLF on Windows).
-    path.write_bytes((json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
+    text = json.dumps(data, indent=style.indent, ensure_ascii=False) + "\n"
+    # Bytes, not text mode (which writes CRLF on Windows), in the owner's style.
+    raw = (BOM if style.bom else b"") + text.replace("\n", style.newline).encode("utf-8")
+    temporary = path.with_name(path.name + ".kit-tmp")
+    temporary.write_bytes(raw)
+    os.replace(temporary, path)  # atomic: a failed write never leaves half a settings.json
 
 
 def describe(sync: Sync) -> str:

@@ -159,6 +159,16 @@ Changes from the plan:
 - **`check all` includes `settings`**, so pre-commit and CI catch a `kit.toml` change that wasn't
   synced. Test repos now get synced settings, as an installed project has.
 - **`MultiEdit`** is covered with the other file tools.
+- **From the review** (each fix has a test, and all 24 new tests failed on the pre-fix code before
+  the fixes went in): the hook now fails closed when the kit can't even import (Python older than
+  3.11); `settings sync` records only the rules it added, so an owner's identical rule is never
+  removed later; it keeps the owner's indent, line endings and byte-order mark and writes
+  atomically; Git Bash drive paths (`/c/...`) are checked; Windows paths compare case-insensitively;
+  wildcard deletes (`rm -rf src/*`, `rm -rf *`) count as deleting the folder; redirects without
+  spaces (`x>.env`) are caught; `git rm`, `git mv`, `git restore` and `git checkout --` are read as
+  file commands; only *setting* `KIT_ALLOW_PROTECTED` is blocked, not mentioning it. Documented
+  instead of fixed: piped paths, `New-Item -Name`, a session editing a project outside its working
+  folder, and a missing interpreter (the hook never starts).
 - **Not done:** step 6's check of ask rules in `acceptEdits` mode. The headless `claude -p` run
   failed (CLI not logged in); the doc says "not yet verified" and ARCHITECTURE §15 carries it.
 
