@@ -41,13 +41,23 @@ def main(argv=None) -> int:
     except SystemExit as stop:
         # In hook mode, exit 2 would send usage text to Claude after every edit: report it
         # as a non-blocking hook error instead (a typo in settings.json, decision 9).
+        # PreToolUse is the protected guard's event: there, fail closed instead (decision 33).
         if argv[:1] == ["hook"] and stop.code == USAGE:
-            return HOOK_ERROR
+            return HOOK_BLOCK if _hook_event() == "PreToolUse" else HOOK_ERROR
         raise
     if not hasattr(args, "run"):
         parser.print_help()
         return USAGE
     return args.run(args)
+
+
+def _hook_event() -> str | None:
+    """The hook_event_name Claude Code sent on stdin, or None if it can't be read."""
+    try:
+        payload = json.loads(sys.stdin.read())
+    except (ValueError, OSError):
+        return None
+    return payload.get("hook_event_name") if isinstance(payload, dict) else None
 
 
 def build_parser() -> argparse.ArgumentParser:
