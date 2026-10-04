@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from kitlib import changelog, gitfiles, protected, rules_check  # noqa: E402
+from kitlib import changelog, gitfiles, protected, rules_check, settings  # noqa: E402
 from kitlib.config import ConfigError, ConfigMissing, find_root, load  # noqa: E402
 from kitlib.findings import format_findings  # noqa: E402
 from kitlib.globs import normalize  # noqa: E402
@@ -23,7 +23,7 @@ from kitlib.globs import normalize  # noqa: E402
 OK, FINDINGS, USAGE = 0, 1, 2
 HOOK_OK, HOOK_ERROR, HOOK_BLOCK = 0, 1, 2
 
-CHECKS = ("rules", "protected")
+CHECKS = ("rules", "protected", "settings")
 
 
 class UsageError(Exception):
@@ -76,6 +76,12 @@ def build_parser() -> argparse.ArgumentParser:
     hook.add_argument("name", choices=["rules-check", "protected"])
     hook.set_defaults(run=run_hook)
 
+    perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
+    perms_commands = perms.add_subparsers(title="settings commands")
+    sync = perms_commands.add_parser("sync", help="write the deny and ask rules [protected] needs")
+    sync.add_argument("--dry-run", action="store_true", help="print the changes; write nothing")
+    sync.set_defaults(run=run_settings_sync)
+
     log = commands.add_parser("changelog", help="changelog fragments")
     log_commands = log.add_subparsers(title="changelog commands")
     build = log_commands.add_parser("build", help="compile docs/changelog.d/ into docs/CHANGELOG.md")
@@ -98,7 +104,9 @@ def run_check(args) -> int:
             findings += rules_check.check(config, collect_files(root, config, args))
         if "protected" in names:
             findings += check_protected(root, config, args)
-    except (ConfigError, gitfiles.GitError, UsageError) as error:
+        if "settings" in names:
+            findings += settings.check(root, config)  # about the project, not the files given
+    except (ConfigError, gitfiles.GitError, UsageError, settings.SettingsError) as error:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
     if findings:
@@ -255,6 +263,26 @@ def hook_rules_check(payload: dict) -> int:
         file=sys.stderr,
     )
     return HOOK_BLOCK
+
+
+# ---- kit settings ------------------------------------------------------------------------------
+
+def run_settings_sync(args) -> int:
+    try:
+        root = find_root(Path.cwd())
+        plan = settings.plan_sync(root, load(root))
+    except (ConfigError, settings.SettingsError) as error:
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    if not plan.changed:
+        print(f"{settings.SETTINGS_REL.as_posix()} is up to date.")
+        return OK
+    if args.dry_run:
+        print(f"Would change {settings.SETTINGS_REL.as_posix()}:\n{settings.describe(plan)}")
+        return OK
+    settings.apply_sync(root, plan)
+    print(f"Updated {settings.SETTINGS_REL.as_posix()}:\n{settings.describe(plan)}")
+    return OK
 
 
 # ---- kit changelog -------------------------------------------------------------------------------
