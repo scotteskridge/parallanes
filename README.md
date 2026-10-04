@@ -20,7 +20,7 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Piece | Plan | State |
 | --- | --- | --- |
 | Architecture and plan series | 00 | ✅ done |
-| Instruction templates | 01 | planned |
+| Instruction templates | 01 | ✅ done |
 | Checks: rules-check, protected paths (hook + CLI + pre-commit) | 02–03 | planned |
 | Lanes: create, status, start, sync, finish (PR and local mode) | 04–05 | planned |
 | Reviewer and skills (incl. `/next`, `/onboard`) | 06–07 | planned |

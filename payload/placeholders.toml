@@ -1,0 +1,35 @@
+# Every {{placeholder}} a template in payload/templates/ may use. The installer asks for (or detects)
+# each value; tests fail if a template uses a name that isn't listed here.
+# `example` is used by the tests to render every template.
+
+[project_name]
+description = "Short project name, used in headings."
+example = "hello-lanes"
+
+[project_description]
+description = "One or two sentences: what the project is and who it's for."
+example = "A small task tracker API, built to show the multi-lane agent workflow."
+
+[stack]
+description = "Languages, frameworks and versions the agent must respect."
+example = "Python 3.12, FastAPI, pytest."
+
+[test_command]
+description = "The command that runs the test suite from the project root."
+example = "python -m pytest -q"
+
+[integration_branch]
+description = "Where finished work lands."
+example = "main"
+
+[kit_command]
+description = "How to run the kit CLI from the project root (decided in plan 08: a shim, or python with the script path)."
+example = "python .claude/kit/cli.py"
+
+[kit_version]
+description = "Version of the kit that installed these files."
+example = "0.1.0"
+
+[install_date]
+description = "Date of installation, YYYY-MM-DD."
+example = "2026-10-04"

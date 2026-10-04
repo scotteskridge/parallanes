@@ -1,0 +1,65 @@
+# Parallel lanes: several agents at once
+
+Lanes let several agent sessions work on {{project_name}} at the same time without stepping on each
+other. This guide is for the people running them; the agents get their part from a hook at session
+start.
+
+## Concepts
+
+- **Lane:** a long-lived workspace with its own folder (a *git worktree*: a second checkout of the
+  same repository), a scope, the paths it owns, and its own resources (ports, editor instances).
+  Lanes are defined in `.claude/kit.toml`.
+- **Task branch:** each task gets a fresh branch named `<lane>/<task>`, created from the latest
+  `{{integration_branch}}` and deleted once merged. Branches never live longer than one task, so they
+  can't drift.
+- **Integration branch:** `{{integration_branch}}`, where finished work lands, through a pull
+  request (PR mode, the default) or a local fast-forward (local mode, for solo or offline work).
+
+## Setting up
+
+```
+{{kit_command}} lanes create          # one worktree per lane in .claude/kit.toml
+{{kit_command}} lanes status          # every lane: folder, branch, ahead/behind, uncommitted, unpushed, PR
+```
+
+Then start one Claude Code session in each lane's folder. Two to four lanes is usually the limit of
+what one person can review.
+
+## The task cycle
+
+```
+{{kit_command}} lanes start <task>    # new branch <lane>/<task> from the latest integration branch
+  ... /plan-feature or /implement, then /wrap-up ...
+{{kit_command}} lanes finish          # tests → push and open a PR (or fast-forward in local mode)
+```
+
+`/plan-feature`, `/implement` and `/wrap-up` run these for you; the commands work the same by hand.
+If `{{integration_branch}}` moves while you work, `{{kit_command}} lanes sync` brings it in (rebase before the
+branch is pushed, merge after, so nothing under review is rewritten).
+
+## Rules that keep lanes apart
+
+- **One session per lane folder.** Two sessions in one folder share files and mix their edits.
+- **Stay in your lane's paths.** An edit outside them asks you first (`ownership = "ask"` in
+  `kit.toml`). Shared paths (plans, backlog, changelog fragments) are open to every lane.
+- **No shared append-only files.** Changelog entries are fragments; backlog items are one file
+  each. That removes the most common merge conflict.
+- **Don't run two tasks at once that edit the same file.** If two lanes need it, do one after the
+  other.
+
+## When a merge conflicts
+
+- Code: resolve it in the task branch, run the tests, and say in the PR what you chose.
+- Generated files: take either side, then regenerate.
+- Binary or editor-owned files (images, scenes, lock files): stop and ask; don't hand-merge.
+
+## Removing a lane
+
+`{{kit_command}} lanes remove <lane>` deletes its worktree (it refuses if there are uncommitted changes). The
+lane's entry stays in `kit.toml` until you delete it.
+
+## Lanes or agent teams?
+
+Lanes are for **lasting, human-supervised workstreams**: each has an owner, a scope and a review
+step. Claude Code's agent teams are for **fanning one task out** to several helpers that report
+back. A lane session can still use agent teams or subagents inside its own task.
