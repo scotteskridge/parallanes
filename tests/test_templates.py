@@ -117,3 +117,17 @@ def test_relative_links_resolve():
 def test_templates_are_lf():
     for path in template_files():
         assert b"\r\n" not in path.read_bytes(), f"{installed_name(path)} has CRLF line endings"
+
+
+def test_rendered_kit_toml_is_a_valid_config(tmp_path):
+    # The installed config must load cleanly, or every check and hook would fail on day one.
+    from kitlib.config import load
+
+    entries = registry()
+    values = {name: entry["example"] for name, entry in entries.items()}
+    rendered = render(read(".claude/kit.toml"), values, set(entries))
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "kit.toml").write_text(rendered, encoding="utf-8")
+    config = load(tmp_path)
+    assert config.project["test_command"] == values["test_command"]
+    assert config.rules == []
