@@ -1,7 +1,7 @@
 # 03 — Protected paths and commands
 
-**Status:** In progress
-**Branch / PR:** `plan/03-protected-paths`
+**Status:** Done
+**Branch / PR:** `plan/03-protected-paths` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/5
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode); ARCHITECTURE §5, §7 (protected paths and
 commands), §14; decisions 7 (manifest), 9 (fails closed), 14, 15 (deny rules primary, hook a backstop)
 
@@ -138,9 +138,9 @@ for a match *and* for every error (question 7). Must stay well under 1 s.
 | `test_templates` (added) | Rendered `kit.toml` loads; its default secrets don't match `.env.example` |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §7 and §15 (incl. the plan 09 note), decisions log updated
+- [x] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE §7 and §15 (incl. the plan 09 note), decisions log updated
 
 ## Notes after implementation
 Changes from the plan:
