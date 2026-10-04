@@ -7,8 +7,10 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 26. **This repo gets its own `/next` skill now, as a prototype for plan 07's installable one.** It
     reads the branch, open PRs and CI, the plans index and plan statuses, and ARCHITECTURE §15; it
-    prints where the build stands and **one recommended prompt**, and changes nothing (its granted
-    tools are read-only, enforced by `tests/test_repo_skills.py`). It also reports docs that
+    prints where the build stands and **one recommended prompt**, and is told to change nothing.
+    `allowed-tools` only pre-approves tools (anything else would prompt), so its grants are kept to
+    read-only commands, exact where a wildcard could match a writing form such as `git branch -D`;
+    `tests/test_repo_skills.py` enforces the list. It also reports docs that
     disagree, without fixing them. *Why:* the owner wants a fresh session to know where things
     stand in one command; building the simple version first gives plan 07 real usage to learn
     from. The installable version (lanes, backlog files) stays in plan 07.
