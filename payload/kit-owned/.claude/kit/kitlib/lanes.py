@@ -39,8 +39,11 @@ def locate(folder: Path) -> tuple[Path | None, Path | None]:
     in the common case, because the hooks run this on every session start and edit."""
     out = git(folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir",
               check=False).splitlines()
-    if len(out) != 3:
+    if not out:
         return None, None  # outside git, or a bare repository (no top level)
+    if len(out) != 3:
+        # An older git echoes `--path-format=absolute` back instead of failing: say so, don't go quiet.
+        raise LaneError("unexpected output from git rev-parse: lanes need git 2.36 or newer")
     top, git_dir, common = (Path(line) for line in out)
     if same_path(git_dir, common):
         return top, top  # this is the main checkout (also a submodule's own checkout)
@@ -60,9 +63,15 @@ def _main_from_linked(folder: Path, common: Path) -> Path:
     configured = git(folder, "config", "--file", str(common / "config"), "--get", "core.worktree", check=False).strip()
     if configured:
         candidates.append(Path(os.path.normpath(common / configured)))
+    candidates = [candidate for candidate in candidates if not same_path(candidate, common)]
     for candidate in candidates:
-        if not same_path(candidate, common) and (candidate / ".claude" / "kit.toml").is_file():
+        if (candidate / ".claude" / "kit.toml").is_file():
             return candidate
+    if candidates and (candidates[0] / ".git").exists():
+        raise LaneError(
+            f"the main checkout {candidates[0]} has no .claude/kit.toml checked out (is it on a commit from "
+            "before the kit, or is this a separate git dir?); lanes need it there"
+        )
     raise LaneError(
         "can't find the main checkout from this worktree (the repository is bare or uses a separate "
         "git dir); lanes need a normal checkout"

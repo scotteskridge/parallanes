@@ -158,11 +158,11 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 | `start <task>` | Check the lane's previous task branch is merged (PR mode: fetch, then the PR's state via `gh`; local mode: `git branch --merged`) → delete it → create `<lane>/<task>` from the integration tip (`origin/<integration>` in PR mode, the local `<integration>` in local mode). Refuses with uncommitted changes; `--abandon` drops an unmerged previous branch on purpose |
 | `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review) |
 | `finish` | Run `test_command` → **PR mode:** push the task branch and open a PR whose body carries the plan link and the review report; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, retrying after `sync` if refused |
-| `remove <lane>` | Remove the worktree (refuses with uncommitted changes) |
+| `remove <lane>` | Remove the worktree (refuses with uncommitted changes, or ignored files that may hold work unless `--force`, decision 45) |
 
-`create`, `status` and `remove` (plan 04) work from any folder of the repository: the main checkout
-comes from `git rev-parse --git-common-dir`, and a folder is a lane when its git top level is
-`<main>/<worktree_root>/<name>` (decision 37). Nested lanes get `claudeMdExcludes` for the main
+`create`, `status` and `remove` (plan 04, `kitlib/lane_setup.py` and `lane_status.py`) work from any
+folder of the repository: the main checkout is found from git (decision 37), and a folder is a lane
+when its git top level is `<main>/<worktree_root>/<name>`. They need git 2.36 or newer. Nested lanes get `claudeMdExcludes` for the main
 checkout's instruction files in their `settings.local.json` (decision 35).
 
 ### Drift is prevented, then detected

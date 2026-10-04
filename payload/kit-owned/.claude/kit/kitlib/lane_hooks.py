@@ -87,7 +87,8 @@ def _merged(root: Path, branch: str, tip: str) -> bool:
     "Its own" comes from the branch's reflog (newest first): a commit, amend, cherry-pick, revert or
     applied patch made since the branch was last created or reset, so work reset away or an old
     branch of the same name doesn't count, and a fresh branch fast-forwarded to a newer tip has none.
-    Without a reflog nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
+    Undoing only the last commit with a reset hides earlier ones too (no warning: the safe
+    direction). Without a reflog nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
     """
     subjects = lanes.git(root, "reflog", "show", "--format=%gs", f"refs/heads/{branch}", check=False).splitlines()
     for subject in subjects:

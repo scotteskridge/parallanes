@@ -1,10 +1,11 @@
 """`kit lanes create` and `kit lanes remove`: making and removing lane worktrees (decisions 35, 39, 45)."""
+import filecmp
 import os
 import shutil
 import subprocess
 from pathlib import Path
 
-from .lanes import (LaneError, find_lane, git, integration_tip, is_nested, is_registered, lane_folder, main_checkout,
+from .lanes import (LaneError, find_lane, git, integration_tip, is_nested, is_registered, lane_folder, locate, main_checkout,
                     registered_worktrees, same_path, toplevel, worktree_root)
 from .settings import SettingsError, Style, read_json, style_of, write_json
 
@@ -54,8 +55,11 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
     # Every lane is attempted and reported, so a rerun after a fix finishes the job.
     for lane in selected:
         folder = lane_folder(main, config, lane)
-        exists = any(same_path(path, folder) for path in registered) and folder.is_dir()
+        known = any(same_path(path, folder) for path in registered)
+        exists = known and folder.is_dir()
         try:
+            if known and not exists:
+                raise LaneError(f"registered, but {folder} is missing; run `git worktree prune`, then create again")
             if not exists and folder.exists():
                 raise LaneError(f"{folder} exists but is not this lane's worktree; move it away first")
             if dry_run:
@@ -64,6 +68,7 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
                 continue
             if not exists:
                 git(main, "worktree", "add", "--detach", str(folder), tip)
+                _check_traceable(main, folder)
             # Reported once the worktree exists: a later step's failure is an error of its own.
             lines.append(f"{lane.name}: " + (f"already created at {folder}" if exists else
                                              f"created {folder}, detached at {tip}"))
@@ -76,6 +81,20 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
     if errors:
         raise PartialCreate("\n".join(errors), lines)
     return lines
+
+
+def _check_traceable(main: Path, folder: Path) -> None:
+    """Undo a lane that its hooks couldn't trace back to the main checkout (a separate git dir)."""
+    try:
+        found = locate(folder)[1]
+    except LaneError as error:
+        found, reason = None, str(error)
+    else:
+        reason = f"the lane resolves to {found} instead of {main}"
+    if found is not None and same_path(found, main):
+        return
+    git(main, "worktree", "remove", "--force", str(folder))
+    raise LaneError(f"not created: {reason}. Lanes need a normal checkout (docs/ai/parallel-lanes.md)")
 
 
 def _copy(main: Path, folder: Path, include: list[str]) -> None:
@@ -190,13 +209,17 @@ def ignored_work(main: Path, folder: Path) -> list[str]:
     out = git(folder, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory")
     lost = []
     for rel in (name for name in out.split("\0") if name):
-        if any(part in REBUILT_FOLDERS for part in rel.rstrip("/").split("/")):
-            continue
+        if rel.endswith("/") and rel.rstrip("/").rsplit("/", 1)[-1] in REBUILT_FOLDERS:
+            continue  # a whole cache folder; a file inside work that merely has such a name still counts
         mine, original = folder / rel, main / rel
         if rel == LOCAL_SETTINGS_REL.as_posix() and _only_our_excludes(main, mine, original):
             continue
-        if _same_content(mine, original):
-            continue
+        try:
+            if _same_content(mine, original):
+                continue
+        except OSError:
+            pass  # can't read it: it may hold work, so it is listed
+
         lost.append(rel)
     return lost
 
@@ -209,13 +232,18 @@ REBUILT_FOLDERS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
 def _same_content(mine: Path, original: Path) -> bool:
     """A file with the same bytes, or a folder whose every file has a same-bytes original."""
     if mine.is_file():
-        return original.is_file() and mine.read_bytes() == original.read_bytes()
+        return original.is_file() and _identical_files(mine, original)
     if not mine.is_dir() or not original.is_dir():
         return False
     return all(
         path.is_dir() or _same_content(path, original / path.relative_to(mine))
         for path in mine.rglob("*")
     )
+
+
+def _identical_files(a: Path, b: Path) -> bool:
+    # Size first, then chunked: an included model or dataset may be gigabytes.
+    return a.stat().st_size == b.stat().st_size and filecmp.cmp(a, b, shallow=False)
 
 
 def _only_our_excludes(main: Path, mine: Path, original: Path) -> bool:

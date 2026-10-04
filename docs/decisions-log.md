@@ -17,8 +17,10 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     is enough to make the next task start from the new ones.
 
 37. **A folder is a lane when its git top level is `<main checkout>/<worktree_root>/<name>`.** The
-    main checkout comes from `git rev-parse --git-common-dir`. Anything else is "not a lane":
-    the router says so and ownership is off. *Why:* derived from git and the config, so no state
+    main checkout is the git top level when run there; from a linked worktree it is git's first
+    `worktree list` entry (a submodule's `core.worktree`), and it must have `.claude/kit.toml`
+    checked out, which rules out a separate git dir. Any other folder is "not a lane": the router
+    says so and ownership doesn't judge it. *Why:* derived from git and the config, so no state
     file can go stale.
 
 38. **The kit never moves the main checkout.** `lanes status` reports what it holds and, in local

@@ -411,7 +411,8 @@ def test_separate_git_dir_works_from_the_main_checkout_and_fails_clearly_in_a_la
     # git lists the git dir, not the working tree, as the main worktree here: nothing to trace back.
     repo = lanes_repo(tmp_path, origin=False)
     git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'git store'}")
-    assert create(repo, "core").returncode == 0
+    assert create(repo, "core").returncode == 2  # refused: its hooks couldn't find their way back
+    git(repo, "worktree", "add", "-q", "--detach", str(lane_dir(repo, "core")))  # made by hand anyway
     assert status(repo).returncode == 0
     assert lanes.main_checkout(repo).resolve() == repo.resolve()
     with pytest.raises(lanes.LaneError, match="separate git dir"):

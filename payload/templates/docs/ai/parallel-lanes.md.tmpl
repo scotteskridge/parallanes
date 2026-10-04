@@ -27,10 +27,13 @@ what one person can review.
 
 `lanes create` makes each lane folder from the latest `{{integration_branch}}` (`origin/{{integration_branch}}` in PR
 mode, the local branch in local mode; it never fetches), with no branch checked out until a task
-starts. If one lane fails, the others are still created; fix the problem and run it again. Lanes
-need a normal checkout: a repository set up with `git init --separate-git-dir` can't trace a lane
-back to its main checkout, so the lane commands and hooks stop with an error there. It copies the files
-listed in `.worktreeinclude` that are gitignored (local settings, `.env`). It refuses when lane folders
+starts. If one lane fails, the others are still created; fix the problem and run it again. It
+copies the files listed in `.worktreeinclude` that are gitignored (local settings, `.env`); a rerun
+copies only missing ones and never overwrites, so after changing `.env` in the main checkout, update
+the lanes' copies yourself.
+
+Lanes need git 2.36 or newer and a normal checkout: in a repository set up with `git init
+--separate-git-dir`, git can't trace a lane back to its main checkout, so `lanes create` refuses. It refuses when lane folders
 inside the project aren't gitignored, and tells you the line to add to `.gitignore`.
 
 **What each session is told.** When a session starts (or resumes, clears or compacts) in a lane folder, a hook
@@ -50,7 +53,9 @@ session that only the lane's own `CLAUDE.md` is loaded. Tools that walk the proj
 exclude lists. To keep lanes outside the project instead, set `worktree_root = "../{project}-lanes"`
 in `kit.toml` before creating them.
 
-**The main checkout.** In PR mode it can stay on `{{integration_branch}}`. In local mode, lanes
+**The main checkout.** Keep it on a commit that has the kit (`.claude/kit.toml`): the lanes find
+it by that file, so while it is on an older commit (say, during `git bisect`) the lane commands
+stop with an error and the lane hooks stand down. In PR mode it can stay on `{{integration_branch}}`. In local mode, lanes
 fast-forward `{{integration_branch}}` directly, which git refuses while any folder has it checked
 out; `lanes status` warns and gives the command (`git switch --detach {{integration_branch}}`). The
 kit never moves the main checkout itself.

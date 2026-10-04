@@ -118,7 +118,8 @@ def test_separate_git_dir_named_dot_git_is_not_mistaken_for_the_main_checkout(tm
     repo = lanes_repo(tmp_path, origin=False)
     (tmp_path / "store").mkdir()
     git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'store' / '.git'}")
-    assert create(repo, "core").returncode == 0
+    assert create(repo, "core").returncode == 2  # refused
+    git(repo, "worktree", "add", "-q", "--detach", str(lane_dir(repo, "core")))  # made by hand anyway
     with pytest.raises(lanes.LaneError):
         lanes.current_lane(lane_dir(repo, "core"), load(repo))
 
@@ -214,3 +215,66 @@ def test_main_checkout_git_folder_has_its_own_reason(lane, repo):
     result = ownership(lane, repo / ".git" / "config")
     reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
     assert "git data" in reason and "copy here" not in reason
+
+
+# ---- from the third review ---------------------------------------------------------------------
+
+def test_cache_names_inside_work_paths_still_count(repo):
+    ignore(repo, "*.secret", "node_modules")
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    write(folder, "src/venv/keys.secret", "k\n")  # `venv` here is a work folder, not a virtualenv
+    write(folder, "notes/node_modules", "a file, not the cache folder\n")
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2
+    assert "src/venv/keys.secret" in result.stderr and "notes/node_modules" in result.stderr
+
+
+def test_unreadable_file_counts_as_work_without_a_traceback(repo, monkeypatch):
+    from kitlib import lane_setup
+
+    ignore(repo, "*.secret")
+    assert create(repo, "core").returncode == 0
+    write(lane_dir(repo, "core"), "locked.secret", "x\n")
+    write(repo, "locked.secret", "x\n")
+
+    def denied(*args, **kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(lane_setup, "_identical_files", denied)
+    assert "locked.secret" in lane_setup.ignored_work(repo, lane_dir(repo, "core"))
+
+
+def test_main_checkout_without_the_kit_names_the_cause(repo):
+    assert create(repo, "core").returncode == 0
+    git(repo, "rm", "-q", ".claude/kit.toml")
+    git(repo, "commit", "-q", "-m", "before the kit")  # as if the main checkout were on an old commit
+    with pytest.raises(lanes.LaneError, match="no .claude/kit.toml"):
+        lanes.locate(lane_dir(repo, "core"))
+
+
+def test_create_refuses_a_layout_lanes_cannot_work_in(tmp_path):
+    repo = lanes_repo(tmp_path, origin=False)
+    git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'proj.git'}")
+    result = create(repo)
+    assert result.returncode == 2
+    assert "separate git dir" in result.stderr
+    assert "core: created" not in result.stdout
+    assert not lane_dir(repo, "core").exists()
+    assert "worktrees" not in git(repo, "worktree", "list")
+
+
+def test_registered_lane_with_a_deleted_folder_says_prune(repo):
+    assert create(repo, "api").returncode == 0
+    shutil.rmtree(lane_dir(repo, "api"))
+    for args in ((), ("--dry-run",)):
+        result = create(repo, *args)
+        assert result.returncode == 2
+        assert "git worktree prune" in result.stderr
+        assert "api: would create" not in result.stdout
+
+
+def test_old_git_output_is_an_error_not_silence(monkeypatch, repo):
+    monkeypatch.setattr(lanes, "git", lambda *args, **kwargs: "--path-format=absolute\n/a\n/b\n/c\n")
+    with pytest.raises(lanes.LaneError, match="git 2.36"):
+        lanes.locate(repo)
