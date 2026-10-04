@@ -7,7 +7,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | # | Plan | Scope | Status |
 | --- | --- | --- | --- |
 | 00 | [Architecture and plan series](00-architecture.md) | `ARCHITECTURE.md`, this index, plan template, roadmap and decisions updates | Done |
-| 01 | [Instruction templates](01-instruction-templates.md) | `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` templates, docs scaffolding, changelog and backlog fragments, placeholder rendering | In progress |
+| 01 | [Instruction templates](01-instruction-templates.md) | `AGENTS.md` / `CLAUDE.md` / `.claude/rules/` templates, docs scaffolding, changelog and backlog fragments, placeholder rendering | Done |
 | 02 | Check library + rules-check | Shared `kitlib` (`kit.toml` loading, globs, comment stripping, reporting); the `kit` CLI with `changelog build`; rules-check as hook, CLI and pre-commit | Not started |
 | 03 | Protected paths | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | Not started |
 | 04 | Lanes core | `[[lanes]]` in `.claude/kit.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Not started |

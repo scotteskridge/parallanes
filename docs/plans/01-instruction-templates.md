@@ -1,6 +1,6 @@
 # 01 — Instruction templates
 
-**Status:** In progress
+**Status:** Done
 **Branch / PR:** `plan/01-instruction-templates`
 **Builds on:** ARCHITECTURE §4 (installed project), §5 (where instructions live), §8 (shared docs);
 decisions 4, 7, 13
@@ -85,9 +85,9 @@ Placeholders (initial set): `project_name`, `project_description`, `stack`, `tes
 | `test_templates.py::test_templates_are_lf` | No CRLF in any template |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP and plans index updated; open questions 1–2 answered and logged
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ROADMAP and plans index updated; open questions 1–2 answered and logged
 
 ## Notes after implementation
 Changes from the plan:
