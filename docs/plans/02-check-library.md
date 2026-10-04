@@ -1,6 +1,6 @@
 # 02 — Check library, `kit` CLI and rules-check
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/02-check-library`
 **Builds on:** ARCHITECTURE §4 (`.claude/kit/`, `kit.toml`), §7 (one module, three entry points),
 §8 (changelog fragments); decisions 8, 9, 13, 14
@@ -28,6 +28,8 @@ changelog fragments into `CHANGELOG.md`.
 3. **Pre-commit:** *Recommendation:* ship a native `.githooks/pre-commit` (POSIX sh, which Git for
    Windows also runs) calling `kit check all --staged`; the installer enables it with
    `core.hooksPath` only after asking (plan 08). Support for the pre-commit framework is Later.
+
+**Answers (owner, 2026-10-04):** all three as recommended. Decisions 23–25.
 
 ## Reuse
 - `kitlib/render.py` (plan 01): pattern for small, strict, stdlib-only modules.
@@ -88,4 +90,19 @@ covered, 2 findings (stderr to Claude), 1 kit error (visible, non-blocking).
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE §15 (answered questions) and decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up. -->
+Changes from the plan:
+- **`check` with no files checks every tracked file** (`git ls-files`), so `kit check all` is a
+  useful whole-project run; `--diff BASE` uses the merge base (`BASE...HEAD`), as a pull request
+  sees it.
+- **`.claude/kit/python-path`** (one line, written by the installer, gitignored) tells the
+  pre-commit script which Python to run; it falls back to `python3`, then `python`.
+- **Binary files are skipped** (a NUL byte in the first 8 KB).
+- `test_templates.py` gained a test that the rendered `kit.toml` loads as a valid config.
+- `test_findings.py` added for the output format.
+
+Answered for later plans: hook commands on Windows run in Git Bash by default (PowerShell if Git
+Bash is missing), and Claude Code's `args` form runs a program with no shell at all, which avoids
+quoting problems with paths containing spaces. Plan 08 should use it.
+
+New for plan 08: values rendered into `kit.toml` must be TOML-escaped (a test command containing
+`"` would break the file).

@@ -1,0 +1,66 @@
+"""Gitignore-style path patterns, matched the same way on Windows and POSIX.
+
+Paths are relative to the project root and use `/`. A pattern without a slash matches the file name
+at any depth (`*.py`); a pattern with a slash is anchored at the root (`src/*.py`). `**` crosses
+folders, `*` and `?` don't, and a trailing `/` means everything inside that folder.
+"""
+import functools
+import re
+
+
+def normalize(path: str) -> str:
+    """Project-relative path in POSIX form: `src\\a.py` and `./src/a.py` both become `src/a.py`."""
+    path = path.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    return path
+
+
+@functools.lru_cache(maxsize=512)
+def _compile(pattern: str) -> re.Pattern:
+    pattern = normalize(pattern)
+    if pattern.endswith("/"):
+        pattern += "**"
+    anchored = "/" in pattern.rstrip("/")
+    pattern = pattern.lstrip("/")
+
+    out = []
+    i = 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")  # zero or more folders
+            i += 3
+        elif pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            out.append("[^/]")
+            i += 1
+        elif pattern[i] == "[":
+            end = pattern.find("]", i + 1)
+            if end == -1:  # no closing bracket: a literal "["
+                out.append(re.escape("["))
+                i += 1
+                continue
+            body = pattern[i + 1 : end]
+            if body.startswith("!"):
+                body = "^" + body[1:]
+            out.append("[" + body.replace("\\", "\\\\") + "]")
+            i = end + 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+
+    prefix = "" if anchored else "(?:.*/)?"
+    return re.compile(prefix + "".join(out) + r"\Z")
+
+
+def matches(path: str, pattern: str) -> bool:
+    return _compile(pattern).match(normalize(path)) is not None
+
+
+def matches_any(path: str, patterns) -> bool:
+    return any(matches(path, pattern) for pattern in patterns)

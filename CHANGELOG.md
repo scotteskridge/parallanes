@@ -15,3 +15,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   docs, human guides (`WORKFLOW.md`, `parallel-lanes.md`), plans, one-file-per-item backlog,
   changelog fragments, code standards, design docs, git files; a placeholder registry and a
   strict renderer that fails on unknown or missing placeholders.
+- The `kit` CLI and check library (plan 02): forbidden-pattern rules in `.claude/kit.toml`,
+  enforced as a Claude Code PostToolUse hook, by `kit check` (files, `--staged`, `--diff BASE`),
+  and by a git pre-commit hook; strict config validation; `kit changelog build` compiles
+  fragments into a release section.

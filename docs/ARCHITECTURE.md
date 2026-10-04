@@ -65,10 +65,12 @@ my-project/
 │   ├── rules/*.md                 P  path-scoped rules (`paths:` frontmatter)
 │   ├── skills/<name>/SKILL.md     K  /plan-feature /implement /wrap-up /code-health /design /next /onboard
 │   ├── agents/reviewer.md         K  fresh-context reviewer
-│   ├── kit/                       K  kitlib + lanes + checks + hooks; manifest.json; VERSION
+│   ├── kit/                       K  cli.py + kitlib (lanes, checks, hooks); manifest.json; VERSION;
+│   │                                 python-path (this machine's interpreter, gitignored)
 │   └── worktrees/<lane>/             lane worktrees (gitignored)
 ├── .worktreeinclude               P  gitignored files copied into each new worktree (settings.local.json, .env)
-├── kit · kit.cmd                  K  shims: `kit lanes status`, `kit check rules --staged`
+├── .githooks/pre-commit          K  `check all --staged` before each commit (opt-in, decision 25)
+├── kit · kit.cmd                  K  shims (if plan 08 keeps them): `kit lanes status`, `kit check rules --staged`
 ├── .github/workflows/kit.yml      P  CI: tests + checks on every push and PR                     (plan 09)
 └── docs/
     ├── ai/WORKFLOW.md             P  the human guide: the daily loop and why each rule exists
@@ -316,13 +318,14 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 
 | Question | Answered by |
 | --- | --- |
-| Which shell runs hook commands on native Windows? (`$CLAUDE_PROJECT_DIR` expansion in the first implementation suggests Git Bash; not in the docs) | plan 08, by test on Windows |
+| ~~Which shell runs hook commands on native Windows?~~ Answered in plan 02: Git Bash by default, PowerShell if it's missing; the `args` form runs the program with no shell, avoiding quoting problems. Plan 08 uses `args` | plan 08 |
 | Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session? (Design avoids depending on it: §6 uses `cwd`) | plan 04 |
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
-| `kit changelog build` and `/next` must skip the `README.md` and `_TEMPLATE.md` beside fragments and backlog items | plans 02, 07 |
+| `/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items (`changelog build` already does, plan 02) | plan 07 |
 | Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`); use the `.tmpl`-style guard or accept it as dogfooding | plan 07 |
-| Pre-commit: native `.githooks` (stdlib, sets `core.hooksPath`) vs also shipping `.pre-commit-hooks.yaml` for teams using the pre-commit framework | plan 02 |
+| ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
+| Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
 | Worktrees nested in the main checkout: does a lane session also load the root's (possibly older) `CLAUDE.md` from the parent folder? Root tools must skip `.claude/worktrees/` (pytest `norecursedirs`, linters). If nesting causes real problems, the default `worktree_root` becomes a sibling folder | plan 04 |
 | What the main checkout holds when it isn't a lane (detached HEAD at the integration branch, so local mode can fast-forward it) | plan 04 |
 | PR-mode merge detection: match the PR by head commit, not branch name (a reused task slug could match an old PR); closed-unmerged PRs need the `--abandon` path | plan 05 |

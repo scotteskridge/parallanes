@@ -3,6 +3,21 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-04: Plan 02 questions
+
+23. **Comment stripping is simple and errs towards missing, never false alarms.** Line comments by
+    file type plus block comments; no string parsing, so a comment marker inside a string ends
+    checking for that line. Rules can set `ignore_comments = false`. *Why:* a check that cries wolf
+    gets disabled; a rare miss is still caught in review.
+
+24. **Unknown keys in `kit.toml` are errors.** On the CLI and in CI they fail the run; in hook mode
+    they are a visible, non-blocking hook error (fail open, decision 9). *Why:* a typo such as
+    `pathes =` must not silently switch a rule off.
+
+25. **Pre-commit is git's own hook mechanism** (`.githooks/pre-commit`, POSIX sh, which Git for
+    Windows also runs), enabled by the installer through `core.hooksPath` only after asking. The
+    pre-commit framework is a Later option. *Why:* no extra dependency, works the same everywhere.
+
 ## 2026-10-04: Plan 01 questions
 
 21. **No `BUILD-STATE.md` in the MVP templates.** It arrives with the `/sync-state` skill that keeps

@@ -1,0 +1,18 @@
+# Project configuration for the claude-code-lanes-starter kit, read by the kit CLI, hooks and CI.
+# Unknown keys are errors, so a typo can't silently switch a rule off.
+
+[project]
+name = "{{project_name}}"
+test_command = "{{test_command}}"
+integration_branch = "{{integration_branch}}"
+
+# Forbidden patterns: checked after every agent edit, before each commit and in CI.
+# Run them by hand with: {{kit_command}} check rules
+#
+# [[checks.rules]]
+# id = "no-print"
+# pattern = '\bprint\('             # Python regular expression, matched line by line
+# paths = ["src/**/*.py"]           # gitignore-style globs from the project root
+# exclude = ["src/cli/**"]          # optional
+# message = "Use the logger, not print()."
+# ignore_comments = true            # optional (default true): skip matches inside comments
