@@ -9,7 +9,7 @@ import re
 
 from .commands import Command, normalize, tokenize
 
-_REDIRECT = re.compile(r"^(?:\d|\*)?>>?(?!&)(.*)$")
+_REDIRECT = re.compile(r"^(?:\d+|\*)?>[>|]?(?!&)(.*)$")  # `>`, `>>`, `>|`, `2>`, `12>`, `*>`
 
 
 _PS_CMDLETS = {
@@ -185,8 +185,11 @@ def _git_targets(command: Command) -> tuple[list[str], list[str]]:
         return [], []
     subcommand, args = command.args[0], list(command.args[1:])
     if subcommand == "checkout":
-        # Only after `--` are the words certainly paths; `git checkout main` switches branches.
-        return (args[args.index("--") + 1:] if "--" in args else []), []
+        # Only after `--` are the words certainly paths (`git checkout main` switches branches);
+        # `.` can't be a branch. Restoring a folder overwrites what's inside it, so the paths
+        # also go through the folder check, like deletes.
+        paths = args[args.index("--") + 1:] if "--" in args else [arg for arg in args if arg == "."]
+        return paths, paths
     if subcommand not in ("rm", "mv", "restore"):
         return [], []
     operands = []
@@ -205,4 +208,4 @@ def _git_targets(command: Command) -> tuple[list[str], list[str]]:
         return [], operands
     if subcommand == "mv":
         return operands[-1:], operands[:-1]
-    return operands, []
+    return operands, operands  # restore: overwrites, including everything in a folder

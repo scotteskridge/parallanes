@@ -302,10 +302,10 @@ def run_settings_sync(args) -> int:
         print(f"{settings.SETTINGS_REL.as_posix()} is up to date.")
         return OK
     if args.dry_run:
-        print(f"Would change {settings.SETTINGS_REL.as_posix()}:\n{settings.describe(plan)}")
+        print(f"Would change:\n{settings.describe(plan)}")
         return OK
     settings.apply_sync(root, plan)
-    print(f"Updated {settings.SETTINGS_REL.as_posix()}:\n{settings.describe(plan)}")
+    print(f"Changed:\n{settings.describe(plan)}")
     return OK
 
 

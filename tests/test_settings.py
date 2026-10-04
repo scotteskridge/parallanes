@@ -179,3 +179,30 @@ def test_sync_keeps_the_owners_formatting(tmp_path):
     raw = (repo / ".claude" / "settings.json").read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf{\r\n    \"model\"")
     assert b"\n" not in raw.replace(b"\r\n", b"")
+
+
+def test_record_forgets_a_stale_rule_even_when_settings_need_no_change(tmp_path):
+    # Second review: the owner removed the kit's rule by hand, then re-added it as their own.
+    repo = make_repo(tmp_path, config=PROTECTED_TOML, settings=False)
+    sync(repo)
+    settings = read_settings(repo)
+    settings["permissions"]["deny"].remove("Edit(/vendor/**)")
+    write(repo, ".claude/settings.json", json.dumps(settings, indent=2))
+    write(repo, ".claude/kit.toml", PROTECTED_TOML.replace('"vendor/**", ', ""))
+    sync(repo)  # settings.json needs nothing; the record must still drop the rule
+    settings = read_settings(repo)
+    settings["permissions"]["deny"].append("Edit(/vendor/**)")
+    write(repo, ".claude/settings.json", json.dumps(settings, indent=2))
+    assert run_cli(repo, "check", "settings").returncode == 0
+    sync(repo)
+    assert "Edit(/vendor/**)" in read_settings(repo)["permissions"]["deny"]
+
+
+def test_record_only_change_leaves_settings_bytes_alone(tmp_path):
+    repo = make_repo(tmp_path, config=PROTECTED_TOML, settings=False)
+    sync(repo)
+    (repo / RECORD_REL).write_text('{"deny": ["Edit(/gone/**)"], "ask": []}', encoding="utf-8")
+    before = (repo / ".claude" / "settings.json").read_bytes()
+    sync(repo)
+    assert (repo / ".claude" / "settings.json").read_bytes() == before
+    assert "Edit(/gone/**)" not in (repo / RECORD_REL).read_text(encoding="utf-8")

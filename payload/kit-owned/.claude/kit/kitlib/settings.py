@@ -114,10 +114,15 @@ class Sync:
     added: dict = field(default_factory=dict)
     removed: dict = field(default_factory=dict)
     style: Style = field(default_factory=Style)
+    record_changed: bool = False
+
+    @property
+    def settings_changed(self) -> bool:
+        return any(self.added.values()) or any(self.removed.values())
 
     @property
     def changed(self) -> bool:
-        return any(self.added.values()) or any(self.removed.values())
+        return self.settings_changed or self.record_changed
 
 
 def plan_sync(root: Path, config) -> Sync:
@@ -138,12 +143,17 @@ def plan_sync(root: Path, config) -> Sync:
             permissions[name] = kept + added
         # Only rules this kit wrote: a rule the owner already had stays theirs (decision 29).
         result.record[name] = [rule for rule in expected[name] if rule in recorded[name] or rule in added]
+    # A stale record must be dropped even when settings.json needs nothing (the owner removed the
+    # rule by hand): kept, it would later flag, and remove, the same rule the owner re-adds.
+    result.record_changed = result.record != recorded
     return result
 
 
 def apply_sync(root: Path, sync: Sync) -> None:
-    _write_json(root / SETTINGS_REL, sync.settings, sync.style)
-    _write_json(root / RECORD_REL, sync.record, Style())
+    if sync.settings_changed:
+        _write_json(root / SETTINGS_REL, sync.settings, sync.style)
+    if sync.record_changed or sync.settings_changed:
+        _write_json(root / RECORD_REL, sync.record, Style())
 
 
 def _write_json(path: Path, data: dict, style: Style) -> None:
@@ -160,7 +170,9 @@ def describe(sync: Sync) -> str:
     lines = []
     for verb, changes in (("added", sync.added), ("removed", sync.removed)):
         for name in LISTS:
-            lines += [f"  {verb} {name}: {rule}" for rule in changes.get(name, [])]
+            lines += [f"  {SETTINGS_REL.as_posix()}: {verb} {name}: {rule}" for rule in changes.get(name, [])]
+    if sync.record_changed and not sync.settings_changed:
+        lines.append(f"  {RECORD_REL.as_posix()}: dropped rules the kit no longer generates")
     return "\n".join(lines)
 
 

@@ -196,3 +196,9 @@ def test_git_bash_drive_paths_map_to_windows_drives():
     assert native_path("/c/Users/me/x", windows=False) == "/c/Users/me/x"
     assert native_path("/usr/lib", windows=True) == "/usr/lib"
     assert native_path("src/a", windows=True) == "src/a"
+
+
+def test_powershell_does_not_read_slash_letter_as_a_drive():
+    from kitlib.protected import native_path
+
+    assert native_path("/d/vendor", windows=True, git_bash=False) == "/d/vendor"

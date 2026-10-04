@@ -37,7 +37,9 @@ more than it is:
 
 - Any script or program that opens files itself (`python fix.py`, `node build.js`).
 - Commands inside strings: `bash -c "git push --force"`, `pwsh -Command "..."`.
-- Git aliases (`git pf`), force pushes by refspec (`git push origin +main`), abbreviated options.
+- Git aliases (`git pf`), force pushes by refspec (`git push origin +main`), abbreviated options,
+  `git checkout <commit> <path>` without `--`, and paths given to `git -C <dir>` (judged from the
+  session's folder, not `<dir>`).
 - Write targets of commands the hook doesn't know, paths passed through a pipe
   (`Get-ChildItem vendor | Remove-Item`), and names given separately from the folder
   (`New-Item -Path . -Name .env`).

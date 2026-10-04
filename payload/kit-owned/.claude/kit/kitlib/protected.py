@@ -4,6 +4,7 @@ Deny rules in `settings.json` are the primary protection (decision 15). This mod
 behind them, used by the PreToolUse hook (`check_tool_call`), and the check that pre-commit and CI
 run on changed files (`check`).
 """
+import fnmatch
 import os
 import re
 from pathlib import Path
@@ -40,28 +41,37 @@ def _matching(path: str, patterns, removes: bool = False) -> str | None:
             pattern = pattern.lower()
         if path and (matches(path, pattern) or matches(path + "/__kit_probe__", pattern)):
             return original
-        if removes and _inside(pattern, _fixed_folder(path)):
+        if removes and _inside(pattern, *_split_at_wildcard(path)):
             return original
     return None
 
 
-def _fixed_folder(path: str) -> str:
-    """The folders before the first wildcard: `rm -rf src/*` empties `src`, `rm -rf *` the root."""
+def _split_at_wildcard(path: str) -> tuple[str, str | None]:
+    """(folder before the first wildcard part, that part): `src/v*` is ("src", "v*"), `*` is ("", "*")."""
     parts = path.split("/") if path else []
     for index, part in enumerate(parts):
         if _WILDCARD.search(part):
-            return "/".join(parts[:index])
-    return path
+            return "/".join(parts[:index]), part
+    return path, None
 
 
-def _inside(pattern: str, folder: str) -> bool:
-    """Whether an anchored pattern's fixed folders lie inside folder ("" is the project root).
-    A pattern without a slash can match at any depth, so it says nothing about a given folder."""
+def _inside(pattern: str, folder: str, glob: str | None = None) -> bool:
+    """Whether removing folder (or the entries of folder matching glob) reaches an anchored
+    pattern's fixed part. "" is the project root. A pattern without a slash can match at any
+    depth, so it says nothing about a given folder."""
     pattern = normalize(pattern).lstrip("/")
     if "/" not in pattern.rstrip("/"):
         return False
     fixed = _WILDCARD.split(pattern, maxsplit=1)[0]
-    return fixed.startswith(folder + "/") if folder else bool(fixed)
+    prefix = folder + "/" if folder else ""
+    if not fixed or not fixed.startswith(prefix):
+        return False
+    if glob is None:
+        return True
+    # `rm *.log` at the root must not count as deleting `vendor/`: the glob has to match the
+    # pattern's entry at that depth. A wildcard there in the pattern too: assume they can meet.
+    entry = pattern[len(prefix):].split("/", 1)[0]
+    return bool(_WILDCARD.search(entry)) or fnmatch.fnmatchcase(entry, glob)
 
 
 def path_reason(protected, path: str, bypass: bool, removes: bool = False) -> str | None:
@@ -124,33 +134,36 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
         return reason
     for offending, pattern in commands.find_protected(text, shell, protected.commands):
         return f"`{offending}` matches the protected command {pattern!r} ([protected].commands, .claude/kit.toml)"
+    git_bash = shell == "bash"
     for target in file_commands.write_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, bypass)
+        reason = _target_reason(protected, root, cwd, target, bypass, git_bash=git_bash)
         if reason:
             return reason
     for target in file_commands.removed_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, bypass, removes=True)
+        reason = _target_reason(protected, root, cwd, target, bypass, removes=True, git_bash=git_bash)
         if reason:
             return reason
     return None
 
 
-def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool, removes: bool = False) -> str | None:
-    rel = relative(root, cwd, target)
+def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool, removes: bool = False,
+                   git_bash: bool = True) -> str | None:
+    rel = relative(root, cwd, target, git_bash)
     return None if rel is None else path_reason(protected, rel, bypass, removes)
 
 
-def native_path(target: str, windows: bool | None = None) -> str:
+def native_path(target: str, windows: bool | None = None, git_bash: bool = True) -> str:
     """Git Bash writes `C:\\x` as `/c/x`; on Windows, Path would read that as a folder on the
-    current drive and the target would fall "outside the project" unchecked."""
+    current drive and the target would fall "outside the project" unchecked. PowerShell reads
+    `/d/x` exactly that way, so git_bash=False leaves it alone."""
     windows = os.name == "nt" if windows is None else windows
-    found = re.match(r"^/([a-zA-Z])(?:/|$)", target) if windows else None
+    found = re.match(r"^/([a-zA-Z])(?:/|$)", target) if windows and git_bash else None
     return f"{found.group(1).upper()}:/{target[3:]}" if found else target
 
 
-def relative(root: Path, cwd: Path, target: str) -> str | None:
+def relative(root: Path, cwd: Path, target: str, git_bash: bool = True) -> str | None:
     """target as a project-relative POSIX path, or None if it lies outside the project."""
-    target = native_path(target)
+    target = native_path(target, git_bash=git_bash)
     path = Path(target.replace("\\", "/")) if os.sep == "/" else Path(target)
     absolute = Path(os.path.normpath(cwd / path))  # normpath, not resolve: the file may not exist yet
     try:

@@ -74,6 +74,8 @@ def tokenize(text: str, shell: str) -> list[list[str]]:
             # descriptor (`2>`, `*>`) or the first `>` of `>>`.
             end_word()
             word, in_word = [char], True
+        elif char == "|" and re.fullmatch(r"[0-9*]*>", "".join(word)):
+            word.append(char)  # `>|` (overwrite even with noclobber) is a redirect, not a pipe
         elif char in _SEPARATORS:
             end_word()
             if words:
@@ -189,10 +191,11 @@ _CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "l
 
 
 # Setting the variable, not mentioning it: `grep KIT_ALLOW_PROTECTED docs` and `echo $KIT_...` pass.
-# Covers `X=1`, `export`/`env`/`set X=1`, `${X:=1}`, `$env:X = 1`, `Set-Item env:X`, `setx X`, .NET.
+# Covers `X=1`, `X+=1`, `export`/`env`/`set X=1`, `${X:=1}`, `$env:X = 1`, `Set-Item env:X`,
+# `New-Item -Path Env: -Name X`, `setx X`, .NET.
 _SETS_ALLOW_VARIABLE = re.compile(
-    r"KIT_ALLOW_PROTECTED\s*:?=|(?<!\$)env:\\?KIT_ALLOW_PROTECTED|setx\s+KIT_ALLOW_PROTECTED"
-    r"|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED",
+    r"KIT_ALLOW_PROTECTED\s*[+:]?=|(?<!\$)env:\\?KIT_ALLOW_PROTECTED|setx\s+KIT_ALLOW_PROTECTED"
+    r"|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED|-Name\s+['\"]?KIT_ALLOW_PROTECTED",
     re.IGNORECASE,
 )
 

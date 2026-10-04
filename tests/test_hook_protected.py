@@ -272,3 +272,44 @@ def test_git_file_commands_elsewhere_are_allowed(repo, command):
 )
 def test_mentioning_the_allow_variable_is_allowed(repo, command):
     assert_allowed(bash(repo, command))
+
+
+# ---- second review ------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("command, tool", [("rm -f *.log", "Bash"), ("rm t*", "Bash"), ("Remove-Item *.tmp", "PowerShell"),
+                                            ("rm -rf src/*.pyc", "Bash")])
+def test_ordinary_wildcard_deletes_are_allowed(tmp_path, command, tool):
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**", "vendor/**"]\n')
+    assert_allowed(bash(repo, command, tool=tool))
+
+
+def test_wildcard_deletes_in_bypass_mode_without_protected_paths_are_allowed(tmp_path):
+    repo = make_repo(tmp_path, config=RULES_TOML)
+    assert_allowed(bash(repo, "rm -f *.log", mode="bypassPermissions"))
+
+
+@pytest.mark.parametrize("command", ["rm -rf v*", "rm -r s*", "rm -rf src/v*", "rm -rf src/*/lib.py", "Remove-Item src/* -Recurse"])
+def test_wildcards_that_reach_a_protected_path_are_blocked(tmp_path, command):
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**", "vendor/**"]\n')
+    tool = "PowerShell" if command.startswith("Remove") else "Bash"
+    assert_blocked(bash(repo, command, tool=tool))
+
+
+@pytest.mark.parametrize("command", ["git restore .", "git checkout -- .", "git checkout .", "git restore src"])
+def test_restoring_a_folder_above_a_protected_path_is_blocked(tmp_path, command):
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**"]\n')
+    assert_blocked(bash(repo, command))
+
+
+@pytest.mark.parametrize("command", ["echo x >| vendor/lib.py", "echo x>|vendor/lib.py", "echo 12>vendor/lib.py"])
+def test_more_redirect_forms_are_caught(repo, command):
+    assert_blocked(bash(repo, command))
+
+
+@pytest.mark.parametrize(
+    "command, tool",
+    [("KIT_ALLOW_PROTECTED+=1 git commit -m x", "Bash"),
+     ("New-Item -Path Env: -Name KIT_ALLOW_PROTECTED -Value 1", "PowerShell")],
+)
+def test_more_ways_of_setting_the_allow_variable_are_blocked(repo, command, tool):
+    assert_blocked(bash(repo, command, tool=tool))

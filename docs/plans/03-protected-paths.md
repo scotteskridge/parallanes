@@ -159,8 +159,8 @@ Changes from the plan:
 - **`check all` includes `settings`**, so pre-commit and CI catch a `kit.toml` change that wasn't
   synced. Test repos now get synced settings, as an installed project has.
 - **`MultiEdit`** is covered with the other file tools.
-- **From the review** (each fix has a test, and all 24 new tests failed on the pre-fix code before
-  the fixes went in): the hook now fails closed when the kit can't even import (Python older than
+- **From the first review** (each fix has a test; 24 of the new tests failed on the pre-fix code,
+  the rest guard against regressions): the hook now fails closed when the kit can't even import (Python older than
   3.11); `settings sync` records only the rules it added, so an owner's identical rule is never
   removed later; it keeps the owner's indent, line endings and byte-order mark and writes
   atomically; Git Bash drive paths (`/c/...`) are checked; Windows paths compare case-insensitively;
@@ -169,6 +169,15 @@ Changes from the plan:
   file commands; only *setting* `KIT_ALLOW_PROTECTED` is blocked, not mentioning it. Documented
   instead of fixed: piped paths, `New-Item -Name`, a session editing a project outside its working
   folder, and a missing interpreter (the hook never starts).
+- **From the second review** (of the fix commit; 17 new tests, all failing on the code before):
+  the wildcard-delete fix had blocked every `rm *.log` once any folder was protected; a wildcard
+  now counts only if it can match the protected entry at that depth (`rm -r s*` with `src/vendor/**`
+  is blocked, `rm *.log` isn't). `settings sync` now rewrites its record whenever it is stale, even
+  when `settings.json` needs nothing, and then leaves `settings.json`'s bytes alone. `git restore .`,
+  `git checkout -- .` and `git checkout .` get the folder check. `>|` and multi-digit descriptors
+  (`12>`) are read as redirects; `X+=1` and `New-Item -Path Env: -Name X` count as setting
+  `KIT_ALLOW_PROTECTED`; `/d/...` is a drive only for Bash, not PowerShell. Documented: `git checkout
+  <commit> <path>` without `--`, and `git -C <dir>` paths.
 - **Not done:** step 6's check of ask rules in `acceptEdits` mode. The headless `claude -p` run
   failed (CLI not logged in); the doc says "not yet verified" and ARCHITECTURE §15 carries it.
 
