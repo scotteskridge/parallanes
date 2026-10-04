@@ -19,3 +19,5 @@ versions follow [Semantic Versioning](https://semver.org/).
   enforced as a Claude Code PostToolUse hook, by `kit check` (files, `--staged`, `--diff BASE`),
   and by a git pre-commit hook; strict config validation; `kit changelog build` compiles
   fragments into a release section.
+- `/next` for developing this repo: where the build stands and one recommended prompt
+  (read-only; prototype for plan 07's installable `/next`).

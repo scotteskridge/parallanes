@@ -251,7 +251,7 @@ commands = ["git push --force", "git push -f", "git reset --hard", "git clean -f
 | `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; if the owner corrected the same thing twice, proposes one rule line (never adds it unasked) | `kit lanes finish` |
 | `/code-health` | opus | Parallel area audits → dated report; changes no code | — |
 | `/design` | opus | Read one design-doc section → discuss → log the decision | — |
-| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane | `kit lanes status` |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `.claude/skills/next/` [26] | `kit lanes status` |
 
 Every skill's step 0 is the lane check (the hook output, plus `kit lanes status` when needed).
 Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,
@@ -323,7 +323,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
 | `/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items (`changelog build` already does, plan 02) | plan 07 |
-| Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`); use the `.tmpl`-style guard or accept it as dogfooding | plan 07 |
+| Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`), and the installable `/next` would share a name with this repo's own `/next` prototype; use the `.tmpl`-style guard or rename one | plan 07 |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
 | Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
 | Worktrees nested in the main checkout: does a lane session also load the root's (possibly older) `CLAUDE.md` from the parent folder? Root tools must skip `.claude/worktrees/` (pytest `norecursedirs`, linters). If nesting causes real problems, the default `worktree_root` becomes a sibling folder | plan 04 |
