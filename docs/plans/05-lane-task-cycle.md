@@ -1,7 +1,7 @@
 # 05 — Lane task cycle
 
-**Status:** In progress
-**Branch / PR:** `plan/05-lane-task-cycle` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/05-lane-task-cycle` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/8
 **Builds on:** plan 04 (lane lookup, `integration_tip`, `lanes status`, the router's local merge
 check, `fake_gh` test helper); ARCHITECTURE §6 (task cycle), §15 (PR matching); decisions 11
 (branches live for one task), 12 (PR mode default), 38 (the kit never moves the main checkout),
@@ -120,10 +120,10 @@ opens a PR (PR mode) or fast-forwards the integration branch (local mode).
 | `test_cli` (added) | Subcommands are wired and print a clean error, not a traceback |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Reviewer reports attached to the PR; every 🔴 fixed
-- [ ] Live check done, or its gaps recorded in ARCHITECTURE §15
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
+- [x] Tests above pass locally (667 passed) and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Reviewer reports attached to the PR; every 🔴 fixed
+- [x] Live check done, or its gaps recorded in ARCHITECTURE §15
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
 
 ## Notes after implementation
 Changes from the plan:
