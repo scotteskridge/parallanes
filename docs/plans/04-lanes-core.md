@@ -146,10 +146,48 @@ branch, and warns about drift. An edit outside the lane's paths turns into a per
 | `test_templates` (added) | Rendered `kit.toml` with the example lanes uncommented loads |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Reviewer reports attached to the PR; every 🔴 fixed
-- [ ] Live check done, or its gaps recorded in ARCHITECTURE §15
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
+- [ ] Tests above pass locally (584 passed) and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Reviewer reports attached to the PR; every 🔴 fixed
+- [x] Live check done, or its gaps recorded in ARCHITECTURE §15
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **`lanes remove` is in this plan** (the index listed it under plan 05): it pairs with `create`.
+- **Default `shared_paths`** are the changelog fragments, backlog and plans (ARCHITECTURE §8), so
+  every lane can write its own docs without a prompt; the template shows them.
+- **Code layout:** `lanes.py` (lookup and per-folder state), `lane_setup.py` (create, remove),
+  `lane_status.py`, `lane_hooks.py`; hook handlers moved from `cli.py` to `hooks.py`. Each stays
+  under ~300 lines. The lane modules are imported lazily, so a fault there can't stop the
+  protected guard (tested with a deliberately broken copy).
+- **Main checkout lookup** (decision 37, revised during review): the git top level when run
+  there; from a lane, git's first `worktree list` entry or a submodule's `core.worktree`, which
+  must have `.claude/kit.toml` checked out. A separate git dir can't be traced back, so `create`
+  refuses it. Lanes need git 2.36+.
+- **Three review rounds** (each fix has a test that failed on the code before it):
+  - *First* (1 🔴, 3 🟠, 8 🟡): a fresh branch fast-forwarded to the tip was reported "already
+    merged"; local mode used a stale `origin/main`; edits to the main checkout or another lane
+    weren't judged (now they ask, decision 44, for the owner to confirm); `remove` deleted ignored
+    work (now refuses without `--force`, decision 45); Windows device names; odd `gh` output; partial
+    `create` failures; case on Windows; test gaps.
+  - *Second* (2 🟠, 6 🟡): `create` reported a lane "created" when `worktree add` failed, and a
+    rerun didn't redo failed copies; `_merged` counted work reset away (only work since the
+    branch's last creation or reset counts, plus `git am`); separate git dir named `.git` and
+    submodule lanes; included folders and caches made `remove` refuse; hook speed (now one
+    `rev-parse` call: router 0.62 s, ownership 0.38 s); message wording.
+  - *Third* (3 🟠, 7 🟡): the cache rule matched names anywhere in a path (it deleted
+    `src/venv/keys.secret`); unreadable files gave a traceback; a main checkout on a commit from
+    before the kit gave a misleading error; `create` in a separate-git-dir repo; `git worktree
+    prune` advice; old git; chunked file comparison; docs.
+- **Live check** (Windows, Claude desktop app 2.1.286, owner's session in a `demo` lane with both
+  hooks in its `settings.local.json`): the briefing appeared at start (the transcript records the
+  hook's output) and after `/clear`; an owned Write went through; Writes to the lane root, another
+  lane's folder and the main checkout each prompted. A read-only verifier reproduced every hook
+  decision with the same paths. `claudeMdExcludes` works with forward-slash absolute paths
+  containing a space: the session's loaded instructions held the main checkout's `CLAUDE.local.md`
+  but not its `CLAUDE.md` in the same folder. Auto memory is shared by every lane (documented;
+  lane-aware memory is on the roadmap). `CLAUDE_PROJECT_DIR` isn't set in the agent's shell; the
+  hooks use `cwd`, so it doesn't matter.
+- **Not shown live** (ARCHITECTURE §15, plan 08): `bypassPermissions`/`acceptEdits` with the
+  ownership `ask`; Edit, MultiEdit and NotebookEdit (only Write was used); the exact prompt text;
+  whether a parent folder's `.claude/CLAUDE.md` loads at all; the terminal CLI; macOS/Linux.

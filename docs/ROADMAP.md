@@ -54,12 +54,14 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** Lanes in `.claude/kit.toml`: name, scope, owned paths, resources (ports, editor instances); integration branch; merge mode
 - **MVP** `lanes create`: a git worktree per lane (default `.claude/worktrees/<lane>/`), detached at the integration branch between tasks; `.worktreeinclude` for local settings
 - **MVP** `lanes status`: each lane's branch, ahead/behind, uncommitted changes, unpushed work, PR state
+- **MVP** `lanes remove`: deletes a lane's worktree; refuses uncommitted changes and ignored files that may hold work
 - **MVP** `lanes start <task>`: short-lived task branch `<lane>/<task>` from the latest integration branch, after checking the previous one merged
 - **MVP** `lanes sync`: brings the integration branch into the task branch (rebase if unpushed, merge if pushed)
 - **MVP** `lanes finish`: tests → **PR mode** (default: push, open PR with the review report) or **local mode** (fast-forward the integration branch)
-- **MVP** Ownership: out-of-lane edits become a permission prompt (`ask`, or `off`)
+- **MVP** Ownership: out-of-lane edits (including the main checkout and other lanes' folders) become a permission prompt (`ask`, or `off`)
 - **MVP** Per-lane tool instances (e.g., separate Unity Editor + MCP port per lane)
 - **Later** Lane handoff notes at session end
+- **Later** Lane-aware memory: Claude Code's auto memory is shared by every lane of a repo (plan 04's live check), so lane-specific notes need their own place
 - **Later** Push-reminder for commits that exist only locally
 
 ## 7. Permissions and safety

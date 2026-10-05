@@ -53,6 +53,10 @@ session that only the lane's own `CLAUDE.md` is loaded. Tools that walk the proj
 exclude lists. To keep lanes outside the project instead, set `worktree_root = "../{project}-lanes"`
 in `kit.toml` before creating them.
 
+**Memory is shared.** Claude Code's auto memory belongs to the repository, not the folder: every
+lane reads and writes the same memory as the main checkout. Keep lane-specific notes in the lane's
+plan or task files instead.
+
 **The main checkout.** Keep it on a commit that has the kit (`.claude/kit.toml`): the lanes find
 it by that file, so while it is on an older commit (say, during `git bisect`) the lane commands
 stop with an error and the lane hooks stand down. In PR mode it can stay on `{{integration_branch}}`. In local mode, lanes
