@@ -70,7 +70,7 @@ def import_failure(argv, error: BaseException) -> int:
     )
     if argv[:1] != ["hook"]:
         return USAGE
-    if argv[1:2] == ["protected"]:
+    if argv[1:2] in (["protected"], ["reviewer-bash"]):
         return HOOK_BLOCK
     # The other hooks fail open (decisions 9, 40, 41); an unknown name in PreToolUse may be the guard.
     if argv[1:2] not in (["rules-check"], ["lane-router"], ["ownership"]) and _hook_event() == "PreToolUse":
@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.set_defaults(run=run_check)
 
     hook = commands.add_parser("hook", help="Claude Code hook entry points (JSON on stdin)")
-    hook.add_argument("name", choices=["rules-check", "protected", "lane-router", "ownership"])
+    hook.add_argument("name", choices=["rules-check", "protected", "lane-router", "ownership", "reviewer-bash"])
     hook.set_defaults(run=run_hook)
 
     lane = commands.add_parser("lanes", help="parallel lanes: one git worktree per lane")

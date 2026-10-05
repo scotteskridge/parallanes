@@ -3,6 +3,40 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-05: Plan 06 questions
+
+54. **Review checklists live in `.claude/review/`**: `universal.md` (kit-owned), `project.md`
+    (project-owned) and one `<pack>.md` per pack; the reviewer reads every `*.md` there. *Why:* the
+    subagent docs say `.claude/agents/` is scanned recursively, so a checklist beside the agent could
+    be read as an agent; and a pack adds checks by dropping in a file, with no registry.
+
+55. **Every check has a stable ID with a per-file prefix** (`U`, `P`, a pack's own), and findings
+    cite it. *Why:* a finding traces to the rule it breaks, and rules can be discussed by number.
+
+56. **The reviewer judges only changed lines** of the task's diff (against the merge base with the
+    integration branch, plus uncommitted and untracked files), reads the matching path-scoped rules
+    itself, and lists at most three pre-existing problems without a severity. It keeps `CLAUDE.md`
+    and `AGENTS.md` loaded. *Why:* a review that wanders into old code buries the findings that
+    matter; the author and reviewer must judge against the same rules.
+
+57. **The reviewer is read-only by enforcement, not by request:** `tools: Read, Grep, Glob, Bash`,
+    and a `PreToolUse` hook in the agent's own frontmatter (`kit hook reviewer-bash`) allows only
+    read-only git commands. It fails closed, unlike the other non-guard hooks. It never runs the tests;
+    its caller does. *Why:* the docs don't say whether `tools` accepts `Bash(...)` patterns, and a
+    reviewer that can run `git checkout` can lose the author's work.
+
+58. **The report has one fixed shape** (verdict, numbered findings with 🔴/🟠/🟡 from
+    `CODE-STANDARDS.md` §6 and a check ID, checks run, outside this change), and an unsettled design
+    question is a finding for the owner, never settled by the reviewer. *Why:* `/wrap-up` and people
+    read it the same way, and it goes into PR bodies as is.
+
+59. **The reviewer runs on `opus`.** *Why:* it is the one independent check before a human, once per
+    task; a missed bug costs more than the tokens.
+
+60. **This repo reviews its plans with its own reviewer from plan 06 on,** using copies of the
+    payload's agent and universal checklist that a test keeps identical (except the path to the
+    kit). *Why:* dogfooding: every PR after this one shows the kit's reviewer at work.
+
 ## 2026-10-05: Plan 05 questions
 
 53. **A merged PR proves a branch merged only if its base is the integration branch.** *Settled during

@@ -1,6 +1,6 @@
 # 06 — Reviewer
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/06-reviewer` · PR link once open
 **Builds on:** plan 01 (`CODE-STANDARDS.md` severities, `WORKFLOW.md`, template rendering and
 tests); plan 03 (protected paths, which the reviewer flags); ARCHITECTURE §5 (layers), §9 (the

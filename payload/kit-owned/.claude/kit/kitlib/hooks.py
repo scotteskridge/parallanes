@@ -5,6 +5,8 @@ Each hook has its own failure policy, because each guards something different:
 - protected (PreToolUse) fails closed: in PreToolUse only exit 2 blocks, so every error exits 2 (33).
 - lane-router (SessionStart) can't block; on failure it tells the agent the check failed (40).
 - ownership (PreToolUse) fails open: it reduces conflicts, it isn't security (41).
+- reviewer-bash (PreToolUse, in the reviewer agent's frontmatter) fails closed: it keeps a promise
+  that the reviewer is read-only (57).
 """
 import json
 import os
@@ -23,6 +25,8 @@ def run(name: str) -> int:
         return run_protected()
     if name == "lane-router":
         return run_lane_router()
+    if name == "reviewer-bash":
+        return run_reviewer_bash()
     try:
         payload = json.loads(sys.stdin.read())
         if not isinstance(payload, dict):
@@ -65,6 +69,34 @@ def run_protected() -> int:
         f"Blocked by the kit's protected-paths guard: {reason}.\n"
         "Don't look for another way to do this. If it is needed, ask the user to do it themselves "
         "or to change .claude/kit.toml.",
+        file=sys.stderr,
+    )
+    return HOOK_BLOCK
+
+
+def run_reviewer_bash() -> int:
+    """PreToolUse for the reviewer agent. Fails closed, like the protected guard."""
+    try:
+        payload = json.loads(sys.stdin.read())
+        if not isinstance(payload, dict):
+            raise ValueError("hook input is not a JSON object")
+        if payload.get("tool_name") != "Bash":
+            return HOOK_OK  # the agent's matcher is Bash; other tools aren't this guard's business
+        command = (payload.get("tool_input") or {}).get("command")
+        if not isinstance(command, str):
+            raise ValueError("Bash call without a command")
+        from . import reviewer_hook
+
+        reason = reviewer_hook.reason(command)
+    except Exception as error:  # noqa: BLE001 - fail closed, without a traceback
+        print(f"Blocked: the reviewer's read-only guard failed ({type(error).__name__}: {error}).", file=sys.stderr)
+        return HOOK_BLOCK
+    if reason is None:
+        return HOOK_OK
+    print(
+        f"Blocked: the reviewer is read-only. {reason}.\n"
+        f"Allowed: {reviewer_hook.ALLOWED_TEXT}, one or more joined with && or ;, no pipes or "
+        "redirects. Use Read, Grep and Glob for files.",
         file=sys.stderr,
     )
     return HOOK_BLOCK
