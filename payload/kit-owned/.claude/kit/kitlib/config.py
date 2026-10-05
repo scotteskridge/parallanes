@@ -1,8 +1,7 @@
 """Find the project root and load `.claude/kit.toml`.
 
 Validation is strict (decision 24): an unknown key or a wrong type is an error naming the key, so a
-typo can't silently switch a rule off. Tables that later parts of the kit own (`lanes`) are accepted
-here and validated by the code that reads them.
+typo can't silently switch a rule off.
 """
 import re
 import subprocess
@@ -40,6 +39,8 @@ DEFAULT_COMMANDS = [
 ]
 # File names, not `.env.*`: an allow rule can't carve `.env.example` out of a deny (decision 31).
 DEFAULT_SECRETS = [".env", ".env.local", ".env.*.local"]
+# Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
+DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
 _RULE_KEYS = {
     "id": (str, True),
     "pattern": (str, True),
@@ -77,11 +78,31 @@ class Protected:
 
 
 @dataclass(frozen=True)
+class Lane:
+    name: str
+    owns: list
+    scope: str = ""
+    resources: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LaneSettings:
+    """The `[project]` keys lanes use, with their defaults filled in."""
+    integration_branch: str = "main"
+    merge_mode: str = "pr"
+    worktree_root: str = ".claude/worktrees"
+    ownership: str = "ask"
+    shared_paths: list = field(default_factory=lambda: list(DEFAULT_SHARED_PATHS))
+
+
+@dataclass(frozen=True)
 class Config:
     project: dict
     rules: list
     raw: dict
     protected: Protected = field(default_factory=Protected)
+    lanes: list = field(default_factory=list)
+    lane_settings: LaneSettings = field(default_factory=LaneSettings)
 
 
 def find_root(start: Path) -> Path:
@@ -129,7 +150,86 @@ def load(root: Path) -> Config:
         if rule.id in seen:
             raise ConfigError(f"{CONFIG_REL.as_posix()}: duplicate rule id {rule.id!r}")
         seen.add(rule.id)
-    return Config(project=project, rules=rules, raw=raw, protected=_protected(raw.get("protected", {})))
+    lane_settings = _lane_settings(project)
+    return Config(
+        project=project,
+        rules=rules,
+        raw=raw,
+        protected=_protected(raw.get("protected", {})),
+        lanes=_lanes(raw.get("lanes", []), lane_settings),
+        lane_settings=lane_settings,
+    )
+
+
+_CHOICES = {"merge_mode": ("pr", "local"), "ownership": ("ask", "off")}
+# Lane names become folder names and the `<lane>/` prefix of task branches (decision 42).
+_LANE_NAME = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
+_LANE_KEYS = {"name": str, "scope": str, "owns": list, "resources": dict}
+_WINDOWS_RESERVED = {"con", "prn", "aux", "nul", *(f"com{n}" for n in range(1, 10)), *(f"lpt{n}" for n in range(1, 10))}
+
+
+def _lane_settings(project: dict) -> LaneSettings:
+    where = "[project]"
+    for key in ("integration_branch", "worktree_root"):
+        if key in project and not project[key].strip():
+            _fail(f"{where}: {key!r} must not be empty")
+    for key, choices in _CHOICES.items():
+        if key in project and project[key] not in choices:
+            _fail(f"{where}: {key!r} must be one of {', '.join(map(repr, choices))}, not {project[key]!r}")
+    _globs(project, "shared_paths", where)
+    unknown = set(re.findall(r"\{[^}]*\}", project.get("worktree_root", ""))) - {"{project}"}
+    if unknown:
+        _fail(f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists")
+    defaults = LaneSettings()
+    return LaneSettings(
+        integration_branch=project.get("integration_branch", defaults.integration_branch),
+        merge_mode=project.get("merge_mode", defaults.merge_mode),
+        worktree_root=project.get("worktree_root", defaults.worktree_root),
+        ownership=project.get("ownership", defaults.ownership),
+        shared_paths=list(project.get("shared_paths", defaults.shared_paths)),
+    )
+
+
+def _lanes(entries, settings: LaneSettings) -> list:
+    if not isinstance(entries, list):
+        _fail("'lanes' must be an array of tables ([[lanes]])")
+    lanes = []
+    for number, entry in enumerate(entries, start=1):
+        where = f"[[lanes]] #{number}"
+        _check_table(entry, where)
+        if isinstance(entry.get("name"), str):
+            where = f"[[lanes]] {entry['name']!r}"
+        _check_keys(entry, _LANE_KEYS, where)
+        if "name" not in entry:
+            _fail(f"{where}: missing required key 'name'")
+        name = entry["name"]
+        if not _LANE_NAME.match(name):
+            _fail(f"{where}: name {name!r} must be lowercase letters, digits and '-', starting with a letter or digit")
+        if name in _WINDOWS_RESERVED:
+            _fail(f"{where}: name {name!r} is a reserved device name on Windows, which can't create that folder")
+        if name == settings.integration_branch:
+            _fail(f"{where}: a lane can't be named after the integration branch ({name!r})")
+        if any(lane.name == name for lane in lanes):
+            _fail(f"{where}: duplicate lane name {name!r}")
+        owns = _globs(entry, "owns", where)
+        if not owns:
+            _fail(f"{where}: 'owns' must list at least one glob")
+        resources = entry.get("resources", {})
+        for key, value in resources.items():
+            if not isinstance(value, (str, int, float, bool)):
+                _fail(f"{where}: 'resources' value {key!r} must be a string, number or boolean")
+        lanes.append(Lane(name=name, owns=list(owns), scope=entry.get("scope", ""), resources=dict(resources)))
+    return lanes
+
+
+def _globs(table: dict, key: str, where: str) -> list:
+    values = _strings(table, key, where)
+    for value in values:
+        try:
+            globs.validate(value)
+        except ValueError as error:
+            _fail(f"{where}: {key!r}: {error}")
+    return values
 
 
 def _protected(table) -> Protected:

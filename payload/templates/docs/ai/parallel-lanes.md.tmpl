@@ -25,6 +25,45 @@ start.
 Then start one Claude Code session in each lane's folder. Two to four lanes is usually the limit of
 what one person can review.
 
+`lanes create` makes each lane folder from the latest `{{integration_branch}}` (`origin/{{integration_branch}}` in PR
+mode, the local branch in local mode; it never fetches), with no branch checked out until a task
+starts. If one lane fails, the others are still created; fix the problem and run it again. It
+copies the files listed in `.worktreeinclude` that are gitignored (local settings, `.env`); a rerun
+copies only missing ones and never overwrites, so after changing `.env` in the main checkout, update
+the lanes' copies yourself.
+
+Lanes need git 2.36 or newer and a normal checkout: in a repository set up with `git init
+--separate-git-dir`, git can't trace a lane back to its main checkout, so `lanes create` refuses. It refuses when lane folders
+inside the project aren't gitignored, and tells you the line to add to `.gitignore`.
+
+**What each session is told.** When a session starts (or resumes, clears or compacts) in a lane folder, a hook
+tells the agent its lane, scope, owned paths, resources and branch, and warns about drift: no task
+branch yet, a branch from another lane, already merged, behind `{{integration_branch}}`, uncommitted
+changes, or `.claude/kit.toml` changed on `{{integration_branch}}`. It uses local git data only, so
+"behind" is as of your last fetch.
+
+**Lane folders inside the project.** By default lanes live in `.claude/worktrees/<lane>/`. Claude
+Code loads every `CLAUDE.md` from the session's folder up to the drive root, so a lane would also
+read the main checkout's copy. `lanes create` prevents that: it lists the main checkout's `CLAUDE.md`,
+`.claude/CLAUDE.md` and `AGENTS.md` under `claudeMdExcludes` in the lane's own
+`.claude/settings.local.json`, which is gitignored and specific to your machine. The entries are
+absolute paths; if your project path contains `[`, `{` or `*`, check with `/memory` in a lane
+session that only the lane's own `CLAUDE.md` is loaded. Tools that walk the project folder must skip lane folders too: set pytest's
+`norecursedirs` (it already skips folders starting with `.`), and your linters' and editor's
+exclude lists. To keep lanes outside the project instead, set `worktree_root = "../{project}-lanes"`
+in `kit.toml` before creating them.
+
+**Memory is shared.** Claude Code's auto memory belongs to the repository, not the folder: every
+lane reads and writes the same memory as the main checkout. Keep lane-specific notes in the lane's
+plan or task files instead.
+
+**The main checkout.** Keep it on a commit that has the kit (`.claude/kit.toml`): the lanes find
+it by that file, so while it is on an older commit (say, during `git bisect`) the lane commands
+stop with an error and the lane hooks stand down. In PR mode it can stay on `{{integration_branch}}`. In local mode, lanes
+fast-forward `{{integration_branch}}` directly, which git refuses while any folder has it checked
+out; `lanes status` warns and gives the command (`git switch --detach {{integration_branch}}`). The
+kit never moves the main checkout itself.
+
 ## The task cycle
 
 ```
@@ -41,7 +80,10 @@ branch is pushed, merge after, so nothing under review is rewritten).
 
 - **One session per lane folder.** Two sessions in one folder share files and mix their edits.
 - **Stay in your lane's paths.** An edit outside them asks you first (`ownership = "ask"` in
-  `kit.toml`). Shared paths (plans, backlog, changelog fragments) are open to every lane.
+  `kit.toml`). Shared paths (plans, backlog, changelog fragments) are open to every lane. This
+  covers Claude Code's file tools only, not shell commands, and may not prompt in
+  `bypassPermissions` mode. Edits from a lane to the main checkout or to another lane's folder
+  ask too. It reduces conflicts; it isn't security.
 - **No shared append-only files.** Changelog entries are fragments; backlog items are one file
   each. That removes the most common merge conflict.
 - **Don't run two tasks at once that edit the same file.** If two lanes need it, do one after the
@@ -55,8 +97,9 @@ branch is pushed, merge after, so nothing under review is rewritten).
 
 ## Removing a lane
 
-`{{kit_command}} lanes remove <lane>` deletes its worktree (it refuses if there are uncommitted changes). The
-lane's entry stays in `kit.toml` until you delete it.
+`{{kit_command}} lanes remove <lane>` deletes its worktree. It refuses if there are uncommitted changes, or
+ignored files that may hold work (a changed `.env`, local settings, build output; not caches such as
+`__pycache__` or `node_modules`); it lists them, and `--force` deletes them anyway. The lane's entry stays in `kit.toml` until you delete it.
 
 ## Lanes or agent teams?
 

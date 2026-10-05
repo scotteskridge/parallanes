@@ -63,7 +63,7 @@ def _unique(items) -> list:
     return list(dict.fromkeys(items))
 
 
-def _read_json(path: Path, what: str) -> dict:
+def read_json(path: Path, what: str) -> dict:
     if not path.is_file():
         return {}
     try:
@@ -96,7 +96,7 @@ class Style:
     bom: bool = False
 
 
-def _style(path: Path) -> Style:
+def style_of(path: Path) -> Style:
     if not path.is_file():
         return Style()
     raw = path.read_bytes()
@@ -126,12 +126,12 @@ class Sync:
 
 
 def plan_sync(root: Path, config) -> Sync:
-    settings = _read_json(root / SETTINGS_REL, SETTINGS_REL.as_posix())
+    settings = read_json(root / SETTINGS_REL, SETTINGS_REL.as_posix())
     current = _rule_lists(settings, SETTINGS_REL.as_posix())
-    recorded = _rule_lists({"permissions": _read_json(root / RECORD_REL, RECORD_REL.as_posix())}, RECORD_REL.as_posix())
+    recorded = _rule_lists({"permissions": read_json(root / RECORD_REL, RECORD_REL.as_posix())}, RECORD_REL.as_posix())
     expected = expected_rules(config.protected)
 
-    result = Sync(settings=settings, record={}, style=_style(root / SETTINGS_REL))
+    result = Sync(settings=settings, record={}, style=style_of(root / SETTINGS_REL))
     permissions = settings.setdefault("permissions", {})
     for name in LISTS:
         stale = [rule for rule in recorded[name] if rule not in expected[name]]
@@ -151,12 +151,12 @@ def plan_sync(root: Path, config) -> Sync:
 
 def apply_sync(root: Path, sync: Sync) -> None:
     if sync.settings_changed:
-        _write_json(root / SETTINGS_REL, sync.settings, sync.style)
+        write_json(root / SETTINGS_REL, sync.settings, sync.style)
     if sync.record_changed or sync.settings_changed:
-        _write_json(root / RECORD_REL, sync.record, Style())
+        write_json(root / RECORD_REL, sync.record, Style())
 
 
-def _write_json(path: Path, data: dict, style: Style) -> None:
+def write_json(path: Path, data: dict, style: Style) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(data, indent=style.indent, ensure_ascii=False) + "\n"
     # Bytes, not text mode (which writes CRLF on Windows), in the owner's style.
@@ -178,9 +178,9 @@ def describe(sync: Sync) -> str:
 
 def check(root: Path, config) -> list[Finding]:
     """Drift between [protected] and settings.json: expected rules missing, recorded rules stale."""
-    settings = _read_json(root / SETTINGS_REL, SETTINGS_REL.as_posix())
+    settings = read_json(root / SETTINGS_REL, SETTINGS_REL.as_posix())
     current = _rule_lists(settings, SETTINGS_REL.as_posix())
-    recorded = _rule_lists({"permissions": _read_json(root / RECORD_REL, RECORD_REL.as_posix())}, RECORD_REL.as_posix())
+    recorded = _rule_lists({"permissions": read_json(root / RECORD_REL, RECORD_REL.as_posix())}, RECORD_REL.as_posix())
     expected = expected_rules(config.protected)
     where = SETTINGS_REL.as_posix()
     findings = []

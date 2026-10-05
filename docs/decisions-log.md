@@ -3,6 +3,68 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-04: Plan 04 questions
+
+35. **Lanes stay nested; each lane skips the main checkout's instructions.** `lanes create` adds
+    `claudeMdExcludes` entries for the main checkout's `CLAUDE.md`, `.claude/CLAUDE.md` and `AGENTS.md` to the lane's own
+    `.claude/settings.local.json` (gitignored, specific to one machine; other keys kept). *Why:* Claude Code loads every
+    `CLAUDE.md` from the session folder up to the filesystem root, so a nested lane would also read
+    the main checkout's copy, which may be stale. If the live check shows the setting doesn't
+    work, the default becomes the sibling folder `../{project}-lanes`.
+
+36. **A lane's hooks read the lane's own `kit.toml`; the router warns when the integration branch's
+    copy differs.** *Why:* consistent with decision 33; lane definitions change rarely, and a warning
+    is enough to make the next task start from the new ones.
+
+37. **A folder is a lane when its git top level is `<main checkout>/<worktree_root>/<name>`.** The
+    main checkout is the git top level when run there; from a linked worktree it is git's first
+    `worktree list` entry (a submodule's `core.worktree`), and it must have `.claude/kit.toml`
+    checked out, which rules out a separate git dir. Any other folder is "not a lane": the router
+    says so and ownership doesn't judge it. *Why:* derived from git and the config, so no state
+    file can go stale.
+
+38. **The kit never moves the main checkout.** `lanes status` reports what it holds and, in local
+    mode, warns when the integration branch is checked out there, with the command to fix it.
+    *Why:* never surprise the owner; local mode's fast-forward (plan 05) needs it detached.
+
+39. **`lanes create` works offline and refuses unsafe layouts.** It creates from the integration
+    tip: `origin/<integration>` in PR mode, the local branch in local mode (where work lands), each
+    falling back to the other; the router and `status` measure against the same ref. It refuses a nested
+    `worktree_root` that isn't gitignored, and any existing folder that isn't already that lane's
+    worktree. It copies `.worktreeinclude` files that are also gitignored, matched by git itself.
+    *Why:* Claude Code honours `.worktreeinclude` only for worktrees it creates itself, and the
+    installer rule (never edit a user's file unasked) applies to `.gitignore` too.
+
+40. **The lane router uses local git data only, never blocks, and tells the agent when it fails.**
+    It warns on: detached HEAD (between tasks), a branch outside `<lane>/`, behind the integration
+    tip, already merged, uncommitted changes, and `kit.toml` drift. *Why:* SessionStart can't block
+    anyway, and a silent failure would look like "all clear".
+
+41. **Ownership is a separate PreToolUse hook that asks and fails open.** Edit, Write, MultiEdit and
+    NotebookEdit outside `owns` + `shared_paths` → `permissionDecision: "ask"` with the reason. Bash
+    writes aren't checked. *Why:* ownership reduces conflicts, it isn't security (unlike decision 33).
+
+42. **`[[lanes]]` is validated strictly.** Names match `^[a-z0-9][a-z0-9-]*$` (they are folder
+    names and branch prefixes). Names are unique and none equals the integration branch. `owns`
+    is required and non-empty; overlaps are allowed and reported as a note. *Why:* decision 24; a
+    bad name would only fail later, inside git.
+
+43. **`lanes status` shows PR state when `gh` is available, "unknown" otherwise**, never failing,
+    with `--offline` to skip it. *Why:* status must work offline and without `gh`; head-commit
+    matching stays with plan 05.
+
+44. **From a lane, edits to the main checkout or another lane's folder ask too.** *Settled during
+    review; confirmed by the owner with PR #6:* the plan said "outside the project → allowed", but
+    an agent writing to the main checkout by absolute path is exactly the cross-lane conflict
+    ownership exists to catch. Paths outside the repository are still not judged.
+
+45. **`lanes remove` refuses when ignored files hold work** (`.env`, changed local settings, build
+    output), listing them; `--force` deletes anyway. Not counted: files and folders identical to the
+    main checkout's *current* copy (what `create` copied in), the `claudeMdExcludes` it added, and
+    caches tools rebuild (`__pycache__`, `.pytest_cache`, `node_modules`, `.venv`...; counting them
+    would make `--force` routine). *Why:* git doesn't count ignored files as changes, so
+    `git worktree remove` would delete them without a word.
+
 ## 2026-10-04: Plan 03 questions
 
 27. **The protected-paths hook watches more than commands.** `Bash|PowerShell` commands against

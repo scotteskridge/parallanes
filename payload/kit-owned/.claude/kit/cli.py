@@ -1,4 +1,4 @@
-"""The kit's command line: `kit check`, `kit hook`, `kit settings`, `kit changelog`.
+"""The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit settings`, `kit changelog`.
 
 Run from anywhere inside a project: `python .claude/kit/cli.py <command>` (or the shim the installer
 sets up). Exit codes. CLI: 0 clean, 1 findings, 2 usage or config error. Hook mode follows Claude
@@ -11,15 +11,14 @@ from __future__ import annotations  # so this file still loads on an old Python 
 import argparse
 import datetime
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
-    from kitlib import changelog, gitfiles, protected, rules_check, settings
-    from kitlib.config import ConfigError, ConfigMissing, find_root, load
+    from kitlib import changelog, gitfiles, hooks, protected, rules_check, settings
+    from kitlib.config import ConfigError, find_root, load
     from kitlib.findings import format_findings
     from kitlib.globs import normalize
 except BaseException as error:  # noqa: BLE001 - reported by main(), which picks the exit code
@@ -30,7 +29,7 @@ else:
     IMPORT_ERROR = None
 
 OK, FINDINGS, USAGE = 0, 1, 2
-HOOK_OK, HOOK_ERROR, HOOK_BLOCK = 0, 1, 2
+HOOK_ERROR, HOOK_BLOCK = 1, 2  # as in kitlib/hooks.py, which can't be imported when IMPORT_ERROR is set
 
 CHECKS = ("rules", "protected", "settings")
 
@@ -70,7 +69,10 @@ def import_failure(argv, error: BaseException) -> int:
     )
     if argv[:1] != ["hook"]:
         return USAGE
-    if argv[1:2] == ["protected"] or _hook_event() == "PreToolUse":
+    if argv[1:2] == ["protected"]:
+        return HOOK_BLOCK
+    # The other hooks fail open (decisions 9, 40, 41); an unknown name in PreToolUse may be the guard.
+    if argv[1:2] not in (["rules-check"], ["lane-router"], ["ownership"]) and _hook_event() == "PreToolUse":
         return HOOK_BLOCK
     return HOOK_ERROR
 
@@ -97,8 +99,20 @@ def build_parser() -> argparse.ArgumentParser:
     check.set_defaults(run=run_check)
 
     hook = commands.add_parser("hook", help="Claude Code hook entry points (JSON on stdin)")
-    hook.add_argument("name", choices=["rules-check", "protected"])
+    hook.add_argument("name", choices=["rules-check", "protected", "lane-router", "ownership"])
     hook.set_defaults(run=run_hook)
+
+    lane = commands.add_parser("lanes", help="parallel lanes: one git worktree per lane")
+    lane_commands = lane.add_subparsers(title="lanes commands", dest="lanes_command", required=True)
+    create = lane_commands.add_parser("create", help="create a worktree per lane (all lanes when none are named)")
+    create.add_argument("names", nargs="*", metavar="lane")
+    create.add_argument("--dry-run", action="store_true", help="print what would be created; change nothing")
+    status = lane_commands.add_parser("status", help="every lane: folder, branch, ahead/behind, changes, PR")
+    status.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
+    remove = lane_commands.add_parser("remove", help="remove a lane's worktree (refuses uncommitted changes)")
+    remove.add_argument("name", metavar="lane")
+    remove.add_argument("--force", action="store_true", help="also delete ignored files that hold work (.env, local settings)")
+    lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
     perms_commands = perms.add_subparsers(title="settings commands")
@@ -207,86 +221,36 @@ def relative_to_root(root: Path, path: Path) -> str:
 # ---- kit hook ----------------------------------------------------------------------------------
 
 def run_hook(args) -> int:
-    if args.name == "protected":
-        return run_hook_protected()
-    # rules-check fails open: any problem with the kit itself is reported (exit 1) and never blocks.
+    return hooks.run(args.name)
+
+
+# ---- kit lanes ---------------------------------------------------------------------------------
+
+def run_lanes(args) -> int:
     try:
-        return hook_rules_check(json.loads(sys.stdin.read()))
-    except Exception as error:  # noqa: BLE001 - the hook must never crash with a traceback
-        print(f"kit hook {args.name}: {type(error).__name__}: {error}", file=sys.stderr)
-        return HOOK_ERROR
+        # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
+        from kitlib import lane_setup, lane_status, lanes
+    except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
+        print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
+        return USAGE
 
-
-def run_hook_protected() -> int:
-    """PreToolUse backstop. Fails closed: in PreToolUse only exit 2 blocks, so every error exits 2."""
     try:
-        payload = json.loads(sys.stdin.read())
-        if not isinstance(payload, dict):
-            raise ValueError("hook input is not a JSON object")
-        root = find_root(Path(payload.get("cwd") or os.getcwd()))
-        try:
-            config = load(root)
-        except ConfigMissing:
-            return HOOK_OK  # the kit isn't set up here: nothing to enforce (decision 33)
-        reason = protected.check_tool_call(payload, root, config)
-    except ConfigError as error:
-        print(
-            f"Blocked: the kit's protected-paths guard can't read its config: {error}\n"
-            "Fix .claude/kit.toml (or ask the user to) before running commands or editing files.",
-            file=sys.stderr,
-        )
-        return HOOK_BLOCK
-    except Exception as error:  # noqa: BLE001 - fail closed, without a traceback
-        print(
-            f"Blocked: the kit's protected-paths guard failed ({type(error).__name__}: {error}).\n"
-            "Tell the user; this is a bug in the kit or its install, not something to work around.",
-            file=sys.stderr,
-        )
-        return HOOK_BLOCK
-    if reason is None:
-        return HOOK_OK
-    print(
-        f"Blocked by the kit's protected-paths guard: {reason}.\n"
-        "Don't look for another way to do this. If it is needed, ask the user to do it themselves "
-        "or to change .claude/kit.toml.",
-        file=sys.stderr,
-    )
-    return HOOK_BLOCK
-
-
-def hook_rules_check(payload: dict) -> int:
-    tool_input = payload.get("tool_input") or {}
-    file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not file_path:
-        return HOOK_OK
-    cwd = Path(payload.get("cwd") or os.getcwd())
-    root = find_root(cwd)
-    try:
+        root = find_root(Path.cwd())
         config = load(root)
-    except ConfigMissing:
-        return HOOK_OK  # the kit isn't set up here: nothing to enforce
-    except ConfigError as error:
-        print(f"kit: rules not checked: {error}", file=sys.stderr)
-        return HOOK_ERROR
-
-    try:
-        rel = (cwd / file_path).resolve().relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return HOOK_OK  # outside the project
-    if not rules_check.covered(config, rel):
-        return HOOK_OK
-    text = gitfiles.read_worktree(root, rel)
-    if text is None:
-        return HOOK_OK  # deleted or binary
-    findings = rules_check.check(config, [(rel, text)])
-    if not findings:
-        return HOOK_OK
-    print(
-        f"Rule violations in {rel} (rules from .claude/kit.toml):\n{format_findings(findings)}\n"
-        "Fix the file. If a rule looks wrong, tell the user instead of working around it.",
-        file=sys.stderr,
-    )
-    return HOOK_BLOCK
+        if args.lanes_command == "create":
+            print("\n".join(lane_setup.create(Path.cwd(), config, args.names, args.dry_run)))
+        elif args.lanes_command == "remove":
+            print(lane_setup.remove(Path.cwd(), config, args.name, args.force))
+        else:
+            print(lane_status.format_status(lane_status.status(Path.cwd(), config, args.offline)))
+    except lane_setup.PartialCreate as error:
+        print("\n".join(error.lines))
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    except (ConfigError, lanes.LaneError) as error:
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    return OK
 
 
 # ---- kit settings ------------------------------------------------------------------------------

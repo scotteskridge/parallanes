@@ -23,7 +23,8 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Instruction templates | 01 | ✅ done |
 | Check library, `kit` CLI, rules-check (hook + CLI + pre-commit) | 02 | ✅ done |
 | Protected paths (deny rules + command backstop) | 03 | ✅ done |
-| Lanes: create, status, start, sync, finish (PR and local mode) | 04–05 | planned |
+| Lanes core: config, create, status, remove, lane-router and ownership hooks | 04 | ✅ done |
+| Lane task cycle: start, sync, finish (PR and local mode) | 05 | planned |
 | Reviewer and skills (incl. `/next`, `/onboard`) | 06–07 | planned |
 | Installer (Windows first) and CI template | 08–09 | planned |
 | Unity pack | 10 | planned |

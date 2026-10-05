@@ -158,7 +158,12 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 | `start <task>` | Check the lane's previous task branch is merged (PR mode: fetch, then the PR's state via `gh`; local mode: `git branch --merged`) → delete it → create `<lane>/<task>` from the integration tip (`origin/<integration>` in PR mode, the local `<integration>` in local mode). Refuses with uncommitted changes; `--abandon` drops an unmerged previous branch on purpose |
 | `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review) |
 | `finish` | Run `test_command` → **PR mode:** push the task branch and open a PR whose body carries the plan link and the review report; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, retrying after `sync` if refused |
-| `remove <lane>` | Remove the worktree (refuses with uncommitted changes) |
+| `remove <lane>` | Remove the worktree (refuses with uncommitted changes, or ignored files that may hold work unless `--force`, decision 45) |
+
+`create`, `status` and `remove` (plan 04, `kitlib/lane_setup.py` and `lane_status.py`) work from any
+folder of the repository: the main checkout is found from git (decision 37), and a folder is a lane
+when its git top level is `<main>/<worktree_root>/<name>`. They need git 2.36 or newer. Nested lanes get `claudeMdExcludes` for the main
+checkout's instruction files in their `settings.local.json` (decision 35).
 
 ### Drift is prevented, then detected
 
@@ -170,7 +175,9 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 
 ### Ownership
 
-A PreToolUse hook on Edit/Write compares the file with the lane's `owns` plus `shared_paths`. With
+A PreToolUse hook (`kit hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
+file with the lane's `owns` plus `shared_paths` (default: changelog fragments, backlog, plans). It
+fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
 
@@ -329,20 +336,21 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Question | Answered by |
 | --- | --- |
 | ~~Which shell runs hook commands on native Windows?~~ Answered in plan 02: Git Bash by default, PowerShell if it's missing; the `args` form runs the program with no shell, avoiding quoting problems. Plan 08 uses `args` | plan 08 |
-| Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session? (Design avoids depending on it: §6 uses `cwd`) | plan 04 |
+| ~~Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session?~~ Moot: the lane hooks use the hook input's `cwd` (verified live in plan 04). In the agent's own shell it is not set at all; it exists only for hook processes | — |
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
 | `/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items (`changelog build` already does, plan 02) | plan 07 |
 | Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`), and the installable `/next` would share a name with this repo's own `/next` prototype; use the `.tmpl`-style guard or rename one | plan 07 |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
 | Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
-| Worktrees nested in the main checkout: does a lane session also load the root's (possibly older) `CLAUDE.md` from the parent folder? Root tools must skip `.claude/worktrees/` (pytest `norecursedirs`, linters). If nesting causes real problems, the default `worktree_root` becomes a sibling folder | plan 04 |
-| What the main checkout holds when it isn't a lane (detached HEAD at the integration branch, so local mode can fast-forward it) | plan 04 |
+| ~~Worktrees nested in the main checkout load the root's `CLAUDE.md`?~~ Yes (instruction files load from every folder up to the root). Plan 04: `lanes create` adds `claudeMdExcludes` to the lane's `settings.local.json` (decision 35); verified live on Windows with forward-slash absolute paths containing a space: the session's loaded-instructions list had the main checkout's `CLAUDE.local.md` (not excluded) but not its `CLAUDE.md` in the same folder. Not shown: whether a parent folder's `.claude/CLAUDE.md` loads at all, the `AGENTS.md` entry on its own, macOS/Linux. Root tools must skip `.claude/worktrees/` (documented in `parallel-lanes.md`) | — |
+| ~~What the main checkout holds~~ Answered (decision 38): whatever the owner left; `lanes status` warns in local mode when it has the integration branch checked out | — |
 | PR-mode merge detection: match the PR by head commit, not branch name (a reused task slug could match an old PR); closed-unmerged PRs need the `--abandon` path | plan 05 |
-| Claude Code's auto memory: the docs now describe it as shared across a repo's worktrees (the first implementation had to link folders by hand); confirm on Windows | plan 04 |
+| ~~Claude Code's auto memory across worktrees~~ Verified live on Windows (plan 04): a lane uses the main checkout's memory folder, so every lane shares one memory. Documented in `parallel-lanes.md`; lane-aware memory is on the roadmap as Later | — |
 | Live-verify what plan 03's live run didn't cover: deny and ask rules written by `kit settings sync`, the Edit/MultiEdit/NotebookEdit tools, `bypassPermissions` (kit-config guard), fail-closed with a broken config, macOS/Linux. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode) | plan 08 |
 | Do ask rules still prompt in `acceptEdits` mode? Not documented; plan 03's headless check couldn't run (CLI not logged in). Verify in a live session; `protected-paths.md` says "not yet verified" until then | plan 08 |
 | Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
+| Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

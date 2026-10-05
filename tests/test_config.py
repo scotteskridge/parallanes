@@ -68,10 +68,10 @@ def test_invalid_toml_is_reported_with_the_file(tmp_path):
     assert "kit.toml" in config_error(tmp_path, "[project\nname = 1")
 
 
-def test_tables_owned_by_later_plans_are_tolerated(tmp_path):
-    text = RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n\n[[lanes]]\nname = "core"\n'
+def test_lanes_and_protected_tables_load_together(tmp_path):
+    text = RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n\n[[lanes]]\nname = "core"\nowns = ["src/**"]\n'
     repo = make_repo(tmp_path, config=text)
-    assert load(repo).raw["lanes"][0]["name"] == "core"
+    assert [lane.name for lane in load(repo).lanes] == ["core"]
 
 
 def test_invalid_glob_is_a_config_error_not_a_crash(tmp_path):

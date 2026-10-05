@@ -66,11 +66,12 @@ def write(repo: Path, rel: str, text: str) -> Path:
     return path
 
 
-def run_cli(cwd: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
+def run_cli(cwd: Path, *args: str, stdin: str | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(CLI), *args],
         cwd=cwd,
         input=stdin,
+        env=env,
         capture_output=True,
         text=True,
         encoding="utf-8",
