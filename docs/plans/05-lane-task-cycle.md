@@ -154,5 +154,18 @@ Changes from the plan:
     branch gone from origin.
   - *Fourth* (1 🟠, 3 🟡): the note told the agent not to commit a forgotten source file; a stacked
     PR could hide one merged into main; non-ASCII names in the note; test gaps.
-- **Live check:** pending. It needs a scratch GitHub repo for one full PR-mode cycle, plus local
-  mode.
+- **Live check** (Windows, git 2.55, gh 2.83.1, the owner's private scratch repo
+  `scotteskridge/TestLaneKit`, a project path with spaces, driven by a logged script, 20 steps,
+  every exit code as expected):
+  - `finish` opened real PR #1, then a re-run pushed to it without opening another.
+  - `start` refused while #1 was open. After a squash merge with GitHub deleting the head branch,
+    it proved the merge from the PR and deleted the branch.
+  - A second PR closed unmerged was refused until `--abandon`, which printed the SHA. The merged
+    branch's name could be reused, because `fetch --prune` had removed the stale ref.
+  - The untracked-file note appeared.
+  - Local mode fast-forwarded `main`, deleted the branch, and left the lane between tasks.
+  - **It found one bug the unit tests missed:** `lanes status` matched PRs by branch name, so the
+    reused `core/add-greeting` showed the old "PR #1 MERGED". `status` now shows a PR only when its
+    head shares commits with the branch, and re-running against GitHub gave "PR: none" (new test).
+- **Not shown live:** an agent session driving the commands (plan 07's skills will), macOS and
+  Linux (CI covers the unit tests there), and GitHub's "Update branch" with a squash merge.

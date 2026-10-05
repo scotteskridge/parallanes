@@ -1,14 +1,12 @@
 """`kit lanes status`: every lane at a glance, from local git data plus `gh` when it can (decision 43)."""
 import itertools
-import json
 import os
 import shutil
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import globs
-from .lanes import (ahead_behind, branch_of, dirty_count, integration_tip, is_registered, lane_folder,
+from . import globs, lane_merged
+from .lanes import (ahead_behind, branch_of, dirty_count, git, integration_tip, is_registered, lane_folder,
                     main_checkout, same_path, toplevel, unpushed_count, upstream_gone)
 
 
@@ -69,7 +67,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
             entry.unpushed = unpushed_count(folder)
             entry.gone = entry.unpushed is None and upstream_gone(folder)
             if gh:
-                entry.pr = pr_state(gh, main, entry.branch)
+                entry.pr = pr_state(folder, entry.branch)
                 if entry.pr == UNKNOWN:
                     gh = None  # gh failed or hung: don't make every other lane wait for it too
         result.lanes.append(entry)
@@ -77,26 +75,20 @@ def status(start: Path, config, offline: bool = False) -> Status:
     return result
 
 
-def pr_state(gh: str, main: Path, branch: str) -> str:
-    """The newest PR for branch via `gh`, or "PR: unknown" whenever gh can't tell (decision 43)."""
-    try:
-        result = subprocess.run(
-            [gh, "pr", "list", "--head", branch, "--state", "all", "--limit", "1", "--json", "number,state,url"],
-            cwd=main, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
-        )
-        if result.returncode != 0:
-            return UNKNOWN
-        prs = json.loads(result.stdout or "[]")
-    except (OSError, subprocess.SubprocessError, ValueError):
+def pr_state(folder: Path, branch: str) -> str:
+    """The newest PR for this branch's own work, or "PR: unknown" whenever gh can't tell (decision 43).
+
+    Matched by commit, not just by name (decision 46): a reused task slug must not show the earlier
+    branch's PR. Found in plan 05's live check.
+    """
+    prs, error = lane_merged.pull_requests(folder, branch, "all", timeout=10)
+    if error:
         return UNKNOWN
-    if not isinstance(prs, list):
-        return UNKNOWN
-    if not prs:
-        return "PR: none"
-    pr = prs[0]
-    if not isinstance(pr, dict) or not isinstance(pr.get("number"), int) or not isinstance(pr.get("state"), str):
-        return UNKNOWN
-    return f"PR #{pr['number']} {pr['state']}"
+    head = git(folder, "rev-parse", "HEAD").strip()
+    for pr in prs:  # gh lists the newest first
+        if lane_merged.shares_work(folder, pr["headRefOid"], head):
+            return f"PR #{pr['number']} {pr['state']}"
+    return "PR: none"
 
 
 def _base(pattern: str) -> str:

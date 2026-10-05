@@ -68,11 +68,21 @@ def _holds(folder: Path, pr: dict, head: str) -> bool:
     return lanes.is_ancestor(folder, head, pr_head)
 
 
+def shares_work(folder: Path, pr_head: str, head: str) -> bool:
+    """For display (`lanes status`): the PR is at this tip, behind it (commits not pushed yet) or
+    ahead of it (pushed from elsewhere). Local data only: no fetch, so status stays fast."""
+    if pr_head == head:
+        return True
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head) or not _have(folder, pr_head):
+        return False
+    return lanes.is_ancestor(folder, pr_head, head) or lanes.is_ancestor(folder, head, pr_head)
+
+
 def _have(folder: Path, commit: str) -> bool:
     return bool(lanes.git(folder, "rev-parse", "--verify", "-q", f"{commit}^{{commit}}", check=False).strip())
 
 
-def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], str | None]:
+def pull_requests(folder: Path, branch: str, state: str, timeout: int = 30) -> tuple[list[dict], str | None]:
     """(PRs whose head branch is branch, None), or ([], what went wrong). Never raises for gh trouble."""
     gh = shutil.which("gh")
     if gh is None:
@@ -81,7 +91,7 @@ def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], st
         result = subprocess.run(
             [gh, "pr", "list", "--head", branch, "--state", state, "--limit", "100",
              "--json", "number,state,headRefOid,baseRefName,url"],
-            cwd=folder, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+            cwd=folder, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as error:
         return [], f"gh: {error}"

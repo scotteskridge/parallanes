@@ -38,6 +38,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   at the branch's exact head commit; `--abandon` otherwise), `kit lanes sync` (rebase if never
   pushed, merge if pushed, conflicts left for the agent to resolve) and `kit lanes finish` (sync,
   run `test_command`, then push and open a PR, or fast-forward the integration branch in local
-  mode with one retry if another lane landed first). The `lanes` handler moved to `kitlib/lane_cli.py`.
+  mode with one retry if another lane landed first). Only tracked changes block them; untracked
+  files are listed. `lanes status` now matches PRs by commit, not branch name, and says when a
+  pushed branch is gone from origin. The `lanes` handler moved to `kitlib/lane_cli.py`.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).
