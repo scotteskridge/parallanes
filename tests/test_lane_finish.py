@@ -234,8 +234,8 @@ def test_commits_dropped_by_the_sync_leave_nothing_to_finish(pr_lane, tmp_path):
     commit(repo, "src/core/work.py", "y = 2\n", "the same change, landed by someone else")
     git(repo, "push", "-q", "origin", "main")
     result = finish(lane, env=scripted_gh(tmp_path / "gh"))
-    assert result.returncode == 2
-    assert "already in" in result.stderr and "Traceback" not in result.stderr
+    assert result.returncode == 1  # the rebase rewrote the branch: unfinished, not "nothing changed"
+    assert "already in" in result.stderr and "rebased" in result.stderr and "Traceback" not in result.stderr
     assert recorded_test_runs(tmp_path) == []
     assert remote_branch(repo, "core/task") == []
 
@@ -269,3 +269,46 @@ def test_local_mode_refuses_while_another_lane_holds_main(local_lane, tmp_path):
     assert result.returncode == 2
     assert "api" in result.stderr and "main" in result.stderr
     assert recorded_test_runs(tmp_path) == []
+
+
+# ---- from the second review ----------------------------------------------------------------------
+
+def test_untracked_reports_from_the_tests_do_not_block(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    (tmp_path / "REPORT").write_text("", encoding="utf-8")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert remote_branch(repo, "core/task") == [rev(lane)]
+
+
+def test_a_test_command_that_edits_a_tracked_file_lands_nothing(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    (tmp_path / "TOUCH").write_text("", encoding="utf-8")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 1
+    assert "changed" in result.stderr
+    assert remote_branch(repo, "core/task") == []
+
+
+def test_a_conflict_during_finish_is_unfinished(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    commit(repo, "src/core/work.py", "y = 99\n", "conflicting")
+    git(repo, "push", "-q", "origin", "main")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 1
+    assert "git rebase --continue" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+
+
+def test_local_mode_non_race_push_failure_is_not_retried(local_lane, tmp_path):
+    repo, lane, work = local_lane
+    hooks = repo / ".git" / "hooks"
+    hook = hooks / "pre-receive"
+    hook.write_text("#!/bin/sh\necho refused by policy >&2\nexit 1\n", encoding="utf-8", newline="\n")
+    hook.chmod(0o755)
+    before = rev(repo, "main")
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert result.returncode == 1
+    assert "refused by policy" in result.stderr
+    assert len(recorded_test_runs(tmp_path)) == 1
+    assert rev(repo, "main") == before

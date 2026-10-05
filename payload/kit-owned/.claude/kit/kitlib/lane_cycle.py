@@ -35,11 +35,14 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
     if _exists(top, f"refs/remotes/origin/{new}"):
         # GitHub keeps head branches unless told to delete them; reusing the name would sync and
         # push against the old branch's history.
-        raise LaneError(f"origin/{new} still exists (an earlier branch with this name): pick another task name")
+        raise LaneError(
+            f"origin/{new} still exists (an earlier branch with this name): pick another task name"
+            + ("" if config.lane_settings.merge_mode == "pr" else ", or `git fetch --prune` if it's gone from origin")
+        )
     lines = []
     if current is None:
         here = _rev(top, "HEAD")
-        if not lanes.is_ancestor(top, here, tip):
+        if not lanes.is_ancestor(top, here, tip) and not _on_some_ref(top, here):
             # Commits made between tasks belong to no branch: switching away would orphan them.
             if not abandon:
                 raise LaneError(
@@ -106,11 +109,18 @@ def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:
     tip_sha = _rev(top, tip)
     _say(_bring_in(top, branch, tip))  # printed now, so a later failure doesn't hide that it happened
     if lanes.ahead_behind(top, tip)[0] == 0:
-        # The rebase dropped every commit: the same changes had already landed.
-        raise LaneError(f"nothing left to finish: {branch}'s changes are already in {tip}")
+        # The rebase dropped every commit: the same changes had already landed. The branch was
+        # rewritten, so this isn't "refused, nothing changed" (exit 2).
+        raise Unfinished(
+            f"nothing left to finish: {branch} was rebased onto {tip} and is now empty, its changes are "
+            "already in. Start the next task."
+        )
     tested = _rev(top, "HEAD")
     _run_tests(top, command)
-    if lanes.branch_of(top) != branch or _rev(top, "HEAD") != tested or lanes.dirty_count(top):
+    # Tracked changes only: test runners write reports and caches (junit.xml, coverage) that aren't
+    # part of what lands; untracked files were ruled out before the tests by _clean.
+    tracked = _git(top, "status", "--porcelain", "--untracked-files=no").strip()
+    if lanes.branch_of(top) != branch or _rev(top, "HEAD") != tested or tracked:
         raise Unfinished(
             f"the test command changed the lane (it should leave {branch} at {tested[:12]}, clean): "
             "nothing was pushed or merged. Look at what it did, then run `kit lanes finish` again."
@@ -224,6 +234,11 @@ def _nobody_holds(main: Path, integration: str) -> None:
         fields = entry.strip("\0").split("\0")
         if f"branch refs/heads/{integration}" in fields and fields[0].startswith("worktree "):
             folder = fields[0][len("worktree "):]
+            if not Path(folder).is_dir():
+                raise LaneError(
+                    f"local mode: git still records {folder} (now gone) as having {integration} checked out. "
+                    "Run: git worktree prune (after `git worktree unlock` if it is locked)"
+                )
             raise LaneError(
                 f"local mode: {folder} has {integration} checked out, so it can't be fast-forwarded. "
                 f"Run there: git switch --detach {integration}"
@@ -233,13 +248,19 @@ def _nobody_holds(main: Path, integration: str) -> None:
 def _fetch_tip(top: Path, config) -> str:
     """The integration tip, fetched first in PR mode (local mode works offline)."""
     if config.lane_settings.merge_mode == "pr" and "origin" in _git(top, "remote").split():
-        fetched = lanes.run_git(top, "fetch", "-q", "origin")  # run_git's longer timeout: big repos fetch slowly
+        # --prune: a head branch GitHub deleted after the merge mustn't look pushed or block its name.
+        # run_git's longer timeout: big repos fetch slowly.
+        fetched = lanes.run_git(top, "fetch", "-q", "--prune", "origin")
         if fetched.returncode != 0:
             raise LaneError(f"can't fetch origin, so the integration tip would be stale: {fetched.stderr.strip()}")
     tip = lanes.integration_tip(top, config)
     if tip is None:
         raise LaneError(f"integration branch {config.lane_settings.integration_branch!r} not found (locally or on origin)")
     return tip
+
+
+def _on_some_ref(top: Path, commit: str) -> bool:
+    return bool(_git(top, "for-each-ref", "--count=1", "--contains", commit, "refs/heads", "refs/remotes").strip())
 
 
 def _say(lines: list[str]) -> None:

@@ -22,7 +22,7 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
     prs, error = pull_requests(folder, branch, "all")
     if error:
         return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"
-    at_head = {pr["state"]: pr for pr in prs if _holds(folder, pr["headRefOid"], head)}
+    at_head = {pr["state"]: pr for pr in prs if _holds(folder, pr, head)}
     if "MERGED" in at_head:
         return True, f"{branch} was merged by PR #{at_head['MERGED']['number']}"
     if "OPEN" in at_head:
@@ -40,16 +40,24 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
     return False, f"there is no PR for {branch} at {head[:12]}"
 
 
-def _holds(folder: Path, pr_head: str, head: str) -> bool:
+def _holds(folder: Path, pr: dict, head: str) -> bool:
     """The PR's head is the branch tip, or a newer commit built on it (GitHub's "Update branch", a
-    web edit): either way every local commit went into that PR. A head git doesn't have can't be judged."""
+    web edit): either way every local commit went into that PR. A head git doesn't have is fetched
+    from GitHub's `refs/pull/<n>/head` (the head branch may be deleted); if that fails, no claim."""
+    pr_head = pr["headRefOid"]
     if pr_head == head:
         return True
     if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head):  # gh output goes no further into git unchecked
         return False
-    if not lanes.git(folder, "rev-parse", "--verify", "-q", f"{pr_head}^{{commit}}", check=False).strip():
-        return False
+    if not _have(folder, pr_head):
+        lanes.run_git(folder, "fetch", "-q", "origin", f"refs/pull/{pr['number']}/head")  # best effort
+        if not _have(folder, pr_head):
+            return False
     return lanes.is_ancestor(folder, head, pr_head)
+
+
+def _have(folder: Path, commit: str) -> bool:
+    return bool(lanes.git(folder, "rev-parse", "--verify", "-q", f"{commit}^{{commit}}", check=False).strip())
 
 
 def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], str | None]:

@@ -1,7 +1,8 @@
 """The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit settings`, `kit changelog`.
 
 Run from anywhere inside a project: `python .claude/kit/cli.py <command>` (or the shim the installer
-sets up). Exit codes. CLI: 0 clean, 1 findings, 2 usage or config error. Hook mode follows Claude
+sets up). Exit codes. CLI: 0 clean, 1 findings (for `lanes`: unfinished, something is mid-way), 2 usage
+or config error (for `lanes`: refused, nothing changed). Hook mode follows Claude
 Code's protocol instead: 0 nothing to report, 2 findings for Claude to fix, 1 a kit error that
 is shown but never blocks the edit (decision 9). The protected hook is the exception: it fails
 closed, so every error is an exit 2 (decision 33).

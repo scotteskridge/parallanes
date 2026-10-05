@@ -113,6 +113,10 @@ race = here / "RACE"
 if race.exists():  # another lane lands while these tests run (local mode retry)
     subprocess.run(["git", "update-ref", "refs/heads/main", race.read_text().strip()], check=True)
     race.unlink()
+if (here / "REPORT").exists():  # test runners write reports (junit.xml): untracked, harmless
+    Path("junit.xml").write_text("<testsuite/>\\n", encoding="utf-8")
+if (here / "TOUCH").exists():  # a test command that edits a tracked file
+    Path("src/core/a.py").write_text("x = 'changed by the tests'\\n", encoding="utf-8")
 if (here / "COMMIT").exists():  # a test command that changes what would land
     Path("sneaky.txt").write_text("untested\\n", encoding="utf-8")
     subprocess.run(["git", "add", "sneaky.txt"], check=True)

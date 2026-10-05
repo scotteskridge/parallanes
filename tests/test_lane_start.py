@@ -259,3 +259,43 @@ def test_merged_pr_whose_head_is_newer_than_the_local_tip_counts(pr_lane, tmp_pa
     result = start(lane, "second", env=env)
     assert result.returncode == 0, result.stderr
     assert not has_branch(lane, "core/first")
+
+
+# ---- from the second review ----------------------------------------------------------------------
+
+def test_a_name_freed_on_origin_can_be_used_again(pr_lane, tmp_path):
+    """GitHub's "automatically delete head branches": the stale remote-tracking ref is pruned."""
+    repo, lane = pr_lane
+    on_task_with_work(lane, "fix")
+    git(lane, "push", "-q", "origin", "core/fix")
+    git(lane, "switch", "-q", "--detach", "origin/main")
+    git(lane, "branch", "-q", "-D", "core/fix")
+    git(tmp_path / "origin repo.git", "branch", "-D", "core/fix")  # deleted on the server only
+    result = start(lane, "fix", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert branch(lane) == "core/fix"
+
+
+def test_detached_commits_kept_on_a_branch_are_not_orphans(pr_lane, tmp_path):
+    _, lane = pr_lane
+    git(lane, "switch", "-q", "-c", "core/keep")
+    kept = commit(lane, "src/core/keep.py", "k = 1\n", "kept")
+    git(lane, "switch", "-q", "--detach", "core/keep")
+    result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert git(lane, "rev-parse", "core/keep").strip() == kept
+
+
+def test_merged_pr_head_only_on_the_pull_ref_is_fetched(pr_lane, tmp_path):
+    """Update branch on GitHub, squash, head branch deleted: the newer head lives only in refs/pull/<n>/head."""
+    repo, lane = pr_lane
+    local = on_task_with_work(lane)
+    newer = commit(lane, "src/core/web.py", "w = 1\n", "made on GitHub")
+    git(lane, "push", "-q", "origin", "HEAD:refs/pull/2/head")
+    git(lane, "reset", "-q", "--hard", local)
+    git(lane, "reflog", "expire", "--expire=now", "--all")
+    git(lane, "gc", "-q", "--prune=now")
+    land_on_origin(repo, "src/core/work.py")
+    env = scripted_gh(tmp_path / "gh", prs=[{"number": 2, "state": "MERGED", "headRefOid": newer, "url": "u2"}])
+    result = start(lane, "second", env=env)
+    assert result.returncode == 0, result.stderr
