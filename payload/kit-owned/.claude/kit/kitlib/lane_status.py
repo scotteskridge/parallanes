@@ -67,7 +67,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
             entry.unpushed = unpushed_count(folder)
             entry.gone = entry.unpushed is None and upstream_gone(folder)
             if gh:
-                entry.pr = pr_state(folder, entry.branch)
+                entry.pr = pr_state(folder, entry.branch, tip)
                 if entry.pr == UNKNOWN:
                     gh = None  # gh failed or hung: don't make every other lane wait for it too
         result.lanes.append(entry)
@@ -75,7 +75,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
     return result
 
 
-def pr_state(folder: Path, branch: str) -> str:
+def pr_state(folder: Path, branch: str, tip: str | None) -> str:
     """The newest PR for this branch's own work, or "PR: unknown" whenever gh can't tell (decision 43).
 
     Matched by commit, not just by name (decision 46): a reused task slug must not show the earlier
@@ -85,9 +85,14 @@ def pr_state(folder: Path, branch: str) -> str:
     if error:
         return UNKNOWN
     head = git(folder, "rev-parse", "HEAD").strip()
-    for pr in prs:  # gh lists the newest first
-        if lane_merged.shares_work(folder, pr["headRefOid"], head):
+    for pr in prs[:10]:  # gh lists the newest first; a long-lived slug mustn't cost hundreds of git calls
+        shared = lane_merged.shares_work(folder, pr["headRefOid"], head, tip)
+        if shared:
             return f"PR #{pr['number']} {pr['state']}"
+        if shared is None and pr["state"] == "OPEN":
+            # An open PR follows origin's branch (pushed from elsewhere, or GitHub's "Update branch"):
+            # saying "none" could prompt a duplicate PR.
+            return f"PR #{pr['number']} OPEN (head not fetched)"
     return "PR: none"
 
 

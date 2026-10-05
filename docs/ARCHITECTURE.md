@@ -352,7 +352,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Do ask rules still prompt in `acceptEdits` mode? Not documented; plan 03's headless check couldn't run (CLI not logged in). Verify in a live session; `protected-paths.md` says "not yet verified" until then | plan 08 |
 | Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
 | Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
-| Plan 05 was live-checked by a script against a real GitHub repo (Windows). Not yet shown live: an agent session driving `lanes start`/`finish` through the skills, macOS/Linux, and GitHub's "Update branch" followed by a squash merge (covered by a unit test via `refs/pull/<n>/head`) | plan 07 |
+| Plan 05 was live-checked by a script against a real GitHub repo (Windows). Not yet shown live: an agent session driving `lanes start`/`finish` through the skills, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 07 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

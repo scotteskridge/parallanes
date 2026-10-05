@@ -68,12 +68,21 @@ def _holds(folder: Path, pr: dict, head: str) -> bool:
     return lanes.is_ancestor(folder, head, pr_head)
 
 
-def shares_work(folder: Path, pr_head: str, head: str) -> bool:
+def shares_work(folder: Path, pr_head: str, head: str, tip: str | None) -> bool | None:
     """For display (`lanes status`): the PR is at this tip, behind it (commits not pushed yet) or
-    ahead of it (pushed from elsewhere). Local data only: no fetch, so status stays fast."""
+    ahead of it (pushed from elsewhere). None: its head isn't here to compare (not fetched).
+
+    A PR head already in the integration tip only counts at exactly this head: after a merge-commit
+    merge, every new branch contains it, and a reused task slug would show the old PR. Likewise a
+    branch with no commits of its own can't be "behind" a PR. Local data only: status stays fast.
+    """
     if pr_head == head:
         return True
-    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head) or not _have(folder, pr_head):
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head):
+        return False
+    if not _have(folder, pr_head):
+        return None
+    if tip and (lanes.is_ancestor(folder, pr_head, tip) or lanes.is_ancestor(folder, head, tip)):
         return False
     return lanes.is_ancestor(folder, pr_head, head) or lanes.is_ancestor(folder, head, pr_head)
 

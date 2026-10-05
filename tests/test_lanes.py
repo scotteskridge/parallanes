@@ -327,6 +327,35 @@ def test_status_ignores_an_old_pr_for_a_reused_branch_name(tmp_path, repo):
     assert "PR: none" in line and "#1" not in line
 
 
+@pytest.mark.parametrize("new_work", [False, True])
+def test_status_ignores_an_old_pr_merged_with_a_merge_commit(tmp_path, repo, new_work):
+    """GitHub's default merge: the old PR's head is inside main, so every new branch contains it."""
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    old = commit(folder, "src/core/old.py", "o = 1\n")
+    git(repo, "merge", "-q", "--no-ff", "-m", "Merge PR #1", "core/login")
+    git(repo, "push", "-q", "origin", "main")
+    git(folder, "fetch", "-q", "origin")
+    git(folder, "switch", "-q", "--detach", "origin/main")
+    git(folder, "branch", "-q", "-D", "core/login")
+    git(folder, "switch", "-q", "-c", "core/login")
+    if new_work:
+        commit(folder, "src/core/new.py", "n = 1\n")
+    pr = {"number": 1, "state": "MERGED", "url": "u1", "headRefOid": old, "baseRefName": "main"}
+    line = lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+    assert "PR: none" in line and "#1" not in line
+
+
+def test_status_shows_an_open_pr_whose_head_is_not_fetched(tmp_path, repo):
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    commit(folder, "src/core/b.py", "y = 1\n")
+    pr = {"number": 5, "state": "OPEN", "url": "u5", "headRefOid": "c" * 40, "baseRefName": "main"}
+    assert "PR #5 OPEN (head not fetched)" in lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+
+
 def test_status_shows_a_pr_the_lane_has_added_commits_to(tmp_path, repo):
     assert create(repo, "core").returncode == 0
     folder = lane_dir(repo, "core")

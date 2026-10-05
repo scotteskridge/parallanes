@@ -167,5 +167,16 @@ Changes from the plan:
   - **It found one bug the unit tests missed:** `lanes status` matched PRs by branch name, so the
     reused `core/add-greeting` showed the old "PR #1 MERGED". `status` now shows a PR only when its
     head shares commits with the branch, and re-running against GitHub gave "PR: none" (new test).
+  - Setup the notes don't otherwise show: local mode's main checkout was detached first
+    (decision 38). The run used the kit exactly as committed in `10a475d`.
+- **Verifier** (read-only, fresh context): checked every claim above against GitHub's PRs, commits
+  and events and the lanes' reflogs; all supported. It also found that the status fix held only for
+  squash merges. With a merge-commit merge (GitHub's default), the old PR's head is inside `main`, so
+  every new branch "shared" it. Now a PR head already in the integration tip counts only at exactly
+  this head, and an open PR whose head isn't fetched shows "(head not fetched)" rather than "none".
+  Three new tests cover these.
+- **Behaviour worth knowing:** `--abandon` deletes the local branch only; its remote branch and PR
+  stay. `lanes status` doesn't fetch, so "behind" is as of the last fetch.
 - **Not shown live:** an agent session driving the commands (plan 07's skills will), macOS and
-  Linux (CI covers the unit tests there), and GitHub's "Update branch" with a squash merge.
+  Linux (CI covers the unit tests there), merge-commit merges, and GitHub's "Update branch" with a
+  squash merge (the last two are unit-tested).
