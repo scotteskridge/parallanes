@@ -33,5 +33,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   checkout) and `kit lanes remove`; `kit hook lane-router` (SessionStart briefing with drift
   warnings) and `kit hook ownership` (out-of-lane edits ask the user). Hook handlers moved from
   `cli.py` to `kitlib/hooks.py`.
+- Lane task cycle (plan 05): `kit lanes start <task>` (a fresh `<lane>/<task>` branch with no
+  upstream, only once the previous one is proved merged: by ancestry, or in PR mode by a merged PR
+  at the branch's exact head commit; `--abandon` otherwise), `kit lanes sync` (rebase if never
+  pushed, merge if pushed, conflicts left for the agent to resolve) and `kit lanes finish` (sync,
+  run `test_command`, then push and open a PR, or fast-forward the integration branch in local
+  mode with one retry if another lane landed first). The `lanes` handler moved to `kitlib/lane_cli.py`.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).

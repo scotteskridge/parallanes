@@ -112,6 +112,13 @@ def build_parser() -> argparse.ArgumentParser:
     remove = lane_commands.add_parser("remove", help="remove a lane's worktree (refuses uncommitted changes)")
     remove.add_argument("name", metavar="lane")
     remove.add_argument("--force", action="store_true", help="also delete ignored files that hold work (.env, local settings)")
+    start = lane_commands.add_parser("start", help="new task branch <lane>/<task>, once the previous one is merged")
+    start.add_argument("task", help="short name: lowercase letters, digits, hyphens")
+    start.add_argument("--abandon", action="store_true", help="drop an unmerged previous task branch on purpose")
+    lane_commands.add_parser("sync", help="bring the integration branch in (rebase if unpushed, merge if pushed)")
+    finish = lane_commands.add_parser("finish", help="sync, run the tests, then open a PR (or fast-forward in local mode)")
+    finish.add_argument("--title", help="PR title (default: the first commit's subject)")
+    finish.add_argument("--body-file", help="file holding the PR body (default: the commit list)")
     lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
@@ -229,28 +236,11 @@ def run_hook(args) -> int:
 def run_lanes(args) -> int:
     try:
         # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
-        from kitlib import lane_setup, lane_status, lanes
+        from kitlib import lane_cli
     except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
         print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
         return USAGE
-
-    try:
-        root = find_root(Path.cwd())
-        config = load(root)
-        if args.lanes_command == "create":
-            print("\n".join(lane_setup.create(Path.cwd(), config, args.names, args.dry_run)))
-        elif args.lanes_command == "remove":
-            print(lane_setup.remove(Path.cwd(), config, args.name, args.force))
-        else:
-            print(lane_status.format_status(lane_status.status(Path.cwd(), config, args.offline)))
-    except lane_setup.PartialCreate as error:
-        print("\n".join(error.lines))
-        print(f"kit: {error}", file=sys.stderr)
-        return USAGE
-    except (ConfigError, lanes.LaneError) as error:
-        print(f"kit: {error}", file=sys.stderr)
-        return USAGE
-    return OK
+    return lane_cli.run(args)
 
 
 # ---- kit settings ------------------------------------------------------------------------------

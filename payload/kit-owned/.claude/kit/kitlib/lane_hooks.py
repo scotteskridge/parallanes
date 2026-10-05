@@ -88,7 +88,7 @@ def _merged(root: Path, branch: str, tip: str) -> bool:
     applied patch made since the branch was last created or reset, so work reset away or an old
     branch of the same name doesn't count, and a fresh branch fast-forwarded to a newer tip has none.
     Undoing only the last commit with a reset hides earlier ones too (no warning: the safe
-    direction). Without a reflog nothing is claimed. Squash merges aren't visible locally: plan 05 asks the PR.
+    direction). Without a reflog nothing is claimed. Squash merges aren't visible locally: `lanes start` asks the PR (lane_merged.py).
     """
     subjects = lanes.git(root, "reflog", "show", "--format=%gs", f"refs/heads/{branch}", check=False).splitlines()
     for subject in subjects:

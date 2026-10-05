@@ -359,8 +359,8 @@ def test_status_with_a_lane_folder_removed_by_hand(repo):
 def test_lanes_commands_report_a_broken_config(tmp_path):
     repo = lanes_repo(tmp_path)
     write(repo, ".claude/kit.toml", LANES_TOML.replace('name = "api"', 'name = "API"'))
-    for command in ("create", "status", "remove"):
-        args = ["lanes", command] + (["api"] if command == "remove" else [])
+    for command in ("create", "status", "remove", "start", "sync", "finish"):
+        args = ["lanes", command] + (["api"] if command in ("remove", "start") else [])
         result = run_cli(repo, *args)
         assert result.returncode == 2
         assert "'API'" in result.stderr and "Traceback" not in result.stderr

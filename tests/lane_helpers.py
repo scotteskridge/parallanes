@@ -68,6 +68,80 @@ def fake_gh(folder: Path, response) -> dict:
     return {**os.environ, "PATH": str(folder) + os.pathsep + os.environ.get("PATH", "")}
 
 
+SCRIPTED_GH = """import json, sys
+from pathlib import Path
+here = Path(__file__).parent
+args = sys.argv[1:]
+with open(here / "gh-calls.jsonl", "a", encoding="utf-8") as log:
+    log.write(json.dumps(args) + "\\n")
+spec = json.loads((here / "gh-spec.json").read_text(encoding="utf-8"))
+if args[:2] == ["pr", "list"]:
+    state = args[args.index("--state") + 1] if "--state" in args else "open"
+    prs = [pr for pr in spec["prs"] if state == "all" or pr["state"].lower() == state]
+    print(json.dumps(prs))
+elif args[:2] == ["pr", "create"] and spec["create"]:
+    print(spec["create"])
+else:
+    sys.stderr.write("gh stand-in: refused " + " ".join(args))
+    sys.exit(1)
+"""
+
+
+def scripted_gh(folder: Path, prs=(), create: str | None = "https://github.com/o/r/pull/9") -> dict:
+    """An environment with a stand-in `gh` that answers `pr list` with prs (filtered by --state)
+    and `pr create` with the URL create (None: it fails). Every call is logged; see gh_calls."""
+    env = fake_gh(folder, [])
+    (folder / "fake_gh.py").write_text(SCRIPTED_GH, encoding="utf-8")
+    (folder / "gh-spec.json").write_text(json.dumps({"prs": list(prs), "create": create}), encoding="utf-8")
+    return env
+
+
+def gh_calls(folder: Path) -> list[list[str]]:
+    log = folder / "gh-calls.jsonl"
+    if not log.is_file():
+        return []
+    return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+
+
+FAKE_TESTS = """import subprocess, sys
+from pathlib import Path
+here = Path(__file__).parent
+head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+with open(here / "test-runs.log", "a", encoding="utf-8") as log:
+    log.write(head + "\\n")
+race = here / "RACE"
+if race.exists():  # another lane lands while these tests run (local mode retry)
+    subprocess.run(["git", "update-ref", "refs/heads/main", race.read_text().strip()], check=True)
+    race.unlink()
+print("fake tests ran")
+sys.exit(1 if (here / "FAIL").exists() else 0)
+"""
+
+
+def cycle_repo(base: Path, mode: str = "pr") -> tuple[Path, Path]:
+    """(main checkout, core lane folder) for the task cycle.
+
+    test_command is a stand-in that logs the HEAD it ran on to <base>/test-runs.log and fails while
+    <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local mode the main checkout is detached, as decision 38 asks.
+    """
+    script = base / "fake tests.py"
+    script.write_text(FAKE_TESTS, encoding="utf-8")
+    command = f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"'
+    config = LANES_TOML.replace('test_command = "python -m pytest -q"', f"test_command = '{command}'\nmerge_mode = \"{mode}\"")
+    repo = lanes_repo(base, config=config)
+    if mode == "local":
+        git(repo, "switch", "-q", "--detach", "main")
+    from helpers import run_cli
+    result = run_cli(repo, "lanes", "create", "core")
+    assert result.returncode == 0, result.stderr
+    return repo, lane_dir(repo, "core")
+
+
+def recorded_test_runs(base: Path) -> list[str]:
+    log = base / "test-runs.log"
+    return log.read_text(encoding="utf-8").split() if log.is_file() else []
+
+
 def no_gh_env(base: Path) -> dict:
     """An environment where `gh` can't tell anything: a failing stand-in shadows the real one.
 

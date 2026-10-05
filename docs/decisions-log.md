@@ -3,6 +3,40 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-05: Plan 05 questions
+
+46. **`lanes start` proves the previous task branch merged, or refuses.** Merged means its tip is
+    in the integration tip (after a fetch in PR mode), or, in PR mode, `gh` reports a `MERGED` PR
+    whose head commit is that tip. A PR found by branch name alone never counts (a reused slug could
+    match an old one). Open, closed, no PR at that commit, or no `gh`: refuse with the reason;
+    `--abandon` drops the branch on purpose and prints its SHA. Other leftover `<lane>/*` branches
+    are listed, never deleted. *Why:* squash merges can't be seen locally, and guessing "merged"
+    loses work.
+
+47. **Task branches have no upstream until they are pushed** (`git switch --no-track -c`), and slugs
+    follow the lane-name pattern, at most 50 characters. *Why:* git would otherwise track
+    `origin/<integration>`, and every "pushed?" check would be wrong.
+
+48. **`lanes sync` rebases a branch that was never pushed and merges one that was; a conflict is
+    left in progress** with the files and the continue/abort commands. *Why:* never rewrite
+    commits under review (no force-push), and resolving the conflict is the agent's work, not
+    something to undo silently.
+
+49. **`lanes finish` = sync → tests → publish.** PR mode pushes and opens the PR with `--title` and
+    `--body-file` (defaults: the oldest own commit's subject, a commit list), only pushes when a PR
+    is open already, never force-pushes, and exits non-zero with the URL when `gh` can't open it.
+    Local mode refuses while the main checkout holds the integration branch, fast-forwards it,
+    re-syncs, re-tests and retries once if another lane landed first, then detaches and deletes the
+    merged branch. *Why:* the tests must run on what actually lands.
+
+50. **`test_command` runs through the platform shell in the lane folder, with no skip flag.** *Why:*
+    real test commands chain (`npm test && ...`); the value comes from the committed, protected
+    `kit.toml` (decision 30); "evidence, not claims".
+
+51. **`start`, `sync` and `finish` run only inside a lane folder** and print short lines an agent can
+    quote. *Why:* the lane comes from the folder (decision 37); guessing a lane from elsewhere would
+    act on the wrong worktree.
+
 ## 2026-10-04: Plan 04 questions
 
 35. **Lanes stay nested; each lane skips the main checkout's instructions.** `lanes create` adds

@@ -1,6 +1,6 @@
 # 05 — Lane task cycle
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/05-lane-task-cycle` · PR link once open
 **Builds on:** plan 04 (lane lookup, `integration_tip`, `lanes status`, the router's local merge
 check, `fake_gh` test helper); ARCHITECTURE §6 (task cycle), §15 (PR matching); decisions 11

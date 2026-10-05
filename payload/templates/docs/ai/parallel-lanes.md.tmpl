@@ -73,8 +73,22 @@ kit never moves the main checkout itself.
 ```
 
 `/plan-feature`, `/implement` and `/wrap-up` run these for you; the commands work the same by hand.
-If `{{integration_branch}}` moves while you work, `{{kit_command}} lanes sync` brings it in (rebase before the
-branch is pushed, merge after, so nothing under review is rewritten).
+They run only inside a lane folder, and refuse while there are uncommitted changes.
+
+- **`start <task>`** first proves the lane's previous task branch was merged: its commits are in
+  `{{integration_branch}}`, or (PR mode) GitHub has a merged PR whose head is exactly that branch's
+  last commit, which covers squash merges. An open or closed PR, commits added after the PR, or no
+  `gh` to ask: it refuses and says why. `--abandon` drops the branch on purpose and prints its
+  commit, so it can be recovered. The task name is lowercase letters, digits and hyphens.
+- **`sync`** brings in new `{{integration_branch}}` commits: a rebase while the branch was never pushed,
+  a merge after (nothing under review is rewritten; the kit never force-pushes). On a conflict it
+  stops with the rebase or merge in progress and names the files: resolve them, `git add`, then
+  `git rebase --continue` (or `git merge --continue`), or `--abort` to back out.
+- **`finish`** syncs, runs `test_command` on the result (there is no way to skip it), then in PR mode
+  pushes and opens a PR (`--title`, `--body-file`; a re-run only pushes to the open PR), or in local
+  mode fast-forwards `{{integration_branch}}`, deletes the task branch and leaves the lane between tasks.
+  If another lane landed first, local mode syncs, re-tests and tries once more. Failing tests stop
+  it before anything is pushed or merged.
 
 ## Rules that keep lanes apart
 

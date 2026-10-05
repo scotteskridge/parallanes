@@ -1,0 +1,72 @@
+"""Was a task branch merged? Proved from git, or from the PR at the branch's exact commit (decision 46).
+
+Never a guess: a squash or rebase merge leaves nothing in local history, so PR mode asks `gh`, and
+only a PR whose head commit is the branch tip counts (a reused slug could match an old PR, §15).
+"""
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
+from kitlib import lanes
+
+
+def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
+    """(True, how) when branch is merged into tip; otherwise (False, why not, as advice)."""
+    head = lanes.git(folder, "rev-parse", f"refs/heads/{branch}").strip()
+    if lanes.is_ancestor(folder, head, tip):
+        return True, f"{branch} is in {tip}"
+    if config.lane_settings.merge_mode != "pr":
+        return False, f"{branch} has commits that aren't in {tip} yet: finish it with `kit lanes finish`"
+    prs, error = pull_requests(folder, branch, "all")
+    if error:
+        return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"
+    at_head = {pr["state"]: pr for pr in prs if pr["headRefOid"] == head}
+    if "MERGED" in at_head:
+        return True, f"{branch} was merged by PR #{at_head['MERGED']['number']}"
+    if "OPEN" in at_head:
+        pr = at_head["OPEN"]
+        return False, f"PR #{pr['number']} for {branch} is still open ({pr.get('url', '')}): wait for it to merge"
+    if "CLOSED" in at_head:
+        pr = at_head["CLOSED"]
+        return False, f"PR #{pr['number']} for {branch} was closed without merging ({pr.get('url', '')})"
+    if prs:
+        numbers = ", ".join(f"#{pr['number']}" for pr in prs)
+        return False, (
+            f"the PRs named {branch} ({numbers}) are at other commit(s) than its tip {head[:12]}: "
+            "commits were added after the PR, or an older branch had the same name"
+        )
+    return False, f"there is no PR for {branch} at {head[:12]}"
+
+
+def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], str | None]:
+    """(PRs whose head branch is branch, None), or ([], what went wrong). Never raises for gh trouble."""
+    gh = shutil.which("gh")
+    if gh is None:
+        return [], "gh is not installed"
+    try:
+        result = subprocess.run(
+            [gh, "pr", "list", "--head", branch, "--state", state, "--limit", "100",
+             "--json", "number,state,headRefOid,url"],
+            cwd=folder, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return [], f"gh: {error}"
+    if result.returncode != 0:
+        return [], f"gh pr list failed: {_first_line(result.stderr) or 'no message'}"
+    try:
+        prs = json.loads(result.stdout or "[]")
+    except ValueError:
+        return [], "gh pr list printed something that isn't JSON"
+    if not isinstance(prs, list) or not all(_valid(pr) for pr in prs):
+        return [], "gh pr list returned an unexpected shape"
+    return prs, None
+
+
+def _valid(pr) -> bool:
+    return (isinstance(pr, dict) and isinstance(pr.get("number"), int)
+            and isinstance(pr.get("state"), str) and isinstance(pr.get("headRefOid"), str))
+
+
+def _first_line(text: str) -> str:
+    return text.strip().splitlines()[0][:200] if text.strip() else ""
