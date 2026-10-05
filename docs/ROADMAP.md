@@ -116,7 +116,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
   - CI runs the full set on one OS/Python and the fast set on the others.
 
   Target: the default local run in under 20 s. *Done in `chore/fast-tests`:*
-  - the fast set (461 tests, `-m "not slow"`) runs in 17–18 s;
+  - the fast set (488 tests, `-m "not slow"`) runs in 14–16 s, with unit tests on canned git and gh output covering every lane module;
   - the full suite went from 135–155 s to 80–107 s (timings on this machine vary a lot), by building fixture repos once per worker, cutting
     git calls and turning off git's auto-maintenance in tests;
   - CI runs the full suite once per OS.

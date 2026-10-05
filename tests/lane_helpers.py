@@ -1,13 +1,11 @@
 """Throwaway projects with lanes: a main checkout (path with spaces) and a bare `origin`."""
-import atexit
 import json
 import os
 import shutil
 import sys
-import tempfile
 from pathlib import Path
 
-from helpers import RULES_TOML, git, make_repo, write
+from helpers import RULES_TOML, cache_root, git, make_repo, write
 
 LANES_TOML = RULES_TOML + """
 [[lanes]]
@@ -23,16 +21,7 @@ owns = ["src/api/**"]
 """
 
 
-_TEMPLATES: dict = {}
-
-
-def _cache_root() -> Path:
-    """This test process's own folder for built-once fixtures (each xdist worker is a process)."""
-    if "root" not in _TEMPLATES:
-        root = Path(tempfile.mkdtemp(prefix="kit tests "))  # a space, like the tests' own paths
-        atexit.register(shutil.rmtree, root, True)
-        _TEMPLATES["root"] = root
-    return _TEMPLATES["root"]
+_TEMPLATES: dict = {}  # (config, origin, ignore) -> built repo, under helpers.cache_root()
 
 
 def lanes_repo(base: Path, config: str = LANES_TOML, origin: bool = True, ignore: bool = True) -> Path:
@@ -43,7 +32,7 @@ def lanes_repo(base: Path, config: str = LANES_TOML, origin: bool = True, ignore
     """
     key = (config, origin, ignore)
     if key not in _TEMPLATES:
-        template = _cache_root() / f"repo {len(_TEMPLATES)}"
+        template = cache_root() / f"repo {len(_TEMPLATES)}"
         template.mkdir()
         _build_lanes_repo(template, config, origin, ignore)
         _TEMPLATES[key] = template
@@ -54,6 +43,9 @@ def lanes_repo(base: Path, config: str = LANES_TOML, origin: bool = True, ignore
     if origin:
         # git escapes the URL in its config file, so let git rewrite it rather than editing text.
         git(repo, "config", "remote.origin.url", str(base / "origin repo.git"))
+    # The copy's index holds the template's file stat data; refresh it so plumbing that doesn't
+    # (diff-files, diff-index) sees a clean tree, as in a freshly built repo.
+    git(repo, "update-index", "-q", "--refresh")
     return repo
 
 
@@ -142,6 +134,9 @@ def gh_calls(folder: Path) -> list[list[str]]:
 
 FAKE_TESTS = """import os, subprocess, sys
 from pathlib import Path
+if "KIT_TEST_CONTROL" not in os.environ:  # exit 3, never 1: a broken stand-in mustn't pass for "tests failed"
+    print("stand-in test command: KIT_TEST_CONTROL is not set")
+    sys.exit(3)
 here = Path(os.environ["KIT_TEST_CONTROL"])  # the test's folder: flags in, run log out
 head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
 with open(here / "test-runs.log", "a", encoding="utf-8") as log:
@@ -185,7 +180,7 @@ def cycle_repo(base: Path, mode: str = "pr") -> tuple[Path, Path]:
 
 
 def _fake_tests_script() -> Path:
-    script = _cache_root() / "fake tests.py"
+    script = cache_root() / "fake tests.py"
     if not script.is_file():
         script.write_text(FAKE_TESTS, encoding="utf-8")
     return script

@@ -224,7 +224,7 @@ def _clean(top: Path) -> list[str]:
             untracked.append(entry[3:])
         elif entry:
             tracked += 1
-            if entry[0] in "RC":
+            if entry[0] in "RC" or entry[1] in "RC":  # staged, or in the worktree (`add -N` then rename)
                 next(entries, None)
     if tracked:
         raise LaneError(f"{tracked} uncommitted change(s) to tracked files in this lane: commit or stash them first")

@@ -21,8 +21,23 @@ def _clear_test_control():
     os.environ.pop("KIT_TEST_CONTROL", None)
 
 
+_count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))  # appended: keep a developer's own entries (safe.directory)
 os.environ.update({
-    "GIT_CONFIG_COUNT": "2",
-    "GIT_CONFIG_KEY_0": "maintenance.auto", "GIT_CONFIG_VALUE_0": "false",
-    "GIT_CONFIG_KEY_1": "gc.auto", "GIT_CONFIG_VALUE_1": "0",
+    f"GIT_CONFIG_KEY_{_count}": "maintenance.auto", f"GIT_CONFIG_VALUE_{_count}": "false",
+    f"GIT_CONFIG_KEY_{_count + 1}": "gc.auto", f"GIT_CONFIG_VALUE_{_count + 1}": "0",
+    "GIT_CONFIG_COUNT": str(_count + 2),
 })
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _fixture_cache(tmp_path_factory):
+    """Where helpers keep their built-once repos: pytest's own temp folders remove read-only git
+    objects and prune old runs, which a plain rmtree at exit didn't (one per xdist worker)."""
+    import helpers
+    import lane_helpers
+
+    root = tmp_path_factory.mktemp("kit fixture cache")
+    helpers.CACHE["root"] = root
+    yield
+    helpers.CACHE.clear()
+    lane_helpers._TEMPLATES.clear()

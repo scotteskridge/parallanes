@@ -373,8 +373,8 @@ def test_the_note_names_non_ascii_files_plainly(pr_lane, tmp_path):
     assert "résumé report.xml" in result.stdout
 
 
-def test_a_staged_rename_counts_once_and_untracked_files_are_still_listed(pr_lane, tmp_path):
-    """One `git status -z` feeds both checks; a rename is two entries there (new name, old name)."""
+def test_a_staged_rename_counts_as_one_change(pr_lane, tmp_path):
+    """A rename is two entries in `git status -z` (new name, old name); unit cases: test_lane_units.py."""
     _, lane = pr_lane
     git(lane, "mv", "src/core/a.py", "src/core/renamed.py")
     write(lane, "notes.txt", "n\n")

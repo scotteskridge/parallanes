@@ -1,10 +1,8 @@
 """Shared test helpers: throwaway git repos with a kit config, and running the kit CLI."""
-import atexit
 import json
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,19 +48,25 @@ def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project", se
     return repo
 
 
-_EMPTY = {}
+CACHE = {}  # "root": this test process's folder for built-once fixtures, set by conftest
+
+
+def cache_root() -> Path:
+    if "root" not in CACHE:
+        raise RuntimeError("the fixture cache is set up by tests/conftest.py; run these helpers under pytest")
+    return CACHE["root"]
 
 
 def _empty_git() -> Path:
-    if "git" not in _EMPTY:
-        folder = Path(tempfile.mkdtemp(prefix="kit empty repo "))
-        atexit.register(shutil.rmtree, folder, True)
+    if "git" not in CACHE:
+        folder = cache_root() / "empty repo"
+        folder.mkdir()
         git(folder, "init", "-q", "-b", "main")
         git(folder, "config", "user.name", "Test")
         git(folder, "config", "user.email", "test@example.com")
         git(folder, "config", "core.autocrlf", "false")
-        _EMPTY["git"] = folder / ".git"
-    return _EMPTY["git"]
+        CACHE["git"] = folder / ".git"
+    return CACHE["git"]
 
 
 def sync_settings(repo: Path) -> None:
