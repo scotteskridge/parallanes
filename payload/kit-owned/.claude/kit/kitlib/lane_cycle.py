@@ -218,11 +218,14 @@ def _clean(top: Path) -> list[str]:
     tracked = _git(top, "status", "--porcelain", "--untracked-files=no").splitlines()
     if tracked:
         raise LaneError(f"{len(tracked)} uncommitted change(s) to tracked files in this lane: commit or stash them first")
-    untracked = _git(top, "ls-files", "--others", "--exclude-standard", "--directory").splitlines()
+    # -z: names as they are, not git's quoted octal form for non-ASCII characters.
+    untracked = [name for name in _git(top, "ls-files", "-z", "--others", "--exclude-standard", "--directory").split("\0") if name]
     if not untracked:
         return []
     shown = ", ".join(untracked[:5]) + (f" and {len(untracked) - 5} more" if len(untracked) > 5 else "")
-    return [f"Note: untracked, not part of any branch: {shown}. Add generated files to .gitignore; don't commit them."]
+    # The tests can see these files but they won't land: a forgotten `git add` must not look fine.
+    return [f"Note: untracked, so the tests see them but they won't land: {shown}. "
+            "Commit any that belong to the task (git add <file>); put generated ones in .gitignore."]
 
 
 def _task_branch(top: Path, lane) -> str:

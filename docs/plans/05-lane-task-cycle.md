@@ -126,4 +126,33 @@ opens a PR (PR mode) or fast-forwards the integration branch (local mode).
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **Exit codes** (decision 51): 2 means refused, nothing changed. 1 means unfinished, something is
+  mid-way: tests failed, a conflict waits, a rebase emptied the branch, or the push or PR failed.
+  The plan said exit 1 for every failure; this way an agent can tell "nothing happened" from "look
+  before going on", and it matches the other `kit` commands.
+- **Untracked files don't block** (decision 52, the owner's call in the third review). Only tracked
+  changes refuse; untracked files are listed with "the tests see them but they won't land".
+- **A merged PR counts only if its base is the integration branch** (decision 53).
+- **Code layout:** `lane_cycle.py` (the three commands), `lane_merged.py` (merge proof),
+  `lane_pr.py` (push and PR), `lane_cli.py` (the `lanes` handler, still imported lazily). `Unfinished`
+  and `run_git` live in `lanes.py`. `WORKFLOW.md.tmpl` needed only one sentence.
+- **Four review rounds.** Every fix has a test that failed on the code before it:
+  - *First* (1 🔴, 5 🟠, 5 🟡): `start` on a detached HEAD orphaned commits made between tasks. Also
+    fixed: `finish` could land a commit the tests never saw; a traceback when the rebase dropped
+    every commit; local mode failed after landing when the branch had an upstream, retried non-race
+    failures, and checked only the main checkout for the integration branch; a reused slug synced
+    against a stale origin branch; PR heads newer than the local tip; output lost on failure;
+    exit-code drift.
+  - *Second* (2 🟠, 6 🟡): the post-test check refused untracked test reports. Also: a name stayed
+    blocked after GitHub deleted the head branch (now `fetch --prune`); a detached HEAD already kept
+    on a branch was called an orphan; the empty-rebase exit code; a PR head reachable only through
+    `refs/pull/<n>/head`; a gone worktree holding the integration branch.
+  - *Third* (1 🟠 design question, 4 🟡, 1 pre-existing gap): untracked files blocked the *next*
+    command (the owner chose a note instead); a stacked PR counted as merged; stale remote refs
+    trusted in local mode; the `refs/pull` fetch could hang `start`; status said "not pushed" for a
+    branch gone from origin.
+  - *Fourth* (1 🟠, 3 🟡): the note told the agent not to commit a forgotten source file; a stacked
+    PR could hide one merged into main; non-ASCII names in the note; test gaps.
+- **Live check:** pending. It needs a scratch GitHub repo for one full PR-mode cycle, plus local
+  mode.

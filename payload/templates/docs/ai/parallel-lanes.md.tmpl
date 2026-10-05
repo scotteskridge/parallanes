@@ -74,8 +74,8 @@ kit never moves the main checkout itself.
 
 `/plan-feature`, `/implement` and `/wrap-up` run these for you; the commands work the same by hand.
 They run only inside a lane folder, and refuse while tracked files have uncommitted changes.
-Untracked files (test reports, build output) don't block; each command lists them so you can add
-them to `.gitignore`. Don't commit them.
+Untracked files don't block; each command lists them. The tests can see them, but they won't land:
+commit any that belong to the task, and put generated ones (test reports, build output) in `.gitignore`.
 
 - **`start <task>`** first proves the lane's previous task branch was merged: its commits are in
   `{{integration_branch}}`, or (PR mode) GitHub has a merged PR whose head is exactly that branch's

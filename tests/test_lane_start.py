@@ -335,3 +335,37 @@ def test_an_unreachable_pull_ref_makes_no_claim(pr_lane, tmp_path, monkeypatch):
     monkeypatch.setattr(lanes, "run_git", hangs)
     pr = {"number": 2, "state": "MERGED", "headRefOid": "a" * 40}
     assert lane_merged._holds(lane, pr, local) is False
+
+
+# ---- from the fourth review ----------------------------------------------------------------------
+
+def test_a_stacked_pr_does_not_hide_one_merged_into_main(pr_lane, tmp_path):
+    _, lane = pr_lane
+    work = on_task_with_work(lane)
+    prs = [{"number": 8, "state": "MERGED", "headRefOid": work, "url": "u8", "baseRefName": "main"},
+           {"number": 6, "state": "MERGED", "headRefOid": work, "url": "u6", "baseRefName": "core/parent"}]
+    result = start(lane, "second", env=scripted_gh(tmp_path / "gh", prs=prs))
+    assert result.returncode == 0, result.stderr
+    assert "#8" in result.stdout
+
+
+def test_pull_ref_fetch_only_for_merged_prs_with_a_short_timeout(pr_lane, monkeypatch):
+    from kitlib import lane_merged, lanes
+
+    _, lane = pr_lane
+    local = on_task_with_work(lane)
+    calls = []
+    monkeypatch.setattr(lanes, "run_git", lambda *args, **kwargs: calls.append((args, kwargs)))
+    unknown = "b" * 40
+    assert lane_merged._holds(lane, {"number": 3, "state": "OPEN", "headRefOid": unknown}, local) is False
+    assert calls == []
+    assert lane_merged._holds(lane, {"number": 3, "state": "MERGED", "headRefOid": unknown}, local) is False
+    assert len(calls) == 1 and "refs/pull/3/head" in calls[0][0] and calls[0][1] == {"timeout": 60}
+
+
+def test_the_note_names_non_ascii_files_plainly(pr_lane, tmp_path):
+    _, lane = pr_lane
+    write(lane, "résumé report.xml", "<r/>\n")
+    result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert "résumé report.xml" in result.stdout

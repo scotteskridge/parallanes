@@ -10,10 +10,12 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     would otherwise delete the branch.
 
 52. **Only tracked changes block `start`, `sync` and `finish`; untracked files are listed in a note**
-    ("add generated files to .gitignore; don't commit them"). *The owner's call during the third
-    review:* test runners leave reports (`junit.xml`, `coverage/`), and refusing on them would push an
-    agent to `git add -A` them into the branch. git itself still refuses a switch that would
-    overwrite an untracked file.
+    that says the tests see them but they won't land: commit the ones that belong to the task, put
+    generated ones in `.gitignore`. *The owner's call during the third review:* test runners leave
+    reports (`junit.xml`, `coverage/`), and refusing on them would push an agent to `git add -A` them
+    into the branch. The cost, found in the fourth review: a forgotten `git add` is tested but doesn't
+    land, so the note says so plainly. git itself still refuses a switch that would overwrite an
+    untracked file.
 
 46. **`lanes start` proves the previous task branch merged, or refuses.** Merged means its tip is
     in the integration tip (after a fetch in PR mode), or, in PR mode, `gh` reports a `MERGED` PR

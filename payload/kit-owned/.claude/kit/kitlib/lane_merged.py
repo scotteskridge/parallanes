@@ -22,14 +22,16 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
     prs, error = pull_requests(folder, branch, "all")
     if error:
         return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"
-    at_head = {pr["state"]: pr for pr in prs if _holds(folder, pr, head)}
+    holding = [pr for pr in prs if _holds(folder, pr, head)]
+    integration = config.lane_settings.integration_branch
+    landed = [pr for pr in holding if pr["state"] == "MERGED" and pr["baseRefName"] == integration]
+    if landed:
+        return True, f"{branch} was merged by PR #{landed[0]['number']}"
+    at_head = {pr["state"]: pr for pr in holding}
     if "MERGED" in at_head:
+        # Only stacked PRs, merged into a parent branch: the work hasn't reached the integration branch.
         pr = at_head["MERGED"]
-        integration = config.lane_settings.integration_branch
-        if pr["baseRefName"] != integration:
-            # A stacked PR merged into its parent branch: the work hasn't reached the integration branch.
-            return False, f"PR #{pr['number']} merged {branch} into {pr['baseRefName']}, not {integration}"
-        return True, f"{branch} was merged by PR #{pr['number']}"
+        return False, f"PR #{pr['number']} merged {branch} into {pr['baseRefName']}, not {integration}"
     if "OPEN" in at_head:
         pr = at_head["OPEN"]
         return False, f"PR #{pr['number']} for {branch} is still open ({pr.get('url', '')}): wait for it to merge"

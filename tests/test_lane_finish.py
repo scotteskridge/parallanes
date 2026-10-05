@@ -352,3 +352,12 @@ def test_start_after_a_local_finish_with_test_reports(local_lane, tmp_path):
     result = run_cli(lane, "lanes", "start", "next", env=no_gh_env(tmp_path))
     assert result.returncode == 0, result.stderr
     assert "junit.xml" in result.stdout
+
+
+def test_the_note_warns_that_untracked_files_are_tested_but_do_not_land(local_lane, tmp_path):
+    """A forgotten `git add`: the tests see the file, the integration branch won't get it."""
+    repo, lane, work = local_lane
+    write(lane, "src/core/helper.py", "h = 1\n")
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert "src/core/helper.py" in result.stdout
+    assert "won't land" in result.stdout and "git add" in result.stdout
