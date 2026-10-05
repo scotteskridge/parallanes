@@ -12,7 +12,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 03 | [Protected paths](03-protected-paths.md) | `settings.json` deny rules (primary), protected-paths hook (backstop), sandbox guidance, honest limits | Done |
 | 04 | [Lanes core](04-lanes-core.md) | `[[lanes]]` in `.claude/kit.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Done |
 | 05 | [Lane task cycle](05-lane-task-cycle.md) | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Done |
-| 06 | Reviewer | `reviewer` subagent, universal checklist, stack checklist mechanism | Not started |
+| 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Draft |
 | 07 | Skills | `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections), `/code-health`, `/design`, `/next` for installed projects (lane- and backlog-aware, grown from this repo's own `/next` prototype, decision 26), `/onboard` and their templates | Not started |
 | 08 | Installer | `install.ps1` / `install.sh` → `kit_setup.py`: prerequisites, interpreter detection, dry run, manifest, no overwrites | Not started |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
