@@ -6,6 +6,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Repository skeleton: license, roadmap, decisions log, survey of the source setup, CI running pytest
   on Windows and Ubuntu.
 - Architecture document, plan template and the numbered plan series (plan 00); decisions 10–20
