@@ -4,6 +4,7 @@ Never a guess: a squash or rebase merge leaves nothing in local history, so PR m
 only a PR whose head commit is the branch tip counts (a reused slug could match an old PR, §15).
 """
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,7 +22,7 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
     prs, error = pull_requests(folder, branch, "all")
     if error:
         return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"
-    at_head = {pr["state"]: pr for pr in prs if pr["headRefOid"] == head}
+    at_head = {pr["state"]: pr for pr in prs if _holds(folder, pr["headRefOid"], head)}
     if "MERGED" in at_head:
         return True, f"{branch} was merged by PR #{at_head['MERGED']['number']}"
     if "OPEN" in at_head:
@@ -37,6 +38,18 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
             "commits were added after the PR, or an older branch had the same name"
         )
     return False, f"there is no PR for {branch} at {head[:12]}"
+
+
+def _holds(folder: Path, pr_head: str, head: str) -> bool:
+    """The PR's head is the branch tip, or a newer commit built on it (GitHub's "Update branch", a
+    web edit): either way every local commit went into that PR. A head git doesn't have can't be judged."""
+    if pr_head == head:
+        return True
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head):  # gh output goes no further into git unchecked
+        return False
+    if not lanes.git(folder, "rev-parse", "--verify", "-q", f"{pr_head}^{{commit}}", check=False).strip():
+        return False
+    return lanes.is_ancestor(folder, head, pr_head)
 
 
 def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], str | None]:

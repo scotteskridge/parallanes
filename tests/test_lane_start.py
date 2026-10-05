@@ -213,3 +213,49 @@ def test_works_from_a_subfolder_of_the_lane(pr_lane, tmp_path):
     result = start(lane / "src" / "core", "deep", env=scripted_gh(tmp_path / "gh"))
     assert result.returncode == 0, result.stderr
     assert branch(lane) == "core/deep"
+
+
+# ---- from the first review -----------------------------------------------------------------------
+
+def test_detached_commits_are_not_orphaned(pr_lane, tmp_path):
+    _, lane = pr_lane
+    orphan = commit(lane, "src/core/loose.py", "l = 1\n", "made between tasks")  # lane is detached
+    result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert orphan[:12] in result.stderr and "--abandon" in result.stderr
+    assert head(lane) == orphan
+
+
+def test_abandon_detached_commits_prints_the_sha(pr_lane, tmp_path):
+    _, lane = pr_lane
+    orphan = commit(lane, "src/core/loose.py", "l = 1\n", "made between tasks")
+    result = start(lane, "next", "--abandon", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert orphan in result.stdout
+    assert branch(lane) == "core/next"
+
+
+def test_a_slug_still_on_origin_is_refused(pr_lane, tmp_path):
+    """GitHub keeps head branches by default: a reused name would sync and push against the old one."""
+    _, lane = pr_lane
+    on_task_with_work(lane, "fix")
+    git(lane, "push", "-q", "origin", "core/fix")
+    git(lane, "switch", "-q", "--detach", "origin/main")
+    git(lane, "branch", "-q", "-D", "core/fix")
+    result = start(lane, "fix", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "origin/core/fix" in result.stderr
+
+
+def test_merged_pr_whose_head_is_newer_than_the_local_tip_counts(pr_lane, tmp_path):
+    """GitHub's "Update branch" or a web-UI commit added to the PR after the local tip."""
+    repo, lane = pr_lane
+    local = on_task_with_work(lane)
+    newer = commit(lane, "src/core/web.py", "w = 1\n", "made on GitHub")
+    git(lane, "push", "-q", "origin", "core/first")
+    git(lane, "reset", "-q", "--hard", local)
+    land_on_origin(repo, "src/core/work.py")  # the squash
+    env = scripted_gh(tmp_path / "gh", prs=[{"number": 2, "state": "MERGED", "headRefOid": newer, "url": "u2"}])
+    result = start(lane, "second", env=env)
+    assert result.returncode == 0, result.stderr
+    assert not has_branch(lane, "core/first")

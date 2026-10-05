@@ -87,8 +87,13 @@ They run only inside a lane folder, and refuse while there are uncommitted chang
 - **`finish`** syncs, runs `test_command` on the result (there is no way to skip it), then in PR mode
   pushes and opens a PR (`--title`, `--body-file`; a re-run only pushes to the open PR), or in local
   mode fast-forwards `{{integration_branch}}`, deletes the task branch and leaves the lane between tasks.
-  If another lane landed first, local mode syncs, re-tests and tries once more. Failing tests stop
-  it before anything is pushed or merged.
+  If another lane landed first, local mode syncs, re-tests and tries once more. Failing tests, or a
+  test command that changes the branch, stop it before anything is pushed or merged.
+
+Exit codes: 0 done; 2 refused, nothing changed (the message says why); 1 unfinished, something is
+mid-way (tests failed, a conflict waits, or the push or PR failed): read the message before going on.
+"Pushed?" means `origin/<the same branch name>` exists; a branch pushed under another name, or to
+another remote, counts as unpushed, and `sync` would rebase it.
 
 ## Rules that keep lanes apart
 

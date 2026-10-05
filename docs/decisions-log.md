@@ -34,8 +34,11 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     `kit.toml` (decision 30); "evidence, not claims".
 
 51. **`start`, `sync` and `finish` run only inside a lane folder** and print short lines an agent can
-    quote. *Why:* the lane comes from the folder (decision 37); guessing a lane from elsewhere would
-    act on the wrong worktree.
+    quote, each step as it happens. Exit 2 means refused with nothing changed; exit 1 means
+    unfinished, something is mid-way (tests failed, a conflict waits, a push or PR failed); the plan
+    said exit 1 for every failure, settled during review to match the other `kit` commands. *Why:*
+    the lane comes from the folder (decision 37), and an agent must be able to tell "nothing
+    happened" from "look before going on".
 
 ## 2026-10-04: Plan 04 questions
 

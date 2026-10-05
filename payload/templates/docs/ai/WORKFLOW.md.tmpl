@@ -39,7 +39,8 @@ reviewer for what slips through, and small tasks so context stays clean.
    stops if the plan doesn't settle something.
 4. **Finish it.** `/wrap-up` runs the tests, calls the reviewer, fixes what must be fixed, writes the
    changelog fragment, and proposes a commit message. On your yes it commits and runs
-   `{{kit_command}} lanes finish`, which opens the pull request.
+   `{{kit_command}} lanes finish`, which tests again and opens the pull request (in local mode it
+   fast-forwards `{{integration_branch}}` instead).
 5. **Review and merge** the pull request. Then `/clear`, and back to step 1.
 
 **Why plan and build are separate sessions:** the planning conversation is full of options you

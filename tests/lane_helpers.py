@@ -113,6 +113,10 @@ race = here / "RACE"
 if race.exists():  # another lane lands while these tests run (local mode retry)
     subprocess.run(["git", "update-ref", "refs/heads/main", race.read_text().strip()], check=True)
     race.unlink()
+if (here / "COMMIT").exists():  # a test command that changes what would land
+    Path("sneaky.txt").write_text("untested\\n", encoding="utf-8")
+    subprocess.run(["git", "add", "sneaky.txt"], check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "made by the tests"], check=True)
 print("fake tests ran")
 sys.exit(1 if (here / "FAIL").exists() else 0)
 """

@@ -5,21 +5,16 @@ agent can quote; a refusal is a LaneError whose message says why and what to do 
 """
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from kitlib import lane_merged, lanes
-from kitlib.lanes import LaneError
+from kitlib import lane_merged, lane_pr, lanes
+from kitlib.lanes import LaneError, Unfinished  # noqa: F401 - lane_cli catches lane_cycle.Unfinished
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")  # the lane-name pattern, at most 50 characters
 IN_PROGRESS = {"rebase-merge": "rebase", "rebase-apply": "rebase", "MERGE_HEAD": "merge",
                "CHERRY_PICK_HEAD": "cherry-pick"}
-
-
-class Unfinished(LaneError):
-    """The work didn't land: tests failed, or the branch is pushed but no PR was opened (exit 1)."""
 
 
 # ---- the three commands --------------------------------------------------------------------------
@@ -37,8 +32,22 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
     if current is not None:
         _check_task_branch(current, lane)
     tip = _fetch_tip(top, config)
+    if _exists(top, f"refs/remotes/origin/{new}"):
+        # GitHub keeps head branches unless told to delete them; reusing the name would sync and
+        # push against the old branch's history.
+        raise LaneError(f"origin/{new} still exists (an earlier branch with this name): pick another task name")
     lines = []
-    if current is not None:
+    if current is None:
+        here = _rev(top, "HEAD")
+        if not lanes.is_ancestor(top, here, tip):
+            # Commits made between tasks belong to no branch: switching away would orphan them.
+            if not abandon:
+                raise LaneError(
+                    f"this lane has commits on no branch (HEAD {here[:12]}) that a new task would leave behind. "
+                    f"Keep them with `git branch {lane.name}/<name>`, or drop them on purpose: kit lanes start {task} --abandon"
+                )
+            lines.append(f"Abandoned commits on no branch at {here}. To get them back: git branch {lane.name}/recovered {here}")
+    else:
         done, why = lane_merged.merged(top, config, current, tip)
         if not done and not abandon:
             raise LaneError(f"{why}. To drop {current} on purpose: kit lanes start {task} --abandon")
@@ -79,18 +88,34 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
     local = config.lane_settings.merge_mode == "local"
     integration = config.lane_settings.integration_branch
     if local:
-        _main_not_holding(main, integration)
+        _nobody_holds(main, integration)
     tip = _fetch_tip(top, config)
     if lanes.ahead_behind(top, tip)[0] == 0:
         raise LaneError(f"nothing to finish: {branch} has no commits that aren't in {tip}")
-    lines = _bring_in(top, branch, tip)  # so the tests run on what will actually land
-    _run_tests(top, command)
+    tested_on = _test_what_lands(top, branch, tip, command)
     if local:
-        return lines + _land_locally(top, main, config, branch, command)
-    return lines + _open_pr(top, integration, branch, tip, title, body)
+        return _land_locally(top, main, config, branch, tested_on, command)
+    return lane_pr.open_pr(top, integration, branch, tip, title, body)
 
 
 # ---- steps ---------------------------------------------------------------------------------------
+
+def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:
+    """Sync, then test exactly the commit that will be pushed or fast-forwarded. Returns the tip's
+    commit it was synced with, so a later refusal can tell whether the tip moved meanwhile."""
+    tip_sha = _rev(top, tip)
+    _say(_bring_in(top, branch, tip))  # printed now, so a later failure doesn't hide that it happened
+    if lanes.ahead_behind(top, tip)[0] == 0:
+        # The rebase dropped every commit: the same changes had already landed.
+        raise LaneError(f"nothing left to finish: {branch}'s changes are already in {tip}")
+    tested = _rev(top, "HEAD")
+    _run_tests(top, command)
+    if lanes.branch_of(top) != branch or _rev(top, "HEAD") != tested or lanes.dirty_count(top):
+        raise Unfinished(
+            f"the test command changed the lane (it should leave {branch} at {tested[:12]}, clean): "
+            "nothing was pushed or merged. Look at what it did, then run `kit lanes finish` again."
+        )
+    return tip_sha
 
 def _bring_in(top: Path, branch: str, tip: str) -> list[str]:
     """Rebase a branch that was never pushed; merge one that was, so nothing under review is rewritten."""
@@ -99,13 +124,14 @@ def _bring_in(top: Path, branch: str, tip: str) -> list[str]:
         return [f"{branch} is up to date with {tip}."]
     pushed = _exists(top, f"refs/remotes/origin/{branch}")
     verb = "merge" if pushed else "rebase"
-    result = _run(top, "merge", "-q", "--no-edit", tip) if pushed else _run(top, "rebase", "-q", tip)
+    result = lanes.run_git(top, "merge", "-q", "--no-edit", tip) if pushed else lanes.run_git(top, "rebase", "-q", tip)
     if result.returncode != 0:
         conflicts = _git(top, "diff", "--name-only", "--diff-filter=U").split()
         if not conflicts:
             raise LaneError(f"git {verb} {tip} failed: {(result.stderr or result.stdout).strip()}")
-        # Left in progress on purpose: resolving the conflict is the work (decision 48).
-        raise LaneError(
+        # Left in progress on purpose: resolving the conflict is the work (decision 48). The lane is
+        # mid-way, not untouched, so this is "unfinished" (exit 1), not a refusal.
+        raise Unfinished(
             f"conflict while bringing {tip} into {branch} ({verb}): {', '.join(conflicts)}. "
             f"Fix those files, `git add` them, then `git {verb} --continue`; to give up instead: "
             f"`git {verb} --abort`."
@@ -129,61 +155,25 @@ def _run_tests(top: Path, command: str) -> None:
         )
 
 
-def _land_locally(top: Path, main: Path, config, branch: str, command: str) -> list[str]:
+def _land_locally(top: Path, main: Path, config, branch: str, tip_sha: str, command: str) -> list[str]:
     integration = config.lane_settings.integration_branch
-    lines = []
     for attempt in (1, 2):
-        pushed = _run(top, "push", "-q", ".", f"HEAD:refs/heads/{integration}")
+        pushed = lanes.run_git(top, "push", "-q", ".", f"HEAD:refs/heads/{integration}")  # a fast-forward or nothing
         if pushed.returncode == 0:
             break
-        if attempt == 2:
-            raise LaneError(f"couldn't fast-forward {integration} twice: {pushed.stderr.strip()}")
-        _main_not_holding(main, integration)
-        lines.append(f"{integration} moved while the tests ran (another lane finished): syncing and testing again.")
-        lines += _bring_in(top, branch, _fetch_tip(top, config))
-        _run_tests(top, command)
+        moved = _exists(top, f"refs/heads/{integration}") and _rev(top, f"refs/heads/{integration}") != tip_sha
+        if attempt == 2 or not moved:
+            # Only a race (another lane landed first) is worth a retry; anything else is reported as is.
+            raise Unfinished(f"the tests passed, but {integration} couldn't be fast-forwarded: {pushed.stderr.strip()}")
+        _nobody_holds(main, integration)
+        _say([f"{integration} moved while the tests ran (another lane finished): syncing and testing again."])
+        tip_sha = _test_what_lands(top, branch, _fetch_tip(top, config), command)
     sha = _rev(top, "HEAD")
     _git(top, "switch", "-q", "--detach", integration)
-    _git(top, "branch", "-q", "-d", branch)  # -d: git itself confirms it's merged
-    lines.append(f"{integration} fast-forwarded to {sha[:12]}; {branch} deleted. Between tasks: next, kit lanes start <task>.")
-    return lines
-
-
-def _open_pr(top: Path, integration: str, branch: str, tip: str, title: str | None, body: str | None) -> list[str]:
-    pushed = _run(top, "push", "-q", "-u", "origin", branch)  # never --force (decision 48)
-    if pushed.returncode != 0:
-        raise LaneError(f"git push failed: {pushed.stderr.strip()}")
-    lines = [f"Pushed {branch} to origin."]
-    remote = _git(top, "remote", "get-url", "origin").strip()
-    where = compare_url(remote, integration, branch)
-    by_hand = f"open the PR yourself: {where}" if where else f"open the PR yourself ({branch} into {integration})"
-    prs, error = lane_merged.pull_requests(top, branch, "open")
-    if error:
-        raise Unfinished(f"{branch} is pushed, but {error}; {by_hand}")
-    if prs:
-        return lines + [f"PR #{prs[0]['number']} is already open and now has these commits: {prs[0].get('url', '')}"]
-    subjects = _git(top, "log", "--reverse", "--format=%s", f"{tip}..HEAD").splitlines()
-    args = [shutil.which("gh") or "gh", "pr", "create", "--base", integration, "--head", branch,
-            "--title", title or subjects[0]]
-    if body:
-        args += ["--body-file", body]
-    else:
-        args += ["--body", "Commits:\n" + "\n".join(f"- {s}" for s in subjects) + "\n\nOpened by `kit lanes finish`."]
-    try:
-        created = subprocess.run(args, cwd=top, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise Unfinished(f"{branch} is pushed, but gh pr create couldn't run ({error}); {by_hand}") from None
-    if created.returncode != 0:
-        raise Unfinished(f"{branch} is pushed, but gh pr create failed ({created.stderr.strip()[:300]}); {by_hand}")
-    return lines + [f"Opened {created.stdout.strip()}"]
-
-
-def compare_url(remote: str, base: str, head: str) -> str | None:
-    """GitHub's "open a pull request" page for head, or None for any other host."""
-    match = re.match(r"^(?:git@github\.com:|(?:https|ssh)://(?:git@)?github\.com/)([^/]+)/(.+?)(?:\.git)?/?$", remote.strip())
-    if not match:
-        return None
-    return f"https://github.com/{match[1]}/{match[2]}/compare/{base}...{head}?expand=1"
+    # -D, not -d: -d judges against the branch's upstream (a backup push), but the push above
+    # just put this exact commit into the integration branch.
+    _git(top, "branch", "-q", "-D", branch)
+    return [f"{integration} fast-forwarded to {sha[:12]}; {branch} deleted. Between tasks: next, kit lanes start <task>."]
 
 
 # ---- checks and git helpers ----------------------------------------------------------------------
@@ -227,22 +217,33 @@ def _check_task_branch(branch: str, lane) -> None:
         raise LaneError(f"{branch!r} isn't a {lane.name}/<task> branch, so the kit leaves it alone: switch away from it first")
 
 
-def _main_not_holding(main: Path, integration: str) -> None:
-    if lanes.branch_of(main) == integration:
-        raise LaneError(
-            f"local mode: the main checkout has {integration} checked out, so it can't be fast-forwarded. "
-            f"Run there: git switch --detach {integration}"
-        )
+def _nobody_holds(main: Path, integration: str) -> None:
+    """git refuses to fast-forward a branch that any worktree has checked out (decision 38)."""
+    entries = _git(main, "worktree", "list", "--porcelain", "-z").split("\0\0")
+    for entry in entries:
+        fields = entry.strip("\0").split("\0")
+        if f"branch refs/heads/{integration}" in fields and fields[0].startswith("worktree "):
+            folder = fields[0][len("worktree "):]
+            raise LaneError(
+                f"local mode: {folder} has {integration} checked out, so it can't be fast-forwarded. "
+                f"Run there: git switch --detach {integration}"
+            )
 
 
 def _fetch_tip(top: Path, config) -> str:
     """The integration tip, fetched first in PR mode (local mode works offline)."""
     if config.lane_settings.merge_mode == "pr" and "origin" in _git(top, "remote").split():
-        _git(top, "fetch", "-q", "origin")
+        fetched = lanes.run_git(top, "fetch", "-q", "origin")  # run_git's longer timeout: big repos fetch slowly
+        if fetched.returncode != 0:
+            raise LaneError(f"can't fetch origin, so the integration tip would be stale: {fetched.stderr.strip()}")
     tip = lanes.integration_tip(top, config)
     if tip is None:
         raise LaneError(f"integration branch {config.lane_settings.integration_branch!r} not found (locally or on origin)")
     return tip
+
+
+def _say(lines: list[str]) -> None:
+    print("\n".join(lines), flush=True)
 
 
 def _exists(top: Path, ref: str) -> bool:
@@ -255,12 +256,3 @@ def _rev(top: Path, ref: str) -> str:
 
 def _git(top: Path, *args: str, check: bool = True) -> str:
     return lanes.git(top, *args, check=check)
-
-
-def _run(top: Path, *args: str) -> subprocess.CompletedProcess:
-    """git with its exit code, for the steps whose failure has its own message."""
-    try:
-        return subprocess.run(["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=300)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise LaneError(f"git {' '.join(args)}: {error}") from None

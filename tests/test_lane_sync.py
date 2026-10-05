@@ -62,7 +62,7 @@ def test_conflict_is_left_in_progress_with_the_commands(pr_lane, tmp_path):
     repo, lane = pr_lane
     land_on_origin(repo, "src/core/work.py", "y = 99\n")
     result = sync(lane, tmp_path)
-    assert result.returncode == 2
+    assert result.returncode == 1  # work is mid-way: unfinished, not refused
     assert "src/core/work.py" in result.stderr
     assert "git rebase --continue" in result.stderr and "git rebase --abort" in result.stderr
     rebase_dir = git(lane, "rev-parse", "--path-format=absolute", "--git-path", "rebase-merge").strip()
@@ -83,7 +83,7 @@ def test_merge_conflict_names_the_merge_commands(pr_lane, tmp_path):
     git(lane, "push", "-q", "-u", "origin", "core/task")
     land_on_origin(repo, "src/core/work.py", "y = 99\n")
     result = sync(lane, tmp_path)
-    assert result.returncode == 2
+    assert result.returncode == 1
     assert "git merge --continue" in result.stderr and "git merge --abort" in result.stderr
 
 
@@ -111,3 +111,10 @@ def test_local_mode_rebases_onto_the_local_branch(tmp_path):
     result = sync(lane, tmp_path)
     assert result.returncode == 0, result.stderr
     assert parents(lane) == [tip]
+
+
+def test_outside_a_lane_is_refused(pr_lane, tmp_path):
+    repo, _ = pr_lane
+    result = sync(repo, tmp_path)
+    assert result.returncode == 2
+    assert "not a lane" in result.stderr

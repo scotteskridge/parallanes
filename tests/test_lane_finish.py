@@ -111,7 +111,7 @@ def test_without_gh_it_pushes_then_says_how_to_open_the_pr(pr_lane, tmp_path):
 
 
 def test_github_remote_gets_a_compare_url():
-    from kitlib.lane_cycle import compare_url
+    from kitlib.lane_pr import compare_url
 
     assert compare_url("git@github.com:o/r.git", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
     assert compare_url("https://github.com/o/r", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
@@ -205,3 +205,67 @@ def test_local_mode_failing_tests_leave_main_alone(local_lane, tmp_path):
     assert result.returncode == 1
     assert rev(repo, "main") == before
     assert git(lane, "rev-parse", "--abbrev-ref", "HEAD").strip() == "core/task"
+
+
+# ---- from the first review -----------------------------------------------------------------------
+
+def test_outside_a_lane_or_between_tasks_is_refused(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    assert "not a lane" in finish(repo, env=scripted_gh(tmp_path / "gh")).stderr
+    git(lane, "switch", "-q", "--detach")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "between tasks" in result.stderr
+
+
+def test_a_test_command_that_moves_head_lands_nothing(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    (tmp_path / "COMMIT").write_text("", encoding="utf-8")
+    gh = tmp_path / "gh"
+    result = finish(lane, env=scripted_gh(gh))
+    assert result.returncode == 1
+    assert "changed" in result.stderr and "Traceback" not in result.stderr
+    assert remote_branch(repo, "core/task") == []
+    assert gh_calls(gh) == []
+
+
+def test_commits_dropped_by_the_sync_leave_nothing_to_finish(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    commit(repo, "src/core/work.py", "y = 2\n", "the same change, landed by someone else")
+    git(repo, "push", "-q", "origin", "main")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "already in" in result.stderr and "Traceback" not in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+    assert remote_branch(repo, "core/task") == []
+
+
+def test_steps_already_done_are_shown_when_the_tests_fail(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    commit(repo, "src/api/other.py", "z = 3\n", "other work")
+    git(repo, "push", "-q", "origin", "main")
+    (tmp_path / "FAIL").write_text("", encoding="utf-8")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 1
+    assert "Rebased onto origin/main" in result.stdout
+    assert result.stdout.index("Rebased") < result.stdout.index("fake tests ran")
+
+
+def test_local_mode_with_a_backup_upstream_still_finishes_cleanly(local_lane, tmp_path):
+    repo, lane, work = local_lane
+    git(lane, "push", "-q", "-u", "origin", "core/task")
+    work = commit(lane, "src/core/more.py", "m = 1\n", "after the backup")  # upstream is now behind
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert rev(repo, "main") == work
+    assert not git(lane, "branch", "--list", "core/task").strip()
+
+
+def test_local_mode_refuses_while_another_lane_holds_main(local_lane, tmp_path):
+    repo, lane, work = local_lane
+    assert run_cli(repo, "lanes", "create", "api").returncode == 0
+    git(repo / ".claude" / "worktrees" / "api", "switch", "-q", "main")
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert result.returncode == 2
+    assert "api" in result.stderr and "main" in result.stderr
+    assert recorded_test_runs(tmp_path) == []

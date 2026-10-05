@@ -1,7 +1,8 @@
 """Lanes: one git worktree per lane, found from the config and git alone (decisions 11, 35-39, 42, 43).
 
 No state file: a folder is a lane when its git top level is `<main checkout>/<worktree_root>/<name>`,
-so nothing can go stale. Creating and removing lanes is in `lane_setup.py`, their status in `lane_status.py`.
+so nothing can go stale. Creating and removing lanes is in `lane_setup.py`, their status in `lane_status.py`,
+the task cycle in `lane_cycle.py`.
 """
 import os
 import subprocess
@@ -10,6 +11,10 @@ from pathlib import Path
 
 class LaneError(Exception):
     """A lanes command can't go ahead; the message says why and what to do."""
+
+
+class Unfinished(LaneError):
+    """The work is mid-way, not untouched: tests failed, a conflict waits, or a push or PR failed (exit 1)."""
 
 
 def git(folder: Path, *args: str, check: bool = True) -> str:
@@ -23,6 +28,15 @@ def git(folder: Path, *args: str, check: bool = True) -> str:
     if check and result.returncode != 0:
         raise LaneError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout if result.returncode == 0 else ""
+
+
+def run_git(top: Path, *args: str) -> subprocess.CompletedProcess:
+    """git with its exit code, for the steps whose failure has its own message."""
+    try:
+        return subprocess.run(["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=300)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise LaneError(f"git {' '.join(args)}: {error}") from None
 
 
 def same_path(a: Path, b: Path) -> bool:
