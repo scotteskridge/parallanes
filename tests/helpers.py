@@ -1,7 +1,10 @@
 """Shared test helpers: throwaway git repos with a kit config, and running the kit CLI."""
+import atexit
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,15 +40,29 @@ def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project", se
     """
     repo = base / name
     repo.mkdir()
-    git(repo, "init", "-q", "-b", "main")
-    git(repo, "config", "user.name", "Test")
-    git(repo, "config", "user.email", "test@example.com")
-    git(repo, "config", "core.autocrlf", "false")
+    # A copy of one empty repo made per test process: `git init` plus three config calls cost ~0.15 s
+    # on Windows, copying the empty .git a few milliseconds. It holds no paths, so a copy is exact.
+    shutil.copytree(_empty_git(), repo / ".git")
     if config is not None:
         write(repo, ".claude/kit.toml", config)
         if settings:
             sync_settings(repo)
     return repo
+
+
+_EMPTY = {}
+
+
+def _empty_git() -> Path:
+    if "git" not in _EMPTY:
+        folder = Path(tempfile.mkdtemp(prefix="kit empty repo "))
+        atexit.register(shutil.rmtree, folder, True)
+        git(folder, "init", "-q", "-b", "main")
+        git(folder, "config", "user.name", "Test")
+        git(folder, "config", "user.email", "test@example.com")
+        git(folder, "config", "core.autocrlf", "false")
+        _EMPTY["git"] = folder / ".git"
+    return _EMPTY["git"]
 
 
 def sync_settings(repo: Path) -> None:

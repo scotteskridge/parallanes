@@ -4,6 +4,8 @@ import pytest
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, gh_calls, no_gh_env, recorded_test_runs, scripted_gh
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 def on_task(lane, base="origin/main"):
     git(lane, "switch", "-q", "--no-track", "-c", "core/task", base)

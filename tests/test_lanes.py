@@ -9,6 +9,8 @@ from kitlib import lane_setup, lanes
 from kitlib.config import load
 from lane_helpers import LANES_TOML, commit, fake_gh, lane_dir, lanes_repo, no_gh_env
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 @pytest.fixture
 def repo(tmp_path):

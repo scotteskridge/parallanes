@@ -7,6 +7,8 @@ import pytest
 from helpers import run_cli, write
 from lane_helpers import LANES_TOML, lane_dir, lanes_repo
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 SHARED_TOML = LANES_TOML.replace(
     'integration_branch = "main"', 'integration_branch = "main"\nshared_paths = ["docs/plans/**"]'
 )

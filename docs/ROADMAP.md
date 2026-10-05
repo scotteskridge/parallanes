@@ -115,7 +115,14 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
   - a `slow` marker, so sessions run the fast set by default and the full set before a commit or PR;
   - CI runs the full set on one OS/Python and the fast set on the others.
 
-  Target: the default local run in under 20 s.
+  Target: the default local run in under 20 s. *Done in `chore/fast-tests`:*
+  - the fast set (461 tests, `-m "not slow"`) runs in 17–18 s;
+  - the full suite went from 135–155 s to 80–107 s (timings on this machine vary a lot), by building fixture repos once per worker, cutting
+    git calls and turning off git's auto-maintenance in tests;
+  - CI runs the full suite once per OS.
+
+  What's left is mostly the CLI process each lane test starts, kept because the process boundary is
+  part of what they test.
 - **Later** Linting and formatting for the kit's own code
 
 ## Build order

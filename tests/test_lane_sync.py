@@ -6,6 +6,8 @@ import pytest
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, no_gh_env
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 @pytest.fixture
 def pr_lane(tmp_path):

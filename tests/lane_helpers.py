@@ -1,7 +1,10 @@
 """Throwaway projects with lanes: a main checkout (path with spaces) and a bare `origin`."""
+import atexit
 import json
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 from helpers import RULES_TOML, git, make_repo, write
@@ -20,8 +23,41 @@ owns = ["src/api/**"]
 """
 
 
+_TEMPLATES: dict = {}
+
+
+def _cache_root() -> Path:
+    """This test process's own folder for built-once fixtures (each xdist worker is a process)."""
+    if "root" not in _TEMPLATES:
+        root = Path(tempfile.mkdtemp(prefix="kit tests "))  # a space, like the tests' own paths
+        atexit.register(shutil.rmtree, root, True)
+        _TEMPLATES["root"] = root
+    return _TEMPLATES["root"]
+
+
 def lanes_repo(base: Path, config: str = LANES_TOML, origin: bool = True, ignore: bool = True) -> Path:
-    """A committed project with lanes; origin/main exists when origin is set."""
+    """A committed project with lanes; origin/main exists when origin is set.
+
+    Built once per test process for each set of arguments, then copied: building takes ~9 git
+    processes (~0.8 s on Windows), copying a few milliseconds. Only the origin URL holds the folder.
+    """
+    key = (config, origin, ignore)
+    if key not in _TEMPLATES:
+        template = _cache_root() / f"repo {len(_TEMPLATES)}"
+        template.mkdir()
+        _build_lanes_repo(template, config, origin, ignore)
+        _TEMPLATES[key] = template
+    template = _TEMPLATES[key]
+    for child in template.iterdir():
+        shutil.copytree(child, base / child.name, symlinks=True)
+    repo = base / "my project"
+    if origin:
+        # git escapes the URL in its config file, so let git rewrite it rather than editing text.
+        git(repo, "config", "remote.origin.url", str(base / "origin repo.git"))
+    return repo
+
+
+def _build_lanes_repo(base: Path, config: str, origin: bool, ignore: bool) -> Path:
     repo = make_repo(base, config=config)
     write(repo, ".gitignore", (".claude/worktrees/\n" if ignore else "") + ".env\n.claude/settings.local.json\n")
     write(repo, "CLAUDE.md", "@AGENTS.md\n")
@@ -104,9 +140,9 @@ def gh_calls(folder: Path) -> list[list[str]]:
     return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
 
 
-FAKE_TESTS = """import subprocess, sys
+FAKE_TESTS = """import os, subprocess, sys
 from pathlib import Path
-here = Path(__file__).parent
+here = Path(os.environ["KIT_TEST_CONTROL"])  # the test's folder: flags in, run log out
 head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
 with open(here / "test-runs.log", "a", encoding="utf-8") as log:
     log.write(head + "\\n")
@@ -133,17 +169,26 @@ def cycle_repo(base: Path, mode: str = "pr") -> tuple[Path, Path]:
     test_command is a stand-in that logs the HEAD it ran on to <base>/test-runs.log and fails while
     <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local mode the main checkout is detached, as decision 38 asks.
     """
-    script = base / "fake tests.py"
-    script.write_text(FAKE_TESTS, encoding="utf-8")
-    command = f'"{Path(sys.executable).as_posix()}" "{script.as_posix()}"'
+    # One shared script, so the committed config (and so the cached repo) is the same for every test;
+    # the script finds this test's folder through KIT_TEST_CONTROL (conftest clears it after each test).
+    os.environ["KIT_TEST_CONTROL"] = str(base)
+    command = f'"{Path(sys.executable).as_posix()}" "{_fake_tests_script().as_posix()}"'
     config = LANES_TOML.replace('test_command = "python -m pytest -q"', f"test_command = '{command}'\nmerge_mode = \"{mode}\"")
     repo = lanes_repo(base, config=config)
     if mode == "local":
         git(repo, "switch", "-q", "--detach", "main")
-    from helpers import run_cli
-    result = run_cli(repo, "lanes", "create", "core")
-    assert result.returncode == 0, result.stderr
+    # In-process: the lane is setup here, not what these tests are about (saves a Python start).
+    from kitlib import lane_setup
+    from kitlib.config import load
+    lane_setup.create(repo, load(repo), ["core"])
     return repo, lane_dir(repo, "core")
+
+
+def _fake_tests_script() -> Path:
+    script = _cache_root() / "fake tests.py"
+    if not script.is_file():
+        script.write_text(FAKE_TESTS, encoding="utf-8")
+    return script
 
 
 def recorded_test_runs(base: Path) -> list[str]:
