@@ -1,7 +1,7 @@
 # 04 — Lanes core
 
-**Status:** In progress
-**Branch / PR:** `plan/04-lanes-core` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/04-lanes-core` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/6
 **Builds on:** plan 02 (kitlib, `kit` CLI, hook mode), plan 03 (root from the hook's `cwd`, decision
 33); ARCHITECTURE §6 (lanes), §14, §15; decisions 2 (worktree location), 11 (lanes vs task branches),
 20 (relation to Claude Code's features)
@@ -146,7 +146,7 @@ branch, and warns about drift. An edit outside the lane's paths turns into a per
 | `test_templates` (added) | Rendered `kit.toml` with the example lanes uncommented loads |
 
 ## Done when
-- [ ] Tests above pass locally (584 passed) and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Tests above pass locally (584 passed) and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
 - [x] Reviewer reports attached to the PR; every 🔴 fixed
 - [x] Live check done, or its gaps recorded in ARCHITECTURE §15
 - [x] CHANGELOG, ROADMAP, ARCHITECTURE §6 and §15, decisions log updated
@@ -167,7 +167,7 @@ Changes from the plan:
 - **Three review rounds** (each fix has a test that failed on the code before it):
   - *First* (1 🔴, 3 🟠, 8 🟡): a fresh branch fast-forwarded to the tip was reported "already
     merged"; local mode used a stale `origin/main`; edits to the main checkout or another lane
-    weren't judged (now they ask, decision 44, for the owner to confirm); `remove` deleted ignored
+    weren't judged (now they ask, decision 44, confirmed by the owner); `remove` deleted ignored
     work (now refuses without `--force`, decision 45); Windows device names; odd `gh` output; partial
     `create` failures; case on Windows; test gaps.
   - *Second* (2 🟠, 6 🟡): `create` reported a lane "created" when `worktree add` failed, and a

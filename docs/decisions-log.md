@@ -54,7 +54,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     matching stays with plan 05.
 
 44. **From a lane, edits to the main checkout or another lane's folder ask too.** *Settled during
-    review, for the owner to confirm in the PR:* the plan said "outside the project → allowed", but
+    review; confirmed by the owner with PR #6:* the plan said "outside the project → allowed", but
     an agent writing to the main checkout by absolute path is exactly the cross-lane conflict
     ownership exists to catch. Paths outside the repository are still not judged.
 
