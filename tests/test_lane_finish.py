@@ -4,6 +4,8 @@ import pytest
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, gh_calls, no_gh_env, recorded_test_runs, scripted_gh
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 def on_task(lane, base="origin/main"):
     git(lane, "switch", "-q", "--no-track", "-c", "core/task", base)
@@ -74,7 +76,7 @@ def test_failing_tests_stop_before_any_push(pr_lane, tmp_path):
     gh = tmp_path / "gh"
     result = finish(lane, env=scripted_gh(gh))
     assert result.returncode == 1
-    assert "tests failed" in result.stderr
+    assert "tests failed (exit 1)" in result.stderr and recorded_test_runs(tmp_path)  # they ran, and failed
     assert remote_branch(repo, "core/task") == []
     assert gh_calls(gh) == []
 
@@ -108,14 +110,6 @@ def test_without_gh_it_pushes_then_says_how_to_open_the_pr(pr_lane, tmp_path):
     assert result.returncode == 1
     assert remote_branch(repo, "core/task") == [rev(lane)]
     assert "core/task" in result.stderr and "open the PR" in result.stderr
-
-
-def test_github_remote_gets_a_compare_url():
-    from kitlib.lane_pr import compare_url
-
-    assert compare_url("git@github.com:o/r.git", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
-    assert compare_url("https://github.com/o/r", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
-    assert compare_url("D:/repos/origin.git", "main", "core/t") is None
 
 
 def test_gh_create_failure_is_reported(pr_lane, tmp_path):
@@ -202,7 +196,7 @@ def test_local_mode_failing_tests_leave_main_alone(local_lane, tmp_path):
     before = rev(repo, "main")
     (tmp_path / "FAIL").write_text("", encoding="utf-8")
     result = finish(lane, env=no_gh_env(tmp_path))
-    assert result.returncode == 1
+    assert result.returncode == 1 and "tests failed (exit 1)" in result.stderr and recorded_test_runs(tmp_path)
     assert rev(repo, "main") == before
     assert git(lane, "rev-parse", "--abbrev-ref", "HEAD").strip() == "core/task"
 

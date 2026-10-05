@@ -10,8 +10,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
-        python: ["3.11", "3.13"]
+        # The full suite once per OS; the other Python versions run the fast set (`not slow`), which
+        # skips the git-heavy lane tests that take minutes on Windows.
+        include:
+          - { os: windows-latest, python: "3.13", marks: "" }
+          - { os: ubuntu-latest, python: "3.11", marks: "" }
+          - { os: windows-latest, python: "3.11", marks: "not slow" }
+          - { os: ubuntu-latest, python: "3.13", marks: "not slow" }
+    name: pytest (${{ matrix.os }}, ${{ matrix.python }}${{ matrix.marks && ', fast set' || ', full' }})
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -19,4 +25,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install "pytest>=8" "pytest-xdist>=3"
-      - run: python -m pytest
+      # bash on every OS, so an empty -m "" (no filter: the full suite) is passed the same way.
+      - run: python -m pytest -m "${{ matrix.marks }}"
+        shell: bash

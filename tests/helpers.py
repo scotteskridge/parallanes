@@ -1,5 +1,6 @@
 """Shared test helpers: throwaway git repos with a kit config, and running the kit CLI."""
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -37,15 +38,35 @@ def make_repo(base: Path, config: str = RULES_TOML, name: str = "my project", se
     """
     repo = base / name
     repo.mkdir()
-    git(repo, "init", "-q", "-b", "main")
-    git(repo, "config", "user.name", "Test")
-    git(repo, "config", "user.email", "test@example.com")
-    git(repo, "config", "core.autocrlf", "false")
+    # A copy of one empty repo made per test process: `git init` plus three config calls cost ~0.15 s
+    # on Windows, copying the empty .git a few milliseconds. It holds no paths, so a copy is exact.
+    shutil.copytree(_empty_git(), repo / ".git")
     if config is not None:
         write(repo, ".claude/kit.toml", config)
         if settings:
             sync_settings(repo)
     return repo
+
+
+CACHE = {}  # "root": this test process's folder for built-once fixtures, set by conftest
+
+
+def cache_root() -> Path:
+    if "root" not in CACHE:
+        raise RuntimeError("the fixture cache is set up by tests/conftest.py; run these helpers under pytest")
+    return CACHE["root"]
+
+
+def _empty_git() -> Path:
+    if "git" not in CACHE:
+        folder = cache_root() / "empty repo"
+        folder.mkdir()
+        git(folder, "init", "-q", "-b", "main")
+        git(folder, "config", "user.name", "Test")
+        git(folder, "config", "user.email", "test@example.com")
+        git(folder, "config", "core.autocrlf", "false")
+        CACHE["git"] = folder / ".git"
+    return CACHE["git"]
 
 
 def sync_settings(repo: Path) -> None:

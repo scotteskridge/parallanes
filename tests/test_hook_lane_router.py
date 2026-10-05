@@ -6,6 +6,8 @@ import pytest
 from helpers import git, run_cli, write
 from lane_helpers import LANES_TOML, commit, lane_dir, lanes_repo
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 def session_start(cwd, source="startup"):
     payload = {"session_id": "t", "cwd": str(cwd), "hook_event_name": "SessionStart", "source": source}

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import globs, lane_merged
-from .lanes import (ahead_behind, branch_of, dirty_count, git, integration_tip, is_registered, lane_folder,
+from .lanes import (ahead_behind, branch_of, dirty_count, git, integration_tip, lane_folder, registered_worktrees,
                     main_checkout, same_path, toplevel, unpushed_count, upstream_gone)
 
 
@@ -51,9 +51,10 @@ def status(start: Path, config, offline: bool = False) -> Status:
         )
     top = toplevel(Path(start))
     gh = None if offline else shutil.which("gh")
+    registered = registered_worktrees(main)  # once, not once per lane: each git call costs ~35 ms on Windows
     for lane in config.lanes:
         folder = lane_folder(main, config, lane)
-        if not is_registered(main, folder):
+        if not any(same_path(path, folder) for path in registered):
             result.lanes.append(LaneStatus(lane.name, folder, "not created"))
             continue
         if not folder.is_dir():

@@ -6,6 +6,8 @@ import pytest
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, gh_calls, no_gh_env, scripted_gh
 
+pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
+
 
 @pytest.fixture
 def pr_lane(tmp_path):
@@ -369,3 +371,13 @@ def test_the_note_names_non_ascii_files_plainly(pr_lane, tmp_path):
     result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
     assert result.returncode == 0, result.stderr
     assert "résumé report.xml" in result.stdout
+
+
+def test_a_staged_rename_counts_as_one_change(pr_lane, tmp_path):
+    """A rename is two entries in `git status -z` (new name, old name); unit cases: test_lane_units.py."""
+    _, lane = pr_lane
+    git(lane, "mv", "src/core/a.py", "src/core/renamed.py")
+    write(lane, "notes.txt", "n\n")
+    result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "1 uncommitted change(s) to tracked files" in result.stderr

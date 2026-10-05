@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
+- Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
+  slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,
+  so the full suite takes 80–107 s instead of 135–155 s. CI runs the full suite once per OS and the fast set
+  on the other Python versions. `lanes status` lists worktrees once instead of once per lane, and the
+  lane commands check for uncommitted and untracked files with one `git status`.
 - Repository skeleton: license, roadmap, decisions log, survey of the source setup, CI running pytest
   on Windows and Ubuntu.
 - Architecture document, plan template and the numbered plan series (plan 00); decisions 10–20

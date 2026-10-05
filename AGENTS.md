@@ -13,7 +13,8 @@ and `packs/` (once they exist). Plan and status: `docs/ROADMAP.md`. Why things a
 - The shell starts at the project root: never prefix commands with `cd`.
 
 ## Checking your work
-- Run `python -m pytest` and report the result lines. Evidence, not claims.
+- While working, run the fast set: `python -m pytest -m "not slow"`. Before a commit or PR, run the
+  full suite (`python -m pytest`) and report its result lines. Evidence, not claims.
 - Every hook and CLI command has tests. Test paths with spaces and Windows separators.
 - **Never weaken, skip or delete a test, or swallow an exception, to make something pass.** Fix the
   cause or stop and say so.
