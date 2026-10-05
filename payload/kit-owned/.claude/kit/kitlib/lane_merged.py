@@ -24,7 +24,12 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
         return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"
     at_head = {pr["state"]: pr for pr in prs if _holds(folder, pr, head)}
     if "MERGED" in at_head:
-        return True, f"{branch} was merged by PR #{at_head['MERGED']['number']}"
+        pr = at_head["MERGED"]
+        integration = config.lane_settings.integration_branch
+        if pr["baseRefName"] != integration:
+            # A stacked PR merged into its parent branch: the work hasn't reached the integration branch.
+            return False, f"PR #{pr['number']} merged {branch} into {pr['baseRefName']}, not {integration}"
+        return True, f"{branch} was merged by PR #{pr['number']}"
     if "OPEN" in at_head:
         pr = at_head["OPEN"]
         return False, f"PR #{pr['number']} for {branch} is still open ({pr.get('url', '')}): wait for it to merge"
@@ -50,7 +55,12 @@ def _holds(folder: Path, pr: dict, head: str) -> bool:
     if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", pr_head):  # gh output goes no further into git unchecked
         return False
     if not _have(folder, pr_head):
-        lanes.run_git(folder, "fetch", "-q", "origin", f"refs/pull/{pr['number']}/head")  # best effort
+        if pr["state"] != "MERGED":
+            return False  # only a merge would let the branch go; an open or closed PR refuses either way
+        try:
+            lanes.run_git(folder, "fetch", "-q", "origin", f"refs/pull/{pr['number']}/head", timeout=60)
+        except lanes.LaneError:
+            return False  # best effort: a hung or failed fetch makes no claim
         if not _have(folder, pr_head):
             return False
     return lanes.is_ancestor(folder, head, pr_head)
@@ -68,7 +78,7 @@ def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], st
     try:
         result = subprocess.run(
             [gh, "pr", "list", "--head", branch, "--state", state, "--limit", "100",
-             "--json", "number,state,headRefOid,url"],
+             "--json", "number,state,headRefOid,baseRefName,url"],
             cwd=folder, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
         )
     except (OSError, subprocess.SubprocessError) as error:
@@ -86,7 +96,8 @@ def pull_requests(folder: Path, branch: str, state: str) -> tuple[list[dict], st
 
 def _valid(pr) -> bool:
     return (isinstance(pr, dict) and isinstance(pr.get("number"), int)
-            and isinstance(pr.get("state"), str) and isinstance(pr.get("headRefOid"), str))
+            and isinstance(pr.get("state"), str) and isinstance(pr.get("headRefOid"), str)
+            and isinstance(pr.get("baseRefName"), str))
 
 
 def _first_line(text: str) -> str:

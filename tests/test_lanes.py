@@ -290,6 +290,19 @@ def test_status_counts_unpushed_commits(repo):
     assert "1 unpushed" in lane_line(status(repo).stdout, "core")
 
 
+def test_status_says_when_a_pushed_branch_is_gone_from_origin(tmp_path, repo):
+    """Usually its PR merged and GitHub deleted the head branch; "not pushed" would mislead."""
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    commit(folder, "src/core/b.py", "y = 1\n")
+    git(folder, "push", "-q", "-u", "origin", "core/login")
+    git(tmp_path / "origin repo.git", "branch", "-D", "core/login")
+    git(folder, "fetch", "-q", "--prune", "origin")
+    line = lane_line(status(repo).stdout, "core")
+    assert "gone from origin" in line and "not pushed" not in line
+
+
 def test_status_shows_pr_state_from_gh(tmp_path, repo):
     assert create(repo, "core").returncode == 0
     git(lane_dir(repo, "core"), "switch", "-q", "-c", "core/login")

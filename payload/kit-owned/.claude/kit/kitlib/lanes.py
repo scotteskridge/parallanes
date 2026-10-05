@@ -30,11 +30,11 @@ def git(folder: Path, *args: str, check: bool = True) -> str:
     return result.stdout if result.returncode == 0 else ""
 
 
-def run_git(top: Path, *args: str) -> subprocess.CompletedProcess:
+def run_git(top: Path, *args: str, timeout: int = 300) -> subprocess.CompletedProcess:
     """git with its exit code, for the steps whose failure has its own message."""
     try:
         return subprocess.run(["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=300)
+                              errors="replace", timeout=timeout)
     except (OSError, subprocess.SubprocessError) as error:
         raise LaneError(f"git {' '.join(args)}: {error}") from None
 
@@ -195,3 +195,9 @@ def unpushed_count(folder: Path) -> int | None:
     if not git(folder, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}", check=False).strip():
         return None
     return int(git(folder, "rev-list", "--count", "@{u}..HEAD").strip())
+
+
+def upstream_gone(folder: Path) -> bool:
+    """The branch was pushed, but its remote branch is gone (usually: PR merged, head branch deleted)."""
+    ref = git(folder, "symbolic-ref", "-q", "HEAD", check=False).strip()
+    return bool(ref) and git(folder, "for-each-ref", "--format=%(upstream:track)", ref).strip() == "[gone]"

@@ -88,11 +88,11 @@ def test_existing_branch_name_is_refused(pr_lane, tmp_path):
 
 def test_uncommitted_changes_are_refused(pr_lane, tmp_path):
     _, lane = pr_lane
-    write(lane, "src/core/wip.py", "w = 1\n")
+    write(lane, "src/core/a.py", "x = 'edited, not committed'\n")
     result = start(lane, "next", env=scripted_gh(tmp_path / "gh"))
     assert result.returncode == 2
     assert "uncommitted" in result.stderr
-    assert (lane / "src/core/wip.py").is_file()
+    assert "edited" in (lane / "src/core/a.py").read_text()
 
 
 def test_outside_a_lane_is_refused(pr_lane, tmp_path):
@@ -299,3 +299,39 @@ def test_merged_pr_head_only_on_the_pull_ref_is_fetched(pr_lane, tmp_path):
     env = scripted_gh(tmp_path / "gh", prs=[{"number": 2, "state": "MERGED", "headRefOid": newer, "url": "u2"}])
     result = start(lane, "second", env=env)
     assert result.returncode == 0, result.stderr
+
+
+# ---- from the third review -----------------------------------------------------------------------
+
+def test_a_pr_merged_into_another_branch_does_not_count(pr_lane, tmp_path):
+    """A stacked PR merged into its parent branch hasn't reached the integration branch yet."""
+    _, lane = pr_lane
+    work = on_task_with_work(lane)
+    pr = {"number": 6, "state": "MERGED", "headRefOid": work, "url": "u6", "baseRefName": "core/parent"}
+    result = start(lane, "second", env=scripted_gh(tmp_path / "gh", prs=[pr]))
+    assert result.returncode == 2
+    assert "core/parent" in result.stderr
+    assert has_branch(lane, "core/first")
+
+
+def test_local_mode_does_not_trust_a_remote_ref_it_never_fetched(tmp_path):
+    repo, lane = cycle_repo(tmp_path, mode="local")
+    loose = commit(lane, "src/core/loose.py", "l = 1\n", "between tasks")
+    git(lane, "push", "-q", "origin", "HEAD:refs/heads/core/backup")  # only a remote-tracking ref holds it
+    result = start(lane, "next", env=no_gh_env(tmp_path))
+    assert result.returncode == 2
+    assert loose[:12] in result.stderr
+
+
+def test_an_unreachable_pull_ref_makes_no_claim(pr_lane, tmp_path, monkeypatch):
+    from kitlib import lane_merged, lanes
+
+    _, lane = pr_lane
+    local = on_task_with_work(lane)
+
+    def hangs(*args, **kwargs):
+        raise lanes.LaneError("git fetch: timed out")
+
+    monkeypatch.setattr(lanes, "run_git", hangs)
+    pr = {"number": 2, "state": "MERGED", "headRefOid": "a" * 40}
+    assert lane_merged._holds(lane, pr, local) is False

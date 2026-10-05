@@ -24,7 +24,7 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
     if not SLUG.match(task):
         raise LaneError(f"task {task!r}: use lowercase letters, digits and hyphens, at most 50 characters (e.g. fix-login)")
     _nothing_in_progress(top)
-    _clean(top)
+    note = _clean(top)
     new = f"{lane.name}/{task}"
     if _exists(top, f"refs/heads/{new}"):
         raise LaneError(f"branch {new} already exists: pick another task name")
@@ -66,22 +66,22 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
                  if name != new]
     if leftovers:
         lines.append(f"Other {lane.name}/ branches, left alone: {', '.join(leftovers)}")
-    return lines
+    return lines + note
 
 
 def sync(folder: Path, config) -> list[str]:
     lane, top, _ = _here(folder, config)
     _nothing_in_progress(top)
     branch = _task_branch(top, lane)
-    _clean(top)
-    return _bring_in(top, branch, _fetch_tip(top, config))
+    note = _clean(top)
+    return _bring_in(top, branch, _fetch_tip(top, config)) + note
 
 
 def finish(folder: Path, config, title: str | None = None, body_file: str | None = None) -> list[str]:
     lane, top, main = _here(folder, config)
     _nothing_in_progress(top)
     branch = _task_branch(top, lane)
-    _clean(top)
+    _say(_clean(top))  # untracked files stay out of what lands; say so before the tests add more
     command = config.project.get("test_command", "").strip()
     if not command:
         raise LaneError("no test_command in .claude/kit.toml: finish runs the tests before anything lands, so set it first")
@@ -208,10 +208,21 @@ def _nothing_in_progress(top: Path) -> None:
             )
 
 
-def _clean(top: Path) -> None:
-    dirty = lanes.dirty_count(top)
-    if dirty:
-        raise LaneError(f"{dirty} uncommitted change(s) in this lane: commit or stash them first")
+def _clean(top: Path) -> list[str]:
+    """Refuse tracked changes; return a note for untracked files.
+
+    Untracked files don't block (owner's call): test runners leave reports behind, and refusing
+    would push an agent to `git add -A` them into the branch. git itself still refuses a switch
+    that would overwrite one.
+    """
+    tracked = _git(top, "status", "--porcelain", "--untracked-files=no").splitlines()
+    if tracked:
+        raise LaneError(f"{len(tracked)} uncommitted change(s) to tracked files in this lane: commit or stash them first")
+    untracked = _git(top, "ls-files", "--others", "--exclude-standard", "--directory").splitlines()
+    if not untracked:
+        return []
+    shown = ", ".join(untracked[:5]) + (f" and {len(untracked) - 5} more" if len(untracked) > 5 else "")
+    return [f"Note: untracked, not part of any branch: {shown}. Add generated files to .gitignore; don't commit them."]
 
 
 def _task_branch(top: Path, lane) -> str:
@@ -260,11 +271,14 @@ def _fetch_tip(top: Path, config) -> str:
 
 
 def _on_some_ref(top: Path, commit: str) -> bool:
-    return bool(_git(top, "for-each-ref", "--count=1", "--contains", commit, "refs/heads", "refs/remotes").strip())
+    # Local branches only: remote-tracking refs can vanish on the next `fetch --prune`, and local
+    # mode never fetches, so they may already be stale.
+    return bool(_git(top, "for-each-ref", "--count=1", "--contains", commit, "refs/heads").strip())
 
 
 def _say(lines: list[str]) -> None:
-    print("\n".join(lines), flush=True)
+    if lines:
+        print("\n".join(lines), flush=True)
 
 
 def _exists(top: Path, ref: str) -> bool:

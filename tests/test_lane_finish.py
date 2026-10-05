@@ -137,7 +137,7 @@ def test_nothing_ahead_is_refused(tmp_path):
 
 def test_uncommitted_changes_are_refused(pr_lane, tmp_path):
     _, lane = pr_lane
-    write(lane, "src/core/wip.py", "w = 1\n")
+    write(lane, "src/core/a.py", "x = 'edited, not committed'\n")
     result = finish(lane, env=scripted_gh(tmp_path / "gh"))
     assert result.returncode == 2
     assert "uncommitted" in result.stderr
@@ -312,3 +312,43 @@ def test_local_mode_non_race_push_failure_is_not_retried(local_lane, tmp_path):
     assert "refused by policy" in result.stderr
     assert len(recorded_test_runs(tmp_path)) == 1
     assert rev(repo, "main") == before
+
+
+# ---- from the third review -----------------------------------------------------------------------
+
+def test_local_mode_names_a_gone_worktree_that_still_holds_main(local_lane, tmp_path):
+    import shutil
+
+    repo, lane, work = local_lane
+    other = tmp_path / "old checkout"
+    git(repo, "worktree", "add", "-q", str(other), "main")
+    shutil.rmtree(other)
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert result.returncode == 2
+    assert "git worktree prune" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+
+
+# ---- untracked files: tracked changes refuse, untracked ones are a note (owner's call) ------------
+
+def test_test_reports_do_not_block_the_next_finish(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    (tmp_path / "REPORT").write_text("", encoding="utf-8")
+    assert finish(lane, env=scripted_gh(tmp_path / "gh")).returncode == 0
+    write(lane, "src/core/fix.py", "f = 1\n")
+    git(lane, "add", "src/core/fix.py")  # not `add -A`: junit.xml must stay out
+    git(lane, "commit", "-q", "-m", "Address review")
+    new = rev(lane)
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 0, result.stderr
+    assert remote_branch(repo, "core/task") == [new]
+    assert "junit.xml" in result.stdout and ".gitignore" in result.stdout
+
+
+def test_start_after_a_local_finish_with_test_reports(local_lane, tmp_path):
+    repo, lane, work = local_lane
+    (tmp_path / "REPORT").write_text("", encoding="utf-8")
+    assert finish(lane, env=no_gh_env(tmp_path)).returncode == 0
+    result = run_cli(lane, "lanes", "start", "next", env=no_gh_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert "junit.xml" in result.stdout

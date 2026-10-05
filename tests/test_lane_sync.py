@@ -89,7 +89,7 @@ def test_merge_conflict_names_the_merge_commands(pr_lane, tmp_path):
 
 def test_uncommitted_changes_are_refused(pr_lane, tmp_path):
     _, lane = pr_lane
-    write(lane, "src/core/wip.py", "w = 1\n")
+    write(lane, "src/core/a.py", "x = 'edited, not committed'\n")
     result = sync(lane, tmp_path)
     assert result.returncode == 2
     assert "uncommitted" in result.stderr

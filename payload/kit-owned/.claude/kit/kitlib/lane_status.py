@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import globs
 from .lanes import (ahead_behind, branch_of, dirty_count, integration_tip, is_registered, lane_folder,
-                    main_checkout, same_path, toplevel, unpushed_count)
+                    main_checkout, same_path, toplevel, unpushed_count, upstream_gone)
 
 
 UNKNOWN = "PR: unknown"
@@ -25,6 +25,7 @@ class LaneStatus:
     behind: int = 0
     dirty: int = 0
     unpushed: int | None = None  # None: no upstream
+    gone: bool = False  # pushed once, but the remote branch is gone
     pr: str = UNKNOWN
     here: bool = False
 
@@ -66,6 +67,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
             entry.ahead, entry.behind = ahead_behind(folder, tip)
         if entry.branch:
             entry.unpushed = unpushed_count(folder)
+            entry.gone = entry.unpushed is None and upstream_gone(folder)
             if gh:
                 entry.pr = pr_state(gh, main, entry.branch)
                 if entry.pr == UNKNOWN:
@@ -146,7 +148,10 @@ def format_status(result: Status) -> str:
         if lane.dirty:
             parts.append(f"{lane.dirty} uncommitted")
         if lane.branch:
-            parts.append("not pushed" if lane.unpushed is None else f"{lane.unpushed} unpushed")
+            if lane.gone:
+                parts.append("pushed branch gone from origin")
+            else:
+                parts.append("not pushed" if lane.unpushed is None else f"{lane.unpushed} unpushed")
             parts.append(lane.pr)
         lines.append(" · ".join(parts))
     lines += [f"Note: {note}" for note in result.notes]

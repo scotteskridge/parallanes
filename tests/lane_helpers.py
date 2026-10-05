@@ -92,7 +92,8 @@ def scripted_gh(folder: Path, prs=(), create: str | None = "https://github.com/o
     and `pr create` with the URL create (None: it fails). Every call is logged; see gh_calls."""
     env = fake_gh(folder, [])
     (folder / "fake_gh.py").write_text(SCRIPTED_GH, encoding="utf-8")
-    (folder / "gh-spec.json").write_text(json.dumps({"prs": list(prs), "create": create}), encoding="utf-8")
+    prs = [{"baseRefName": "main", **pr} for pr in prs]  # gh reports the base; most tests target main
+    (folder / "gh-spec.json").write_text(json.dumps({"prs": prs, "create": create}), encoding="utf-8")
     return env
 
 
