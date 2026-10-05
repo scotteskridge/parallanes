@@ -69,11 +69,8 @@ def fake_gh(folder: Path, response) -> dict:
 
 
 def no_gh_env(base: Path) -> dict:
-    """PATH with only git and Python: `gh` can't be found."""
-    keep = []
-    for entry in os.environ.get("PATH", "").split(os.pathsep):
-        folder = Path(entry)
-        if any((folder / name).exists() for name in ("gh", "gh.exe", "gh.cmd")):
-            continue
-        keep.append(entry)
-    return {**os.environ, "PATH": os.pathsep.join(keep)}
+    """An environment where `gh` can't tell anything: a failing stand-in shadows the real one.
+
+    Dropping the real gh's PATH folder isn't possible: on Linux it is /usr/bin, which holds git too.
+    """
+    return fake_gh(Path(base).parent / "no-gh-bin", None)
