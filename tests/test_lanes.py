@@ -290,11 +290,80 @@ def test_status_counts_unpushed_commits(repo):
     assert "1 unpushed" in lane_line(status(repo).stdout, "core")
 
 
+def test_status_says_when_a_pushed_branch_is_gone_from_origin(tmp_path, repo):
+    """Usually its PR merged and GitHub deleted the head branch; "not pushed" would mislead."""
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    commit(folder, "src/core/b.py", "y = 1\n")
+    git(folder, "push", "-q", "-u", "origin", "core/login")
+    git(tmp_path / "origin repo.git", "branch", "-D", "core/login")
+    git(folder, "fetch", "-q", "--prune", "origin")
+    line = lane_line(status(repo).stdout, "core")
+    assert "gone from origin" in line and "not pushed" not in line
+
+
 def test_status_shows_pr_state_from_gh(tmp_path, repo):
     assert create(repo, "core").returncode == 0
-    git(lane_dir(repo, "core"), "switch", "-q", "-c", "core/login")
-    env = fake_gh(tmp_path / "bin", [{"number": 7, "state": "OPEN", "url": "https://example.test/7"}])
-    assert "PR #7 OPEN" in lane_line(status(repo, env=env).stdout, "core")
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    tip = git(folder, "rev-parse", "HEAD").strip()
+    pr = {"number": 7, "state": "OPEN", "url": "https://example.test/7", "headRefOid": tip, "baseRefName": "main"}
+    assert "PR #7 OPEN" in lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+
+
+def test_status_ignores_an_old_pr_for_a_reused_branch_name(tmp_path, repo):
+    """Found in plan 05's live check: a reused slug showed the earlier branch's merged PR."""
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    old = commit(folder, "src/core/old.py", "o = 1\n")
+    git(folder, "switch", "-q", "--detach", "origin/main")
+    git(folder, "branch", "-q", "-D", "core/login")
+    git(folder, "switch", "-q", "-c", "core/login")  # the same name, new work
+    commit(folder, "src/core/new.py", "n = 1\n")
+    pr = {"number": 1, "state": "MERGED", "url": "u1", "headRefOid": old, "baseRefName": "main"}
+    line = lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+    assert "PR: none" in line and "#1" not in line
+
+
+@pytest.mark.parametrize("new_work", [False, True])
+def test_status_ignores_an_old_pr_merged_with_a_merge_commit(tmp_path, repo, new_work):
+    """GitHub's default merge: the old PR's head is inside main, so every new branch contains it."""
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    old = commit(folder, "src/core/old.py", "o = 1\n")
+    git(repo, "merge", "-q", "--no-ff", "-m", "Merge PR #1", "core/login")
+    git(repo, "push", "-q", "origin", "main")
+    git(folder, "fetch", "-q", "origin")
+    git(folder, "switch", "-q", "--detach", "origin/main")
+    git(folder, "branch", "-q", "-D", "core/login")
+    git(folder, "switch", "-q", "-c", "core/login")
+    if new_work:
+        commit(folder, "src/core/new.py", "n = 1\n")
+    pr = {"number": 1, "state": "MERGED", "url": "u1", "headRefOid": old, "baseRefName": "main"}
+    line = lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+    assert "PR: none" in line and "#1" not in line
+
+
+def test_status_shows_an_open_pr_whose_head_is_not_fetched(tmp_path, repo):
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    commit(folder, "src/core/b.py", "y = 1\n")
+    pr = {"number": 5, "state": "OPEN", "url": "u5", "headRefOid": "c" * 40, "baseRefName": "main"}
+    assert "PR #5 OPEN (head not fetched)" in lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+
+
+def test_status_shows_a_pr_the_lane_has_added_commits_to(tmp_path, repo):
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    pushed = commit(folder, "src/core/a2.py", "a = 2\n")
+    commit(folder, "src/core/a3.py", "a = 3\n")  # not pushed yet
+    pr = {"number": 4, "state": "OPEN", "url": "u4", "headRefOid": pushed, "baseRefName": "main"}
+    assert "PR #4 OPEN" in lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
 
 
 def test_status_when_gh_fails_or_finds_nothing(tmp_path, repo):
@@ -359,8 +428,8 @@ def test_status_with_a_lane_folder_removed_by_hand(repo):
 def test_lanes_commands_report_a_broken_config(tmp_path):
     repo = lanes_repo(tmp_path)
     write(repo, ".claude/kit.toml", LANES_TOML.replace('name = "api"', 'name = "API"'))
-    for command in ("create", "status", "remove"):
-        args = ["lanes", command] + (["api"] if command == "remove" else [])
+    for command in ("create", "status", "remove", "start", "sync", "finish"):
+        args = ["lanes", command] + (["api"] if command in ("remove", "start") else [])
         result = run_cli(repo, *args)
         assert result.returncode == 2
         assert "'API'" in result.stderr and "Traceback" not in result.stderr

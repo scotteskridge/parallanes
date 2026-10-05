@@ -105,6 +105,17 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 ## 14. Quality of the kit itself
 - **MVP** pytest for the setup script and every hook, in CI on Windows and Ubuntu
 - **MVP** Windows-first testing (paths with spaces, CRLF), then Mac/Linux
+- **MVP** Fast test feedback for building the kit. The suite takes ~2 min locally and ~5 min in CI
+  (667 tests, measured after plan 05). The ~250 lane tests take 85% of the time, at 3–5 s each,
+  because each builds a fresh repo, bare origin and worktrees and runs the CLI as a subprocess. CI
+  ran the same suite in 41 s on Ubuntu and ~5 min on Windows, so the cost is mostly process starts
+  on Windows: cut the number of git and Python processes. Ideas:
+  - build each fixture repo once per session and copy it;
+  - call the CLI in-process where the test isn't about the process boundary;
+  - a `slow` marker, so sessions run the fast set by default and the full set before a commit or PR;
+  - CI runs the full set on one OS/Python and the fast set on the others.
+
+  Target: the default local run in under 20 s.
 - **Later** Linting and formatting for the kit's own code
 
 ## Build order
