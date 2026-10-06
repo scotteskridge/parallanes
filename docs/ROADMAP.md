@@ -2,17 +2,18 @@
 
 Goal: set up a new project with the full agent workflow (rules, skills, hooks, reviewer, parallel
 lanes) in a few steps, instead of rebuilding it each time. Generalized from the Hall of Echoing Mirrors
-setup (see `survey-hoem.md`). **MVP** = version 1; **Later** = after it's working.
+setup (see `survey-hoem.md`). **MVP** = v0.1, the first release; **v0.2** = the next one; **Later** = after that.
+What v0.1 holds and the order it's built in: decision 77 and [plans/README.md](plans/README.md).
 Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build sequence: `plans/README.md`.
 
 ## 1. Setup and installation
 - **MVP** One-command setup: `install.ps1` (Windows first) and `install.sh` (Mac/Linux), both thin wrappers over one Python script
-- **MVP** Asks only what it can't detect (project name, description, lanes, packs); `/onboard` fills the rest
+- **MVP** Asks only what it can't detect (project name, description, lanes, packs); `/onboard` (v0.2) fills the rest
 - **MVP** Prerequisite check: git, Python 3.11+ (a real interpreter, not the Windows Store alias), Claude Code, gh (optional)
 - **MVP** Works on a brand-new folder *or* an existing repo, without overwriting existing files (asks first)
 - **MVP** Dry-run mode that lists what it would create before doing anything
 - **Later** Non-interactive mode (answers from a config file) for repeat setups
-- **Later** Update command: pull newer kit versions into an existing project and show what changed (uses the kit-owned file manifest)
+- **v0.2** Updates through the Claude Code plugin marketplace (decision 78), instead of a copy-based update command
 - **Later** Uninstall/removal command
 
 ## 2. Core instructions (what the agent reads)
@@ -27,10 +28,10 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** `/plan-feature`: interviews you, writes a plan file with steps, tests and a done-when checklist
 - **MVP** `/implement`: builds one approved plan, test-first
 - **MVP** `/wrap-up`: run tests, call the reviewer, update the changelog and build state, draft the commit message
-- **MVP** `/code-health`: periodic audit for duplication, hidden errors and drift, written as a dated report
-- **MVP** `/design`: design discussion that reads one design-doc section and logs the decision
+- **v0.2** `/code-health`: periodic audit for duplication, hidden errors and drift, written as a dated report
+- **v0.2** `/design`: design discussion that reads one design-doc section and logs the decision
 - **MVP** `/next`: lane-aware "what's next" (ready / waiting on you / blocked)
-- **MVP** `/onboard`: after install, Claude reads the repo and proposes stack facts, test command, rules files and lanes for approval
+- **v0.2** `/onboard`: after install, Claude reads the repo and proposes stack facts, test command, rules files and lanes for approval
 - **Later** `/refactor`, `/sync-state` (keep status docs true), `/workflow` (maintain the kit itself)
 - **Later** Role skills per lane (e.g., `/ui-work`, `/writing`) that load only that role's docs
 - **MVP** Templates: plan file, decisions log entry, changelog entry, code-health report
@@ -59,7 +60,8 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** `lanes sync`: brings the integration branch into the task branch (rebase if unpushed, merge if pushed)
 - **MVP** `lanes finish`: tests → **PR mode** (default: push, open PR with the review report) or **local mode** (fast-forward the integration branch)
 - **MVP** Ownership: out-of-lane edits (including the main checkout and other lanes' folders) become a permission prompt (`ask`, or `off`)
-- **MVP** Per-lane tool instances (e.g., separate Unity Editor + MCP port per lane)
+- **MVP** Each lane's `resources` (ports, editor instances) reported to its agent
+- **v0.2** Per-lane ports written into each lane's environment (backlog `lane-resources-env`, `lane-session-identity`); per-lane Unity Editor setup comes with the Unity pack
 - **Later** Lane handoff notes at session end
 - **Later** Lane-aware memory: Claude Code's auto memory is shared by every lane of a repo (plan 04's live check), so lane-specific notes need their own place
 - **Later** Push-reminder for commits that exist only locally
@@ -73,7 +75,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 ## 8. Verification and CI
 - **MVP** Configurable test command, used by skills and `lanes finish` ("evidence, not claims")
 - **MVP** GitHub Actions template for installed projects: tests and all checks on every push and PR
-- **MVP** Evals: scenario tests that drive real `claude -p` sessions on the example project (on demand / nightly)
+- **v0.2** Evals (about five, decision 80): scenario tests that drive real `claude -p` sessions on the trial project (on demand / nightly)
 - **Later** Optional test-count and coverage report
 
 ## 9. Project documentation scaffolding
@@ -83,22 +85,22 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** `docs/ai/parallel-lanes.md` explaining the lane workflow
 
 ## 10. Stack packs (optional add-ons)
-- **MVP** Unity pack: `.gitignore`/`.gitattributes`, `.mcp.json`, per-lane editor setup, reviewer items, rules-check patterns, test runner command, sibling-folder worktree notes
+- **v0.2** Unity pack: `.gitignore`/`.gitattributes`, `.mcp.json`, per-lane editor setup, reviewer items, rules-check patterns, test runner command, sibling-folder worktree notes
 - **Later** Python pack, Node/web pack
-- **MVP** Pack format documented so new packs are easy to add
+- **v0.2** Pack format documented so new packs are easy to add
 
 ## 11. Public showcase support
 - **Later** `showcase export`: snapshot to a public repo, excluding a never-copy list, checking for secrets and placeholders first
 
 ## 12. Distribution
 - **MVP** GitHub template repository ("Use this template")
-- **Later** Claude Code plugin packaging
+- **v0.2** Claude Code plugin packaging, named `worklanes` (decisions 73, 78)
 - **MVP** Semantic versioning and a changelog for the kit itself
 - **MVP** MIT license
 
 ## 13. Documentation and presentation
 - **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table
-- **MVP** Example Python project set up with the kit, showing a plan, a review report and a lane merge
+- **MVP** A real two-lane trial on a small web project, shown in the README with its plan, review report and lane merges (decision 80)
 - **Later** Demo GIF of `lanes create` → two agents working → `lanes finish`
 - **Later** FAQ, troubleshooting, "why this design" page
 
@@ -123,7 +125,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
   What's left is mostly the CLI process each lane test starts, kept because the process boundary is
   part of what they test.
-- **Later** Linting and formatting for the kit's own code
+- **MVP** Linting and formatting for the kit's own code (backlog `lint-and-format-in-ci`)
 
 ## Build order
 The numbered plan series in [plans/README.md](plans/README.md), one PR per plan.

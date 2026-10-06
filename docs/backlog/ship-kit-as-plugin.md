@@ -1,8 +1,7 @@
 ---
-status: next
+status: later
 lane: any
 size: L
-blocked_by: plan 08 scope decision
 ---
 # Ship the kit-owned parts as a Claude Code plugin
 
@@ -17,9 +16,14 @@ What a plugin can't ship, so plan 08 still needs a setup step for it: permission
 (a `CLAUDE.md` at the plugin root isn't loaded), and project-owned files (`kit.toml`, templates,
 `.claude/rules/`). That step could be `/onboard` or `kit init`.
 
-Open for the owner (plan 08): plugin plus a small project setup, or the installer as planned?
-Hook launch paths, the stdlib-only rule and decision 7 (kit-owned vs project-owned) all apply.
+Decided for v0.2 (decision 78): v0.1 installs by copying files, with kit-owned files kept in a
+layout that can become the plugin's. Hook launch paths, the stdlib-only rule and decision 7
+(kit-owned vs project-owned) all apply.
 
-**Done when:** plan 08's scope records the choice in the decisions log, and if it's the plugin,
-the kit installs with `/plugin install` plus one setup command, and updates without overwriting
+Constraints found since (`docs/survey-claude-code.md`, plan 08): plugin agents ignore `hooks`
+frontmatter, so the reviewer's guard must move into the plugin's hooks; `bin/` is on the PATH of
+Claude's Bash tool only, so pre-commit, CI and people's terminals need another route to the checks;
+`userConfig` can replace `.claude/kit/python-path`; packs can be dependent plugins.
+
+**Done when:** the kit installs with `/plugin install` plus one setup command, and updates without overwriting
 project-owned files.

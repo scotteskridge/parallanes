@@ -14,12 +14,31 @@ Design they build on: `../ARCHITECTURE.md`.
 | 05 | [Lane task cycle](05-lane-task-cycle.md) | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Done |
 | 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Done |
 | 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
-| 07b | Skills: design, health, onboarding | `/design`, `/code-health` (dated reports), `/onboard` (decisions 61, 68, 69) | Not started |
-| 08 | Installer | `install.ps1` / `install.sh` → `kit_setup.py`: prerequisites, interpreter detection, dry run, manifest, no overwrites | Not started |
+| 07b | Skills: design, health, onboarding | `/design`, `/code-health` (dated reports), `/onboard` (decisions 61, 68, 69) | v0.2 |
+| 08 | Installer | One `kit init` (behind `install.ps1` / `install.sh`) that copies the kit in: prerequisites, interpreter detection, dry run, manifest, no overwrites (decision 78) | Not started |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
-| 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | Not started |
-| 11 | Example project + evals | Small Python project set up with the kit; `claude -p` scenario tests | Not started |
-| 12 | Launch | README, architecture diagram, guardrail table, template repo, v0.1.0, make public | Not started |
+| 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
+| 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
+| 12 | Launch | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `worklanes` (decision 81), template repo, v0.1.0, make public | Not started |
 
-Order: checks and lanes (02–05) come before skills (07), so skills are written against commands that
-already exist. The installer (08) comes once there is something to install.
+## Build order for v0.1 (decision 77)
+
+Build only what Claude Code doesn't already do: lanes with an enforced task cycle. Steps that
+aren't plans are backlog items in [../backlog/](../backlog/); one that needs a plan gets a plan file
+like any other.
+
+1. ~~Plan 07: the task-loop skills~~ (done)
+2. Small fixes, each under an hour: `lane-settings-cross-platform`, `revisit-permission-decisions`,
+   `live-checks-pin-what-loads`, `lint-and-format-in-ci`, `agents-md-venv-test-command`
+3. The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim
+4. Plan 08: the installer
+5. A two-lane trial on a small web project: `prove-it-on-a-real-project` (with
+   `lanes-and-worktree-flag` and `lane-dependency-hint`)
+6. Plan 09: the CI template
+7. Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)
+
+**v0.2:** the plugin (`ship-kit-as-plugin`), plan 07b, plan 10, plan 11, per-lane ports
+(`lane-resources-env`, `lane-session-identity`), and the backlog items marked `later`.
+
+Process (decision 79): at most three open questions per plan, each with Claude's recommended
+answer for the owner to approve; small plans get one review round unless it finds a 🔴.
