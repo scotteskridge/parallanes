@@ -15,13 +15,12 @@ dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+# Where the kit's own modules and test helpers live, so imports of them sort apart from pytest;
+# found by folder, so a new helper needs no list update.
+src = ["tests", "tests/live", "payload/kit-owned/.claude/kit"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-
-# The kit's own modules and the test helpers, so they sort in their own group after pytest.
-[tool.ruff.lint.isort]
-known-first-party = ["kitlib", "helpers", "lane_helpers", "claude_run", "test_precommit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

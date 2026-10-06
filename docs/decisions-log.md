@@ -14,7 +14,11 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     - *Pinned:* ruff's output changes between versions, so CI and a local run must use the same
       one (`dev` extras); a test checks the pin and the CI commands.
     - *CI only:* the item asks for CI, and this repo has no pre-commit setup for its own code.
-    - The reformat is one commit listed in `.git-blame-ignore-revs`, so `git blame` skips it.
+    - The reformat is one commit listed in `.git-blame-ignore-revs`, so `git blame` skips it; that
+      only works if the PR lands as a merge commit (squash or rebase would drop the SHA from main).
+    - *Review rounds 1–2:* the CI test matches whole step lines, not text a comment could hold;
+      ruff's `src` points at the kit's module folders so local imports sort apart from pytest
+      without a hand-kept module list.
     - Dev-only: nothing ruff-related is installed into projects (stdlib-only rule unaffected).
 
 ## 2026-10-06: Live checks say what they load
