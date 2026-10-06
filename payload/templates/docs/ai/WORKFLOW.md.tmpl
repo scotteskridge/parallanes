@@ -19,7 +19,7 @@ reviewer for what slips through, and small tasks so context stays clean.
 | Path-scoped rules | `.claude/rules/*.md` | Area knowledge (tests, UI, data) bloating every session; loads only when matching files are touched |
 | Plans before code | `docs/plans/` | Building the wrong thing; big unreviewable changes; decisions made silently mid-build |
 | Skills | `/plan-feature`, `/implement`, `/wrap-up`, `/next`… | Skipped steps: each workflow is written down once and followed the same way every time |
-| Independent reviewer | `reviewer` subagent | The author grading its own work; it sees only the diff, the rules and the plan |
+| Independent reviewer | `reviewer` subagent + `.claude/review/` checklists | The author grading its own work; it reviews only the change, against the rules, the plan and numbered checks, and can't edit anything |
 | Hooks | `.claude/settings.json` → `.claude/kit/` | Breaking a hard rule (forbidden patterns, protected files, dangerous git commands) even under pressure |
 | Permission deny rules | `.claude/settings.json` | Edits to protected paths and reads of secrets by Claude's own tools ([what they don't stop](protected-paths.md)) |
 | One branch per task + PR | `{{kit_command}} lanes start` / `finish` | Drift, untested merges, unreviewed changes reaching `{{integration_branch}}` |
@@ -69,7 +69,14 @@ discussed along the way.
 ## 6. Reviewing the agent's work
 
 - Read the plan carefully; it's the cheapest place to catch a mistake.
-- Read the reviewer's report before the diff: it points at the risky parts.
+- Read the reviewer's report before the diff: it points at the risky parts. Each finding cites a
+  check (`U4`, `P2`) from `.claude/review/`; a finding marked *needs the owner* is a design
+  question for you.
+- The reviewer can't edit files or run anything but read-only git: a hook in its definition blocks
+  the rest. Claude Code skips that hook in a folder it doesn't trust, so open Claude Code in this
+  project once and accept the trust dialog.
+- A mistake the reviewer should have caught: add a check to `.claude/review/project.md` (the next
+  free `P` number; never reuse a retired one).
 - Ask the agent to explain any change you don't understand before merging it.
 - Test evidence means pasted result lines, not "tests pass".
 

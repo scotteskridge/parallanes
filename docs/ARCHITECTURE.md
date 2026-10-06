@@ -40,7 +40,8 @@ claude-code-lanes-starter/
 │   │   └── .claude/
 │   │       ├── kit/                Python: kitlib, lanes, checks, hook entry points           (02–05)
 │   │       ├── skills/<name>/SKILL.md                                                          (07)
-│   │       └── agents/reviewer.md                                                              (06)
+│   │       ├── agents/reviewer.md                                                              (06)
+│   │       └── review/universal.md      the universal review checklist                         (06)
 │   ├── templates/                  rendered once ({{placeholders}}), then project-owned        (01)
 │   │                               every file ends in .tmpl, stripped on install
 │   └── placeholders.toml           the placeholder registry: name, description, example        (01)
@@ -64,7 +65,8 @@ my-project/
 │   ├── settings.json              P  permissions (deny rules generated from kit.toml) + hook wiring
 │   ├── rules/*.md                 P  path-scoped rules (`paths:` frontmatter)
 │   ├── skills/<name>/SKILL.md     K  /plan-feature /implement /wrap-up /code-health /design /next /onboard
-│   ├── agents/reviewer.md         K  fresh-context reviewer
+│   ├── agents/reviewer.md         K  fresh-context reviewer (read-only; hook in its frontmatter)
+│   ├── review/*.md                K/P checklists: universal.md (K), project.md (P), <pack>.md (K)
 │   ├── kit/                       K  cli.py + kitlib (lanes, checks, hooks); manifest.json; VERSION;
 │   │                                 python-path (this machine's interpreter, gitignored)
 │   └── worktrees/<lane>/             lane worktrees (gitignored)
@@ -275,10 +277,19 @@ Every skill's step 0 is the lane check (the hook output, plus `kit lanes status`
 Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,
 `sonnet`), not dated IDs.
 
-**Reviewer** (`.claude/agents/reviewer.md`): fresh context; reads the diff, `AGENTS.md`, matching
-rules files, the plan and the checklist; numbered checks; severities 🔴 fix now / 🟠 fix soon /
-🟡 polish; judges only changed lines; "over-engineering is a defect too". Checklist =
-`universal.md` (kit-owned) + `project.md` (project-owned) + each pack's stack checklist.
+**Reviewer** (`.claude/agents/reviewer.md`, model `opus`): fresh context, with `CLAUDE.md` and
+`AGENTS.md` loaded; reads the branch's diff against the merge base (plus uncommitted and new files),
+`CODE-STANDARDS.md`, the rules files matching changed paths, the plan, and **every** `*.md` in
+`.claude/review/`: `universal.md` (kit-owned, `U1`…), `project.md` (project-owned, `P1`…) and one
+file per pack (its own prefix, declared in the first line) [54] [55]. Judges only changed lines;
+at most three pre-existing problems, without severity [56]. Report: verdict, findings citing a
+check ID with 🔴 fix now / 🟠 fix soon / 🟡 polish, checks run, outside this change; an unsettled
+design question is "needs the owner" [58]. **Read-only by enforcement** [57]: `tools: Read, Grep,
+Glob, Bash`, and a `PreToolUse` hook in its own frontmatter runs `sh
+"$CLAUDE_PROJECT_DIR/.claude/kit/hook" reviewer-bash`, which allows only read-only git (every command in a
+chain; `cd <folder>` too; no redirects, substitutions or globs outside quotes; plain `git`, no path)
+and fails closed, timeout 30 s. `.claude/kit/hook` is a launcher that takes Python
+from `.claude/kit/python-path`, because a kit-owned file can't hold a machine's interpreter path.
 
 ## 10. Installer and onboarding [17] [19]
 
@@ -300,7 +311,7 @@ install.ps1 / install.sh
 
 A pack is a folder with `pack.toml` (name, description, what it adds), `kit-owned/`, `templates/`,
 optional `kit.toml` fragments (checks, protected paths, lane resources), `settings` fragments
-(permissions), and a reviewer checklist. The installer merges fragments; the format doc (plan 10)
+(permissions), and a reviewer checklist (`.claude/review/<pack>.md`). The installer merges fragments; the format doc (plan 10)
 is the contract for new packs. First pack: Unity (sibling-folder worktrees, per-lane editor + MCP
 instance, Unity ignores and attributes, reviewer items, pattern rules, test command).
 
@@ -353,6 +364,9 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
 | Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows). Not yet shown live: an agent session driving `lanes start`/`finish` through the skills, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 07 |
+| The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
+| The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
+| Does `/wrap-up` propose a `P` check in `.claude/review/project.md`, a `.claude/rules/` line, or either, after the same correction twice? And does `/onboard` propose a first set of `P` checks? (Plan 06 left the installed `project.md` promising neither) | plan 07 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

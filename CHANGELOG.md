@@ -46,5 +46,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   mode with one retry if another lane landed first). Only tracked changes block them; untracked
   files are listed. `lanes status` now matches PRs by commit, not branch name, and says when a
   pushed branch is gone from origin. The `lanes` handler moved to `kitlib/lane_cli.py`.
+- Reviewer (plan 06): a `reviewer` subagent (opus, fresh context) that reviews only the current
+  change against the plan, the project's rules and numbered checklists in `.claude/review/`
+  (`universal.md` U1–U15, the project's own `project.md`, one file per stack pack), and returns one
+  fixed report: verdict, findings with check IDs and 🔴/🟠/🟡, checks run. It is read-only by
+  enforcement: read tools only, and `kit hook reviewer-bash` (fail closed, run from the agent's
+  frontmatter through the `.claude/kit/hook` launcher) lets Bash run only read-only git. This repo
+  now reviews its own plans with copies of the reviewer that a test keeps equal to the payload.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).

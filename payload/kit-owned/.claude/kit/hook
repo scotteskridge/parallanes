@@ -1,0 +1,27 @@
+#!/bin/sh
+# Runs `kit hook <name>` for hooks declared in kit-owned files (the reviewer agent's frontmatter),
+# which can't hold this machine's interpreter path. Usage: sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" <name>
+# Only for hooks that fail closed: any failure here exits 2 (in PreToolUse only 2 blocks).
+kit=$(dirname "$0")
+
+# The installer records the Python to use (a full path; on Windows `python` may be the Store alias).
+python=""
+if [ -f "$kit/python-path" ]; then
+    python=$(head -n 1 "$kit/python-path" | tr -d '\r')
+fi
+if [ -z "$python" ]; then
+    python=$(command -v python3 || command -v python)
+fi
+if [ -z "$python" ] || ! [ -x "$python" ]; then
+    echo "Blocked: kit hook $1: no Python found; record one in .claude/kit/python-path" >&2
+    exit 2
+fi
+
+"$python" "$kit/cli.py" hook "$@"
+status=$?
+# 0 and 2 are the hook's answers; anything else is a crash, which must not let the call through.
+if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+    echo "Blocked: kit hook $1 failed (exit $status)" >&2
+    exit 2
+fi
+exit "$status"
