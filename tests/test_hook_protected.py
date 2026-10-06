@@ -1,4 +1,4 @@
-"""The protected-paths PreToolUse hook: blocks with exit 2, and fails closed (decisions 27, 30, 33, 34).
+"""The protected-paths PreToolUse hook: blocks with exit 2, and fails closed (decisions 27, 33, 34, 92).
 
 In PreToolUse only exit 2 blocks; exit 1 and timeouts let the call through. So every error path
 must exit 2, and no test here may accept any other non-zero code.
@@ -113,15 +113,70 @@ def test_shell_write_from_a_subfolder_resolves_against_cwd(repo):
 
 
 @pytest.mark.parametrize("rel", [".claude/kit.toml", ".claude/settings.json", ".githooks/pre-commit"])
-def test_kit_config_edits_blocked_only_in_bypass_mode(repo, rel):
-    assert_allowed(edit(repo, rel))
-    assert_allowed(edit(repo, rel, mode="acceptEdits"))
-    assert_blocked(edit(repo, rel, mode="bypassPermissions"), "bypassPermissions")
+@pytest.mark.parametrize("mode", ["default", "acceptEdits", "bypassPermissions"])
+def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
+    # Decision 92: Claude Code's ask rules prompt in every mode, bypassPermissions included.
+    assert_allowed(edit(repo, rel, mode=mode))
 
 
-def test_kit_config_guard_can_be_switched_off(tmp_path):
+@pytest.mark.parametrize(
+    "command, tool",
+    [
+        ("echo 'guard_kit = false' >> .claude/kit.toml", "Bash"),
+        ("rm -rf .githooks", "Bash"),
+        ("Set-Content .claude/settings.json '{}'", "PowerShell"),
+    ],
+)
+def test_shell_writes_to_kit_config_are_blocked_in_bypass_mode(repo, command, tool):
+    # Review round 1: the ask rules are Edit rules; the docs don't say they cover `rm` or PowerShell
+    # cmdlets, so in bypass mode the hook still stops shell writes to the kit's config (decision 92).
+    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "kit's own configuration")
+
+
+@pytest.mark.parametrize("mode", ["default", "plan", "acceptEdits", "auto", "dontAsk"])
+@pytest.mark.parametrize("command", ["rm -rf .githooks", "echo x >> .claude/kit.toml"])
+def test_shell_writes_to_kit_config_in_other_modes_follow_the_normal_flow(repo, command, mode):
+    # Which other modes need this guard is open (backlog `kit-config-shell-guard-modes`): round 2
+    # widened it and blocked everyday commands, so it stays as it was before decision 92.
+    assert_allowed(bash(repo, command, mode=mode))
+
+
+@pytest.mark.parametrize("command", ["rm -rf .claude", "rm -rf ."])
+def test_removing_a_folder_that_holds_kit_config_is_blocked(repo, command):
+    assert_blocked(bash(repo, command, mode="bypassPermissions"), "kit's own configuration")
+
+
+@pytest.mark.parametrize(
+    "command, tool",
+    [("cp ../shared/LICENSE .", "Bash"), ("mv build/out/report.txt .", "Bash"), ("cp notes.md .claude/", "Bash"),
+     ("Copy-Item x .", "PowerShell")],
+)
+def test_copies_into_the_root_or_claude_folder_are_allowed(repo, command, tool):
+    # Review round 3: a write target that is a folder only gets a file inside it, not all of it.
+    assert_allowed(bash(repo, command, mode="bypassPermissions", tool=tool))
+
+
+def test_the_block_says_how_to_change_kit_config(repo):
+    result = bash(repo, "rm -rf .githooks", mode="bypassPermissions")
+    assert_blocked(result, "Ask the owner")
+
+
+def test_kit_config_shell_guard_can_be_switched_off(tmp_path):
     repo = make_repo(tmp_path, config=PROTECTED_TOML + "guard_kit = false\n")
-    assert_allowed(edit(repo, ".claude/kit.toml", mode="bypassPermissions"))
+    assert_allowed(bash(repo, "rm -rf .githooks", mode="bypassPermissions"))
+
+
+@pytest.mark.parametrize("command, tool", [("rm .env.example", "Bash"), ("git rm .env.example", "Bash"),
+                                           ("Remove-Item .env.example", "PowerShell")])
+def test_removing_the_exempt_file_is_allowed(repo, command, tool):
+    # Review round 1: removal checks only look inside folders; the file itself was already decided.
+    assert_allowed(bash(repo, command, tool=tool))
+
+
+def test_the_example_env_file_is_exempt_from_the_default_secrets(repo):
+    assert_allowed(edit(repo, ".env.example"))
+    assert_blocked(edit(repo, ".env.production"), "secrets")
+    assert_blocked(bash(repo, "echo X=1 > .env.production"), "secrets")
 
 
 @pytest.mark.parametrize(

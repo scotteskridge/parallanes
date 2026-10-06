@@ -115,7 +115,15 @@ def test_protected_defaults_apply_without_the_table(tmp_path):
     assert protected.secrets == DEFAULT_SECRETS
     assert protected.guard_kit is True
     assert "git commit --no-verify" in DEFAULT_COMMANDS and "git commit -n" in DEFAULT_COMMANDS
-    assert ".env" in DEFAULT_SECRETS and ".env.example" not in DEFAULT_SECRETS
+    # Decision 82: every .env variant, with the committed example carved out.
+    assert DEFAULT_SECRETS == [".env", ".env.*", "!.env.example"]
+
+
+@pytest.mark.parametrize("secrets", ['["./.env.*", "!.env.example"]', '["*.example", "!.env.example"]'])
+def test_exemptions_after_a_name_they_can_cancel_load(tmp_path, secrets):
+    # `./` is dropped like everywhere else; a glob cancels any name it matches.
+    text = f"{RULES_TOML}\n[protected]\nsecrets = {secrets}\n"
+    assert load(make_repo(tmp_path, config=text)).protected.secrets[-1] == "!.env.example"
 
 
 def test_protected_table_loads(tmp_path):
@@ -146,6 +154,18 @@ guard_kit = false
         ('commands = ["  "]', "commands"),
         ("commands = [\"git push '--force\"]", "commands"),
         ('secrets = [""]', "secrets"),
+        # Exemptions (decision 92): bare names only, in secrets only, after a bare name they can cancel.
+        ('secrets = [".env.*", "!config/.env.example"]', "bare file name"),
+        ('secrets = [".env.*", "!"]', "secrets"),
+        ('secrets = ["!.env.example", ".env.*"]', "nothing before it"),
+        ('secrets = ["config/*", "!.env.example"]', "nothing before it"),
+        ('paths = ["vendor/**", "!vendor/keep.py"]', "only in 'secrets'"),
+        # Review round 1: a trailing slash makes an anchored rule, which `!` can't reach.
+        ('secrets = [".config/", "!creds.example"]', "nothing before it"),
+        ('secrets = [".env", "!foo.example"]', "nothing before it"),
+        ('secrets = [".env.*", "!.env.example", ".env.*"]', "twice"),
+        # Review round 2: the deny rules drop `./`, so a repeat with it would vanish there too.
+        ('secrets = [".env.*", "!.env.example", "./.env.*"]', "twice"),
         ('guard_kit = "no"', "guard_kit"),
     ],
 )

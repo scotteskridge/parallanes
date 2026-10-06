@@ -86,4 +86,4 @@ waits for v0.2); 35 was checked live on Linux and Windows and isn't a bug (decis
 ## Repo docs this makes stale
 
 - `docs/ARCHITECTURE.md` §15 says the plugin eval docs page isn't published yet: it is.
-- §15's "do ask rules prompt in acceptEdits?" is answered (yes; see decision 30 above).
+- §15's "do ask rules prompt in acceptEdits?" is answered (yes; see decision 30 above). Done: checked live, decision 92.

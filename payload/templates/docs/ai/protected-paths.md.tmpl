@@ -14,6 +14,11 @@ CI, required reviews and branch protection.
 | Pre-commit | `.githooks/pre-commit` → `{{kit_command}} check all --staged` | A commit that changes a protected path or adds a secret file, from anyone; `kit.toml` and `settings.json` drifting apart | `git commit --no-verify` by a human; machines without the hook enabled |
 | CI | `{{kit_command}} check all --diff origin/{{integration_branch}}` | The same, for every pull request | Nothing it checks can be skipped locally, which is why it is the gate |
 
+Where the hook and the deny rules cover the same thing (Claude's file tools, the shell file
+commands Claude Code recognizes), the hook is a **drift guard**: it still protects if
+`settings.json` is out of date, and it covers PowerShell cmdlets, which Claude Code's docs don't
+say the deny rules do.
+
 The command checks follow `[protected].commands`: `--no-verify` is caught because it is in the
 default list, and a list you write replaces the defaults. Setting `KIT_ALLOW_PROTECTED` is caught
 where a command does it (`KIT_ALLOW_PROTECTED=1 git commit`, `export`, `$env:`); quoting it in a
@@ -30,17 +35,32 @@ calls through (the deny rules still apply).
 
 Whoever can edit `.claude/settings.json`, `.claude/kit.toml`, `.claude/kit/` or `.githooks/` can
 switch all of this off. So edits to them get an **ask** rule: Claude must get your approval each
-time. Ask rules don't apply in `bypassPermissions` mode (nobody is there to answer), so in that
-mode the hook blocks those edits outright. *Not yet verified:* whether ask rules also prompt in
-`acceptEdits` mode. To rule bypass mode out entirely, set
-`"permissions": {"disableBypassPermissionsMode": "disable"}` in your settings. `guard_kit = false`
-in `[protected]` turns this guard off.
+time. Claude Code never auto-approves an ask rule, in any mode, `acceptEdits` and
+`bypassPermissions` included; in a non-interactive run (`claude -p`), where nobody can answer, the
+edit is refused. Ask rules are written for Claude's file tools, and Claude Code doesn't say they
+cover `rm` or PowerShell cmdlets, so in `bypassPermissions` mode the hook also blocks shell
+commands that write to or delete these files. `guard_kit = false` in `[protected]` turns both off.
+
+## Secrets
+
+`[protected].secrets` lists files Claude may neither read nor edit. The default is `.env` and every
+`.env.*`, except `.env.example`, which projects commit: a name starting with `!` is an exemption.
+Exemptions follow Claude Code's rules, so `{{kit_command}}` refuses one that would do nothing: it
+must be a bare file name (no folder, no trailing `/`), listed after a bare file name it matches
+(a wildcard exemption needs only some bare name before it), and only in `secrets`; a name listed
+again after it denies the file again. In `settings.json` an exemption also cancels your own
+bare-name deny rules listed before it; to deny such a file anyway, add your rule after the
+exemption. `{{kit_command}} settings sync` keeps the kit's rules in this order.
 
 ## Known misses
 
 Each of these gets past the deny rules and the hook. They are listed so nobody mistakes the kit for
 more than it is:
 
+- Shell commands that change the kit's own configuration in modes that run them without asking
+  you (`acceptEdits`, `auto`, `dontAsk`, or any mode with an allow rule for the command), and in
+  any mode a copy into a folder that replaces a file there (`cp settings.json .claude/`). The ask
+  rules cover Claude's file tools; the hook covers shell commands in `bypassPermissions` only.
 - Any script or program that opens files itself (`python fix.py`, `node build.js`).
 - Commands inside strings: `bash -c "git push --force"`, `pwsh -Command "..."`.
 - Git aliases (`git pf`), force pushes by refspec (`git push origin +main`), abbreviated options,
@@ -62,7 +82,9 @@ more than it is:
 
 - **Sandbox.** Claude Code's sandbox restricts what shell commands and the programs they start can
   write, at the operating-system level. It runs on macOS, Linux and WSL2. It does **not** run on
-  native Windows, which is why the deny rules and the hook both exist.
+  native Windows, which is why the deny rules and the hook both exist. On Windows, run Claude Code
+  inside WSL2 (then turn the sandbox on), a container (a dev container, for example) or a virtual
+  machine to get a real boundary.
 - **The server.** Protect `{{integration_branch}}`: require pull requests and passing CI, and
   refuse force pushes. Add a `CODEOWNERS` entry for each protected path so changes there need an
   owner's review.

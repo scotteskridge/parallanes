@@ -1,4 +1,4 @@
-"""Deny and ask rules generated from [protected] into .claude/settings.json (decisions 29-31)."""
+"""Deny and ask rules generated from [protected] into .claude/settings.json (decisions 29-31, 82, 92)."""
 import json
 
 import pytest
@@ -29,6 +29,21 @@ def test_paths_are_root_anchored_and_keep_their_meaning():
 def test_secrets_deny_read_and_edit():
     rules = expected_rules(Protected(secrets=[".env", "config/keys/*"], commands=[]))
     assert rules["deny"] == ["Read(.env)", "Edit(.env)", "Read(/config/keys/*)", "Edit(/config/keys/*)"]
+
+
+def test_secret_exemptions_follow_the_names_they_cancel():
+    # Claude Code carves a `!` rule out of the rules listed before it in the same list (decision 92).
+    rules = expected_rules(Protected(commands=[]))
+    assert rules["deny"] == [
+        "Read(.env)", "Edit(.env)", "Read(.env.*)", "Edit(.env.*)", "Read(!.env.example)", "Edit(!.env.example)",
+    ]
+
+
+def test_only_rule_kinds_claude_code_consults_are_written():
+    # Path rules for Write, NotebookEdit, MultiEdit or Glob are accepted but never consulted.
+    rules = expected_rules(Protected(paths=["vendor/**", "*.lock"], commands=["git push --force"]))
+    path_rules = [rule for rules_list in rules.values() for rule in rules_list if not rule.startswith(("Bash(", "PowerShell("))]
+    assert path_rules and all(rule.startswith(("Read(", "Edit(")) for rule in path_rules), path_rules
 
 
 def test_commands_cover_bash_and_powershell():
@@ -196,6 +211,95 @@ def test_record_forgets_a_stale_rule_even_when_settings_need_no_change(tmp_path)
     assert run_cli(repo, "check", "settings").returncode == 0
     sync(repo)
     assert "Edit(/vendor/**)" in read_settings(repo)["permissions"]["deny"]
+
+
+EXEMPT_TOML = RULES_TOML + '\n[protected]\ncommands = []\n'
+
+
+def test_sync_puts_new_names_before_an_exemption_already_there(tmp_path):
+    # An exemption already there (the owner's, or from an older sync) would carve nothing out of a
+    # rule appended after it, and .env.example would silently become unreadable.
+    repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
+    owner = {"permissions": {"deny": ["Read(!.env.example)", "Edit(/owner/**)"]}}
+    write(repo, ".claude/settings.json", json.dumps(owner))
+    result = sync(repo)
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(!.env.example)") > deny.index("Read(.env.*)"), deny
+    assert deny.count("Read(!.env.example)") == 1 and "Edit(/owner/**)" in deny
+    assert "moved" not in result.stdout, result.stdout
+    assert run_cli(repo, "check", "settings").returncode == 0
+    before = (repo / ".claude" / "settings.json").read_bytes()
+    sync(repo)
+    assert (repo / ".claude" / "settings.json").read_bytes() == before
+
+
+def test_a_fresh_sync_with_the_default_commands_moves_nothing(tmp_path):
+    # Command rules follow the exemptions in the list; they are other tools, so they don't count.
+    repo = make_repo(tmp_path, config=RULES_TOML, settings=False)
+    result = sync(repo)
+    assert "moved" not in result.stdout, result.stdout
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(!.env.example)") < deny.index("Bash(git push --force *)")
+
+
+def test_a_name_listed_after_an_exemption_stays_after_it(tmp_path):
+    # Review round 1: `.env.example` listed again after the exemption is a secret again. Moving the
+    # exemption past it would let Claude read the file while the hook still blocks it.
+    toml = RULES_TOML + '\n[protected]\ncommands = []\nsecrets = [".env.*", "!.env.example", ".env.example", "*.pem"]\n'
+    repo = make_repo(tmp_path, config=toml, settings=False)
+    result = sync(repo)
+    assert "moved" not in result.stdout, result.stdout
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(.env.*)") < deny.index("Read(!.env.example)") < deny.index("Read(.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
+
+
+def test_an_owners_rule_after_an_exemption_stays_after_it(tmp_path):
+    # Review round 1: the owner denies the file again after the exemption, on purpose.
+    repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
+    owner = {"permissions": {"deny": ["Read(!.env.example)", "Read(.env.example)"]}}
+    write(repo, ".claude/settings.json", json.dumps(owner))
+    sync(repo)
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(.env.*)") < deny.index("Read(!.env.example)") < deny.index("Read(.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
+
+
+def test_sync_restores_order_for_two_exemptions_reordered_by_hand(tmp_path):
+    # Review round 2: names that belong after an exemption had been put before the names it cancels.
+    toml = RULES_TOML + '\n[protected]\ncommands = []\nsecrets = ["*.key", "!a.key", "b.key", "!c.key"]\n'
+    repo = make_repo(tmp_path, config=toml, settings=False)
+    sync(repo)
+    settings = read_settings(repo)
+    settings["permissions"]["deny"] = ["Read(b.key)", "Read(*.key)", "Read(!c.key)", "Read(!a.key)"] + [
+        rule for rule in settings["permissions"]["deny"] if rule.startswith("Edit(")]
+    write(repo, ".claude/settings.json", json.dumps(settings))
+    assert run_cli(repo, "check", "settings").returncode == 1
+    assert "moved" in sync(repo).stdout
+    reads = [rule for rule in read_settings(repo)["permissions"]["deny"] if rule.startswith("Read(")]
+    assert reads == ["Read(*.key)", "Read(!a.key)", "Read(b.key)", "Read(!c.key)"], reads
+    assert run_cli(repo, "check", "settings").returncode == 0
+    before = (repo / ".claude" / "settings.json").read_bytes()
+    sync(repo)
+    assert (repo / ".claude" / "settings.json").read_bytes() == before
+
+
+def test_check_settings_flags_an_exemption_that_carves_nothing(tmp_path):
+    repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
+    sync(repo)
+    settings = read_settings(repo)
+    deny = settings["permissions"]["deny"]
+    deny.remove("Edit(!.env.example)")
+    deny.insert(0, "Edit(!.env.example)")
+    write(repo, ".claude/settings.json", json.dumps(settings))
+    result = run_cli(repo, "check", "settings")
+    assert result.returncode == 1
+    assert "Edit(!.env.example)" in result.stdout and "settings sync" in result.stdout
+    # Sync puts it right after the names it cancels, not at the end, and says so.
+    assert "moved" in sync(repo).stdout
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Edit(.env.*)") + 1 == deny.index("Edit(!.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
 
 
 def test_record_only_change_leaves_settings_bytes_alone(tmp_path):

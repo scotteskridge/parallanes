@@ -17,29 +17,49 @@ paths = ["vendor/**", "docs/originals/", "*.lock"]
 @pytest.mark.parametrize(
     "path",
     ["vendor/lib.py", "vendor/deep/x.c", "vendor", "vendor/", "vendor\\lib.py", "docs/originals/a.md",
-     "poetry.lock", "sub/poetry.lock", ".env", "app/.env.local", "x/.env.test.local"],
+     "poetry.lock", "sub/poetry.lock", ".env", "app/.env.local", "x/.env.test.local", ".env.production",
+     "app/.env.staging"],
 )
 def test_protected_and_secret_paths_are_reported(path):
     protected = Protected(paths=["vendor/**", "docs/originals/", "*.lock"])
-    assert path_reason(protected, path, bypass=False)
+    assert path_reason(protected, path)
 
 
-@pytest.mark.parametrize("path", ["src/vendor.py", "src/vendor/x.py", "docs/a.md", ".env.example", "README.md"])
+@pytest.mark.parametrize(
+    "path", ["src/vendor.py", "src/vendor/x.py", "docs/a.md", ".env.example", "app/.env.example", "README.md"]
+)
 def test_other_paths_are_not(path):
     protected = Protected(paths=["vendor/**", "docs/originals/", "*.lock"])
-    assert path_reason(protected, path, bypass=False) is None
+    assert path_reason(protected, path) is None
 
 
 @pytest.mark.parametrize("path", [".claude/settings.json", ".claude/kit.toml", ".claude/kit/cli.py", ".githooks/pre-commit"])
-def test_kit_config_is_guarded_only_in_bypass_mode(path):
-    # Decision 30: ask rules cover the other modes; nobody answers an ask in bypass mode.
-    assert path_reason(Protected(), path, bypass=False) is None
-    assert "bypass" in path_reason(Protected(), path, bypass=True)
-    assert path_reason(Protected(guard_kit=False), path, bypass=True) is None
+def test_kit_config_is_left_to_the_ask_rules(path):
+    # Decision 92: ask rules prompt in every mode, bypassPermissions included, so the hook adds nothing.
+    assert path_reason(Protected(), path) is None
+
+
+@pytest.mark.parametrize(
+    "secrets, path, secret",
+    [
+        ([".env.*", "!.env.example"], ".env.example", False),
+        ([".env.*", "!.env.example"], "deep/.env.example", False),
+        ([".env.*", "!.env.example"], ".env.prod", True),
+        ([".env.*", "!.env.example", ".env.example"], ".env.example", True),  # a later rule wins again
+        # An exemption only cancels bare names, as in Claude Code: anchored rules can't be carved.
+        (["config/.env*", "!.env.example"], "config/.env.example", True),
+        (["config/.env*", ".env.*", "!.env.example"], ".env.example", False),
+        # Review round 2: a trailing slash anchors the rule in settings.json, so it can't be carved.
+        (["*.example", "keys/", "!x.example"], "keys/x.example", True),
+    ],
+)
+def test_secret_exemptions_cancel_earlier_bare_names(secrets, path, secret):
+    reason = path_reason(Protected(secrets=secrets), path)
+    assert bool(reason) is secret, reason
 
 
 def test_reason_names_the_pattern_and_where_it_lives():
-    reason = path_reason(Protected(paths=["vendor/**"]), "vendor/a", bypass=False)
+    reason = path_reason(Protected(paths=["vendor/**"]), "vendor/a")
     assert "vendor/**" in reason and "[protected]" in reason
 
 
@@ -159,22 +179,22 @@ def test_precommit_blocks_a_protected_change(tmp_path):
 @pytest.mark.parametrize("path", ["src", "src/", ".", "", "src/vendor"])
 def test_removing_a_folder_above_an_anchored_protected_path_is_reported(path):
     # `rm -rf src` deletes src/vendor/ too.
-    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False, removes=True)
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, removes=True)
 
 
 @pytest.mark.parametrize("path", ["src", "."])
 def test_writing_into_a_folder_above_is_not(path):
     # `cp x .` or `touch src` doesn't touch src/vendor/.
-    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False) is None
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path) is None
 
 
 @pytest.mark.parametrize("path", ["lib", "srcx", "src/other"])
 def test_removing_unrelated_folders_is_not(path):
-    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, bypass=False, removes=True) is None
+    assert path_reason(Protected(paths=["src/vendor/**"], secrets=[]), path, removes=True) is None
 
 
 def test_unanchored_patterns_say_nothing_about_a_folder():
-    assert path_reason(Protected(paths=["*.lock"], secrets=[]), "src", bypass=False, removes=True) is None
+    assert path_reason(Protected(paths=["*.lock"], secrets=[]), "src", removes=True) is None
 
 
 def test_paths_compare_case_insensitively_on_windows(monkeypatch):
@@ -182,10 +202,10 @@ def test_paths_compare_case_insensitively_on_windows(monkeypatch):
 
     rules = Protected(paths=["vendor/**"])
     monkeypatch.setattr(module, "CASE_INSENSITIVE", True)
-    assert path_reason(rules, "VENDOR/a.py", bypass=False)
-    assert path_reason(rules, "config/.ENV", bypass=False)
+    assert path_reason(rules, "VENDOR/a.py")
+    assert path_reason(rules, "config/.ENV")
     monkeypatch.setattr(module, "CASE_INSENSITIVE", False)
-    assert path_reason(rules, "VENDOR/a.py", bypass=False) is None
+    assert path_reason(rules, "VENDOR/a.py") is None
 
 
 def test_git_bash_drive_paths_map_to_windows_drives():
@@ -206,6 +226,6 @@ def test_powershell_does_not_read_slash_letter_as_a_drive():
 
 def test_deleting_a_folder_says_it_would_remove_protected_files():
     # Live test: "live-test is protected" misdescribed which path the pattern protects.
-    reason = path_reason(Protected(paths=["live-test/protected/**"], secrets=[]), "live-test", bypass=False, removes=True)
+    reason = path_reason(Protected(paths=["live-test/protected/**"], secrets=[]), "live-test", removes=True)
     assert "removing live-test would delete protected files" in reason
     assert "live-test/protected/**" in reason

@@ -7,6 +7,8 @@ folders, `*` and `?` don't, and a trailing `/` means everything inside that fold
 import functools
 import re
 
+WILDCARD = re.compile(r"[*?\[]")
+
 
 def normalize(path: str) -> str:
     """Project-relative path in POSIX form: `src\\a.py` and `./src/a.py` both become `src/a.py`."""
@@ -14,6 +16,12 @@ def normalize(path: str) -> str:
     while path.startswith("./"):
         path = path[2:]
     return path
+
+
+def is_bare(pattern: str) -> bool:
+    """A bare file name: no folder in it and no trailing slash. Claude Code matches it at any depth
+    and lets a `!` exemption cancel it; anything else becomes an anchored rule (decision 92)."""
+    return "/" not in normalize(pattern)
 
 
 @functools.lru_cache(maxsize=512)

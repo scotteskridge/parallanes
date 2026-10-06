@@ -20,3 +20,5 @@ From `docs/survey-claude-code.md`, "Decisions to revisit":
 
 **Done when:** one live session confirms the ask-rule behaviour; decisions 30 and 31 are updated or
 superseded by new entries; the settings-sync test exists; `protected-paths.md.tmpl` and §15 match.
+
+Done 2026-10-06: decision 92; checked live in `bypassPermissions` and `acceptEdits`.
