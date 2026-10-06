@@ -125,7 +125,8 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
   What's left is mostly the CLI process each lane test starts, kept because the process boundary is
   part of what they test.
-- **MVP** Linting and formatting for the kit's own code (backlog `lint-and-format-in-ci`)
+- **MVP** Linting and formatting for the kit's own code (backlog `lint-and-format-in-ci`). *Done:* `ruff check` and
+  `ruff format --check` run in CI's `lint` job, line length 120 (decision 94).
 
 ## Build order
 The numbered plan series in [plans/README.md](plans/README.md), one PR per plan.
