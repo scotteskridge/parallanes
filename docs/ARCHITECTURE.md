@@ -267,7 +267,7 @@ guard_kit = true
 
 | Skill | Model | Does | Calls |
 | --- | --- | --- | --- |
-| `/onboard` (07b) | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes, at most three `P` checks; writes on approval [68] | `kit check settings`, `kit settings sync`, `kit lanes create` |
+| `/onboard` (08) | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes, at most three `P` checks; writes on approval [68] | `kit check settings`, `kit settings sync`, `kit lanes create` |
 | `/plan-feature` | opus | Understand → ask → task branch → plan file (Draft) → stop for approval | `kit lanes start` (outside a lane: `git switch`) |
 | `/implement` | sonnet | Build one approved plan, tests first, on its branch; stop on anything the plan doesn't settle | `kit next` |
 | `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; for each thing corrected more than once, proposes one rules line, `P` check or `kit.toml` pattern (never adds it unasked) [66] | `kit lanes finish` (outside a lane: `git push`, `gh pr create`) |
@@ -372,7 +372,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows); plan 07 drove `lanes start`/`finish` through the skills in headless sessions (local mode, and PR mode against a local origin with a stand-in `gh`). Not yet shown live: the skills opening a real GitHub PR, a project without lanes, a sync conflict during `/wrap-up`, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 11 |
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
-| ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 07b |
+| ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 08 |
 | The installer writes and gitignores `.claude/kit/python-path`, which the skills' `kit` launcher needs as the hook launcher does; `.worktreeinclude` copies it into each lane (found in plan 07's live run) | plan 08 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 

@@ -14,8 +14,8 @@ Design they build on: `../ARCHITECTURE.md`.
 | 05 | [Lane task cycle](05-lane-task-cycle.md) | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Done |
 | 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Done |
 | 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
-| 07b | Skills: design, health, onboarding | `/design`, `/code-health` (dated reports), `/onboard` (decisions 61, 68, 69) | Not started |
-| 08 | Installer | `install.ps1` / `install.sh` → `kit_setup.py`: prerequisites, interpreter detection, dry run, manifest, no overwrites | Not started |
+| 07b | [Skills: design and code health](07b-design-health.md) | `/design`, `/code-health` (dated report, findings become backlog items) (decisions 61, 69, 77) | Draft |
+| 08 | Installer | `install.ps1` / `install.sh` → `kit_setup.py` (or a plugin plus a setup step: backlog `ship-kit-as-plugin`): prerequisites, interpreter detection, dry run, manifest, no overwrites; `/onboard` (decisions 68, 77) | Not started |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | Not started |
 | 11 | Example project + evals | Small Python project set up with the kit; `claude -p` scenario tests | Not started |

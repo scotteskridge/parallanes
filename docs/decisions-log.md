@@ -3,6 +3,16 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Plan 07b scope
+
+77. **`/onboard` moves from plan 07b to plan 08; 07b is `/design` and `/code-health`.** *Why:*
+    whether the kit ships as a plugin (backlog `ship-kit-as-plugin`) decides what `/onboard` is: a
+    plugin can't ship deny rules, `CLAUDE.md` or project-owned files, so on that route `/onboard`
+    becomes the project setup step. Its lane proposals also wait on `lane-overlap-check` and
+    `lane-resources-env`, and it should use `lane-dependency-hint`'s lockfile table
+    (`docs/survey-lanekeeper.md`). Decision 68 moves with it. 07b also tries a lighter process
+    (backlog `lighten-plan-process`).
+
 ## 2026-10-05: Plan 07 questions
 
 76. **A `blocked_by` names a backlog item's slug or a plan's file name (or path);** it is done once
