@@ -1,0 +1,66 @@
+---
+name: wrap-up
+description: "Finish the current task: run the tests, get the reviewer's report and fix what it finds, write the changelog fragment and plan notes, propose rules for repeated corrections, then on the owner's yes commit and open the pull request (lanes finish). Use for /wrap-up when a task is built."
+model: sonnet
+disable-model-invocation: true
+argument-hint: "[docs/plans/<plan>.md]"
+allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Bash(gh pr view *) Read Grep Glob
+---
+Wrap up the current task. $ARGUMENTS
+
+## 0. Lane check
+Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
+- `Here: lane <name>`: step 6 finishes with `lanes finish`.
+- `Here: main checkout`: the project has lanes but this isn't one. Stop: wrap up from the lane
+  folder the task's branch is in.
+- `Here: not a lane`: the project has no lanes; step 6 uses git and `gh` directly.
+Stop if the current branch is the integration branch. The plan is the one named, or the one
+`kit next` lists as In progress; a small task may have none.
+
+## 1. Test
+Run the full test command (`test_command` in `.claude/kit.toml`) and keep its result lines. If
+anything fails, fix the cause or stop and say so. Never weaken or skip a test.
+
+## 2. Review
+Use the `reviewer` subagent (`.claude/agents/reviewer.md`). Give it the integration branch, the plan
+path and the test result lines. Then:
+- 🔴 fix now: fix each one, with a test that fails without the fix.
+- 🟠 fix soon: fix it, or ask the owner whether it can wait (then it becomes a backlog item).
+- 🟡 polish: fix the cheap ones; list the rest.
+- *Needs the owner*: ask. Never settle a design question yourself.
+After substantial fixes, run the tests and the reviewer again, until a round has no 🔴.
+
+## 3. Docs
+- **Changelog fragment:** `docs/changelog.d/<lane>-<task>.md` (outside a lane: `<task>.md`), in
+  the format `docs/changelog.d/README.md` describes. Nothing user-visible: no fragment.
+- **Plan:** fill *Notes after implementation* (what changed from the plan and why, the review
+  rounds), tick its *Done when* boxes, set **Status:** Done, and move it into
+  `docs/plans/finished/` with `git mv`.
+- **Backlog:** the item this task finished moves to `docs/backlog/done/` with `git mv`.
+- **Decisions** made along the way: one entry each at the top of `docs/design/decisions-log.md`.
+
+## 4. Corrections worth a rule
+Look back over this session, and ask the owner: did anything need correcting more than once? For
+each such thing propose **one** of these, with the exact lines:
+- a `.claude/rules/` line, when the author should know it while writing (scoped with `paths:`);
+- a check in `.claude/review/project.md` (the next free `P` number), when review should catch it;
+- a rule-check pattern in `.claude/kit.toml`, when it's a literal that must never appear.
+Write it only on a yes, in its own commit after the task's.
+
+## 5. Propose
+Show: the files changed, the test result lines, the reviewer's verdict and what was fixed, and a
+commit message that says *why*. Ask: "Commit and open the pull request?" Wait for a yes.
+
+## 6. Finish, on the owner's yes
+1. Stage the task's files by name and commit. Untracked files you didn't create: ask first.
+2. Write the PR body to `.claude/kit/tmp/pr-body.md` (create the folder): the plan link, a short
+   summary, the test result lines, the reviewer's report, and a table of findings and their fixes.
+3. In a lane: `sh .claude/kit/kit lanes finish --title "<title>" --body-file .claude/kit/tmp/pr-body.md`.
+   It syncs, tests again, then pushes and opens the PR (or, in local mode, fast-forwards the
+   integration branch). If it stops on a conflict or a failure, show its message and work through
+   it with the owner; never force-push.
+4. Not a lane: with `merge_mode = "pr"`, ask before `git push -u origin HEAD`, then
+   `gh pr create --base <integration branch> --title "<title>" --body-file .claude/kit/tmp/pr-body.md`.
+   With `"local"`, stop after the commit and say how to merge it.
+5. When the PR is open (or the merge is done), delete `.claude/kit/tmp/pr-body.md`, give the PR
+   link, and suggest `/clear` before the next task.

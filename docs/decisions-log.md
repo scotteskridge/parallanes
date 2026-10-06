@@ -5,6 +5,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-05: Plan 07 questions
 
+71. **Skills run the kit as `sh .claude/kit/kit <command>`,** a kit-owned launcher beside the hook
+    launcher that takes Python from `.claude/kit/python-path` and passes exit codes through. *Settled
+    during the build, for the owner to confirm:* a kit-owned skill can hold neither the rendered
+    `{{kit_command}}` nor an interpreter path (decision 57's reason), and one fixed command lets
+    `allowed-tools` pre-approve exactly `kit next`. It doesn't settle the root shim question (§15,
+    plan 08), which is about what humans type.
+
 61. **Plan 07 is split.** 07 = the task loop (`/next`, `/plan-feature`, `/implement`, `/wrap-up`);
     07b = `/design`, `/code-health`, `/onboard`. Later plans keep their numbers. *Why:* seven skills
     don't fit one screen of steps, and `/onboard` writes what the installer (08) sets up.

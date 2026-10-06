@@ -7,6 +7,8 @@ silently pre-approve `git branch -D`.
 import re
 from pathlib import Path
 
+from helpers import frontmatter
+
 ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / ".claude" / "skills"
 
@@ -23,17 +25,6 @@ READ_ONLY_GRANTS = {
     "Bash(gh pr checks *)",
     "Bash(gh pr view *)",
 }
-
-
-def frontmatter(path: Path) -> dict:
-    """Single-line `key: value` fields. Skills here keep allowed-tools on one line (space-separated)."""
-    match = re.match(r"---\r?\n(.*?)\r?\n---\r?\n", path.read_text(encoding="utf-8"), re.DOTALL)
-    assert match, f"{path} has no frontmatter"
-    fields = {}
-    for line in match.group(1).splitlines():
-        key, _, value = line.partition(":")
-        fields[key.strip()] = value.strip().strip('"')
-    return fields
 
 
 def grants(skill: str) -> list[str]:

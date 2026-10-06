@@ -1,5 +1,6 @@
 """Shared test helpers: throwaway git repos with a kit config, and running the kit CLI."""
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -110,3 +111,14 @@ def hook_payload(repo: Path, rel: str, tool: str = "Edit") -> str:
             "tool_response": {"success": True},
         }
     )
+
+
+def frontmatter(path: Path) -> dict:
+    """Single-line `key: value` fields. Skills here keep allowed-tools on one line (space-separated)."""
+    match = re.match(r"---\r?\n(.*?)\r?\n---\r?\n", path.read_text(encoding="utf-8"), re.DOTALL)
+    assert match, f"{path} has no frontmatter"
+    fields = {}
+    for line in match.group(1).splitlines():
+        key, _, value = line.partition(":")
+        fields[key.strip()] = value.strip().strip('"')
+    return fields

@@ -68,7 +68,8 @@ my-project/
 │   ├── agents/reviewer.md         K  fresh-context reviewer (read-only; hook in its frontmatter)
 │   ├── review/*.md                K/P checklists: universal.md (K), project.md (P), <pack>.md (K)
 │   ├── kit/                       K  cli.py + kitlib (lanes, checks, hooks); manifest.json; VERSION;
-│   │                                 python-path (this machine's interpreter, gitignored)
+│   │                                 `hook` and `kit` launchers; python-path (this machine's
+│   │                                 interpreter) and tmp/ (the PR body), both gitignored
 │   └── worktrees/<lane>/             lane worktrees (gitignored)
 ├── .worktreeinclude               P  gitignored files copied into each new worktree (settings.local.json, .env)
 ├── .githooks/pre-commit          K  `check all --staged` before each commit (opt-in, decision 25)
@@ -265,17 +266,21 @@ guard_kit = true
 
 | Skill | Model | Does | Calls |
 | --- | --- | --- | --- |
-| `/onboard` | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes; writes on approval | `kit check settings` |
-| `/plan-feature` | opus | Interview → plan file → stop for approval | `kit lanes start` |
-| `/implement` | sonnet | Build one approved plan, tests first | `kit lanes status` |
-| `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; if the owner corrected the same thing twice, proposes one rule line (never adds it unasked) | `kit lanes finish` |
-| `/code-health` | opus | Parallel area audits → dated report; changes no code | — |
-| `/design` | opus | Read one design-doc section → discuss → log the decision | — |
-| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `kit lanes status` |
+| `/onboard` (07b) | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes, at most three `P` checks; writes on approval [68] | `kit settings sync`, `kit lanes create` |
+| `/plan-feature` | opus | Understand → ask → task branch → plan file (Draft) → stop for approval | `kit lanes start` (outside a lane: `git switch`) |
+| `/implement` | sonnet | Build one approved plan, tests first, on its branch; stop on anything the plan doesn't settle | `kit next` |
+| `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; for each thing corrected more than once, proposes one rules line, `P` check or `kit.toml` pattern (never adds it unasked) [66] | `kit lanes finish` (outside a lane: `git push`, `gh pr create`) |
+| `/code-health` (07b) | opus | Parallel area audits → dated report; changes no code | — |
+| `/design` (07b) | opus | Read one design-doc section → discuss → log the decision | — |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `kit next` [63] |
 
-Every skill's step 0 is the lane check (the hook output, plus `kit lanes status` when needed).
-Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,
-`sonnet`), not dated IDs.
+Every skill's step 0 is the lane check: `kit next`'s first line says lane, main checkout (lanes exist,
+this isn't one) or not a lane, and the skill handles each [62]. Skills run the kit as
+`sh .claude/kit/kit <command>`, a launcher that takes Python from `python-path`, because a
+kit-owned file can't hold `{{kit_command}}` or an interpreter path [71]. Skills with side effects
+set `disable-model-invocation: true`, and `allowed-tools` pre-approves only read-only commands, so
+commits and pushes still prompt [67]. Model names use aliases (`opus`, `sonnet`), not dated IDs;
+`model` applies when the owner types `/name` (seen live, plan 07). Skills: `payload/kit-owned/.claude/skills/`.
 
 **Reviewer** (`.claude/agents/reviewer.md`, model `opus`): fresh context, with `CLAUDE.md` and
 `AGENTS.md` loaded; reads the branch's diff against the merge base (plus uncommitted and new files),
@@ -351,7 +356,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | ~~Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session?~~ Moot: the lane hooks use the hook input's `cwd` (verified live in plan 04). In the agent's own shell it is not set at all; it exists only for hook processes | — |
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
-| `/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items (`changelog build` already does, plan 02) | plan 07 |
+| ~~`/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items~~ Answered: `kit next` skips them, `done/` and `finished/` (decision 63) | — |
 | ~~Kit-owned skills under `payload/` discovered while developing the kit?~~ Yes, verified live in plan 07 (Claude Code 2.1.284): they load once a file under `payload/kit-owned/` is read; a name clashing with a root skill is listed as `/payload/kit-owned:next` (the root one wins `/next`), others under their plain names. This repo's prototype is now `/kit-next` (decision 64), and a test keeps the names apart. Also seen: a skill's `model` took effect when typed as `/name`, but not when Claude ran it through the Skill tool (one headless run each) | — |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
 | Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
@@ -366,7 +371,8 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows). Not yet shown live: an agent session driving `lanes start`/`finish` through the skills, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 07 |
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
-| Does `/wrap-up` propose a `P` check in `.claude/review/project.md`, a `.claude/rules/` line, or either, after the same correction twice? And does `/onboard` propose a first set of `P` checks? (Plan 06 left the installed `project.md` promising neither) | plan 07 |
+| ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 07b |
+| The installer gitignores `.claude/kit/tmp/` (the PR body `/wrap-up` writes, decision 65) and writes `python-path`, which the skills' `kit` launcher needs as the hook launcher does | plan 08 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

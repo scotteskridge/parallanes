@@ -1,0 +1,163 @@
+"""The kit-owned skills (plan 07): well-formed, safe to pre-approve, and naming only what exists.
+
+Skill quality over real sessions is plan 11's evals; these tests hold what a static check can: the
+frontmatter, the grants (decision 67), that every `kit` command and path a skill names is real, and
+that each skill starts with the lane check (decision 62).
+"""
+import re
+import shlex
+
+import pytest
+
+from helpers import ROOT, frontmatter
+
+PAYLOAD = ROOT / "payload"
+SKILLS = PAYLOAD / "kit-owned" / ".claude" / "skills"
+REPO_SKILLS = ROOT / ".claude" / "skills"
+
+EXPECTED = {"next", "plan-feature", "implement", "wrap-up"}
+CHANGES_THINGS = {"plan-feature", "implement", "wrap-up"}  # user-invoked only (decision 67)
+KNOWN_FIELDS = {"name", "description", "model", "effort", "allowed-tools", "disable-model-invocation",
+                "argument-hint"}
+MODELS = {"opus", "sonnet", "haiku"}
+EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+
+# Every grant a payload skill may hold. Wildcards only where every form of the command is read-only:
+# not `git diff`/`git log` (`--output` writes a file), not `kit lanes` (start/finish change branches).
+READ_ONLY_GRANTS = {
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash(sh .claude/kit/kit next)",
+    "Bash(sh .claude/kit/kit next *)",
+    "Bash(sh .claude/kit/kit lanes status)",
+    "Bash(sh .claude/kit/kit lanes status *)",
+    "Bash(git status *)",
+    "Bash(gh pr list *)",
+    "Bash(gh pr view *)",
+    "Bash(gh pr checks *)",
+}
+
+KIT_CALL = re.compile(r"sh \.claude/kit/kit ([^`\n]+)")
+PATH_MENTION = re.compile(r"`((?:docs|\.claude)/[^`\s]+)`")
+
+
+def skill_files():
+    return sorted(SKILLS.glob("*/SKILL.md"))
+
+
+def body(path):
+    return path.read_text(encoding="utf-8").split("\n---\n", 1)[1]
+
+
+def grants(path) -> list[str]:
+    return re.findall(r"\w+\([^)]*\)|\w+", frontmatter(path).get("allowed-tools", ""))
+
+
+def test_the_task_loop_skills_exist():
+    assert {path.parent.name for path in skill_files()} == EXPECTED
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_skill_frontmatter(path):
+    fields = frontmatter(path)
+    assert set(fields) <= KNOWN_FIELDS, f"unknown fields {set(fields) - KNOWN_FIELDS}"
+    assert fields["name"] == path.parent.name
+    assert 40 < len(fields["description"]) <= 1536, "the listing truncates descriptions at 1,536 characters"
+    assert fields.get("model", "sonnet") in MODELS, "use a model alias, never a dated ID"
+    assert fields.get("effort", "low") in EFFORTS
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_side_effect_skills_are_not_model_invoked(path):
+    flag = frontmatter(path).get("disable-model-invocation")
+    if path.parent.name in CHANGES_THINGS:
+        assert flag == "true", f"/{path.parent.name} changes things: only the owner may start it"
+    else:
+        assert flag in (None, "false"), "read-only skills stay available to 'what's next?'"
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_skill_grants_read_only(path):
+    for grant in grants(path):
+        assert grant in READ_ONLY_GRANTS, f"/{path.parent.name} pre-approves something that can change state: {grant}"
+
+
+def kit_calls():
+    for path in skill_files():
+        for match in KIT_CALL.finditer(body(path)):
+            yield path.parent.name, match.group(1)
+
+
+def test_skills_name_kit_commands():
+    assert any(skill == "next" and call.startswith("next") for skill, call in kit_calls())
+    assert any(skill == "wrap-up" and call.startswith("lanes finish") for skill, call in kit_calls())
+
+
+@pytest.mark.parametrize("skill, call", list(kit_calls()))
+def test_skill_commands_exist(skill, call):
+    """Every `sh .claude/kit/kit ...` a skill names parses, flags included (placeholders filled in)."""
+    import cli
+
+    words = shlex.split(re.sub(r"<[^>]+>", "x", call))
+    try:
+        cli.build_parser().parse_args(words)
+    except SystemExit:
+        pytest.fail(f"/{skill} names `kit {call}`, which the CLI doesn't accept")
+
+
+def payload_has(rel: str) -> bool:
+    rel = rel.rstrip("/")
+    return any(candidate.exists() for candidate in (
+        PAYLOAD / "kit-owned" / rel,
+        PAYLOAD / "templates" / rel,
+        PAYLOAD / "templates" / f"{rel}.tmpl",
+    ))
+
+
+def path_mentions():
+    for path in skill_files():
+        for rel in PATH_MENTION.findall(body(path)):
+            if not re.search(r"[<*]|YYYY|\.claude/kit/tmp/", rel):  # patterns, or files the skill creates
+                yield path.parent.name, rel
+
+
+def test_skills_name_paths():
+    assert ("wrap-up", ".claude/agents/reviewer.md") in set(path_mentions())
+
+
+@pytest.mark.parametrize("skill, rel", sorted(set(path_mentions())))
+def test_skill_paths_exist(skill, rel):
+    assert payload_has(rel), f"/{skill} names {rel}, which the kit doesn't install"
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_skill_step0_lane_check(path):
+    text = body(path)
+    step0 = re.search(r"^## 0\. .*?(?=^## 1\. )", text, re.MULTILINE | re.DOTALL)
+    assert step0, "step 0 is the lane check"
+    assert "sh .claude/kit/kit next" in step0.group(0)
+    for case in ("lane", "main checkout", "not a lane"):
+        assert case in step0.group(0), f"step 0 must cover '{case}'"
+
+
+def test_wrap_up_hands_the_pr_body_to_lanes_finish():
+    text = body(SKILLS / "wrap-up" / "SKILL.md")
+    assert "--body-file .claude/kit/tmp/pr-body.md" in text  # decision 65
+    assert "reviewer" in text
+
+
+def test_no_name_clash_with_this_repos_own_skills():
+    """Claude Code loads payload skills here once a payload file is read (decision 64)."""
+    ours = {path.parent.name for path in REPO_SKILLS.glob("*/SKILL.md")}
+    assert not ours & {path.parent.name for path in skill_files()}
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_skill_files_are_short_lf_and_clean(path):
+    raw = path.read_bytes()
+    assert b"\r\n" not in raw
+    text = raw.decode("utf-8")
+    assert len(text.splitlines()) <= 120, "one screen of procedure; move detail to the docs it points at"
+    bad = sorted({hex(ord(c)) for c in text if ord(c) < 32 and c not in "\n\t"})
+    assert not bad, f"control characters {bad}"
