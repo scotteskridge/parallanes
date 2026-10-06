@@ -48,7 +48,7 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 # [[lanes]]
 # name = "core"                     # lowercase letters, digits and '-': a folder name and branch prefix
 # scope = "Domain logic and its tests"
-# owns = ["src/core/**", "tests/core/**"]
+# owns = ["src/core/**", "tests/core/**"]  # where two lanes match a file, the more specific pattern owns it
 # resources = { dev_port = 8001 }   # free-form; the agent is told each value at session start
 #
 # [[lanes]]

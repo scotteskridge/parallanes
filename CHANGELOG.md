@@ -6,6 +6,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- A rule for files two lanes claim (decision 97): shared paths first, then the lane with the most
+  specific matching pattern owns the file, whatever the order in `kit.toml` (more literal names,
+  then rooted over any depth, then more literal characters, then fewer wildcards). The ownership
+  hook and the lane-boundary check both use it, so a lane owning `src/**` is asked or refused
+  inside another lane's `src/core/**`. `lanes create` and `lanes status` list the tracked files each nested lane
+  wins, and any tie as a problem; the same pattern in two lanes is a config error. Replaces the
+  folder-name "may overlap" note.
 - The lane-boundary check (decision 96): `kit check lanes` (part of `check all`, so the pre-commit
   hook runs it) and `kit lanes finish`, before the tests, refuse a lane's change to another lane's
   paths, to a path no lane owns, or to `.claude/kit.toml`. The lane comes from `--lane` or the
@@ -102,6 +109,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- **Breaking for some `kit.toml` files** (decision 97): the same `owns` pattern in two lanes, which
+  used to load with a note, is now a config error, and every kit command and hook reports it until
+  the pattern is given to one lane or moved to `shared_paths`. A lane owning a wide pattern
+  (`src/**`) is asked, and its landing refused, inside a narrower lane's (`src/core/**`).
 - Permission defaults follow Claude Code's current docs (decisions 82, 92). Secrets default to
   `.env` and every `.env.*` except `.env.example`, through a `!` exemption that the deny rules, the
   hook and the pre-commit check all honour; an exemption Claude Code would ignore is a config error.

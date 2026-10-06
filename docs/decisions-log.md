@@ -3,6 +3,53 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: The most specific lane owns a file two lanes claim
+
+97. **A file in `shared_paths` is open to every lane; otherwise the lane whose matching `owns`
+    pattern is most specific owns it.** Owner's OK on Claude's recommendation (backlog
+    `lane-overlap-check`); the rule is lanekeeper's (`docs/survey-lanekeeper.md`), refined in
+    review, no code borrowed. Replaces decision 42's "overlaps are allowed and reported as a
+    note" and closes the gap decision 96 left open.
+    - *Most specific,* compared in order: more wildcard-free segments; then rooted at the project
+      top over matching at any depth; then more literal characters; then fewer `**` (inside a
+      segment too); then fewer other wildcards. A heuristic: an odd case it ranks wrongly is
+      settled by rewording a pattern, and a tie is reported, never decided silently. Known weak
+      spot (review round 3): `?` and `[...]` add no literal characters, so `src/[ab]*.py` loses
+      to `src/*.py` and `src/?.py` ties with it; lanes split by folder or suffix never meet it.
+      Patterns are compared written out in full: globs anchors a pattern
+      only when a slash comes before its end, so `conftest.py` is `**/conftest.py` and `build/`
+      is `**/build/**`, while `/main.py` and `src/**` start at the root.
+    - *Review round 1 (🔴, both reviewers), a change to what was approved:* the approved
+      tie-break was the longer pattern, as in lanekeeper. It handed files to the wider pattern
+      (`src/**` is longer than `src/*`; `**/src/**` than `src/**`), and it scored `build/` as if
+      it were rooted, so a `build/` lane took `app/build/out.js` from `app/**`. The order above
+      keeps the approved intent, that the narrower pattern wins; the owner approved it.
+    - *Review round 2 (🔴):* round 1's order put "fewer wildcards" before "literal characters",
+      so `**` still beat `*.md` and `src/**` beat `src/**/*_test.py`: a filter after `**`
+      narrows it. Characters now come before the wildcard counts; same intent, flagged in the PR.
+    - *Why this rule:* a broad lane with a narrower one carved out of it (`src/**` and
+      `src/core/**`) is a natural split, and it's explainable in one sentence. Order in `kit.toml`
+      never matters, so a split doesn't silently depend on line order.
+    - *Ties:* the same pattern in two lanes (written out in full, so `*.py` = `**/*.py` and
+      `/src/` = `src/**/*` = `src/**`; case ignored on Windows only, where matching ignores it
+      too) is a config error naming both lanes. Different patterns can still tie on a
+      real file (`src/*.py` and `src/?.py`); finding those means listing files, which `kit.toml`
+      loading and the edit hook shouldn't pay for. Such a file has no owner: `lanes create` and
+      `lanes status` list it as a problem, the boundary check refuses it for every lane, the hook asks.
+    - *One function* (`kitlib/lane_owners.py`) answers for the ownership hook, the boundary check
+      and the overlap lists, so they can't disagree.
+    - *Overlap lists:* `lanes create` and `lanes status` now judge the tracked files, grouped by
+      who wins (`src/core/** (core) wins over src/** (app): 42 files, e.g. …`), instead of the
+      folder-prefix guess ("may overlap").
+    - *Behaviour change:* a lane owning `src/**` is no longer free inside a narrower lane's folder;
+      the hook asks and the boundary check refuses. A folder both should change goes in
+      `shared_paths`. The session briefing says so when there is more than one lane, and the
+      installed guide (`parallel-lanes.md`) explains the rule (review round 1).
+    - *Cost:* the lists judge every tracked file, with each lane's patterns compiled once; 100,000
+      files that all overlap take about 2 s on a Windows laptop (a slow test bounds it at 5 s).
+      A git failure listing them is a problem line,
+      not a traceback (`create` has made the worktrees by then).
+
 ## 2026-10-06: The lane boundary holds when work lands
 
 96. **`kit check lanes` and `kit lanes finish` refuse a lane's change outside its own and the
@@ -501,7 +548,8 @@ and the owner accepted them. Research behind them: `docs/survey-claude-code.md`,
 
 42. **`[[lanes]]` is validated strictly.** Names match `^[a-z0-9][a-z0-9-]*$` (they are folder
     names and branch prefixes). Names are unique and none equals the integration branch. `owns`
-    is required and non-empty; overlaps are allowed and reported as a note. *Why:* decision 24; a
+    is required and non-empty; overlaps are allowed and reported as a note (since decision 97, the
+    most specific pattern owns the file, and the same pattern in two lanes is an error). *Why:* decision 24; a
     bad name would only fail later, inside git.
 
 43. **`lanes status` shows PR state when `gh` is available, "unknown" otherwise**, never failing,

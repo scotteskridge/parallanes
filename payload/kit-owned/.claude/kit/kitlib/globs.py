@@ -86,6 +86,19 @@ def matches_any(path: str, patterns) -> bool:
     return any(matches(path, pattern) for pattern in patterns)
 
 
+def file_matcher(patterns):
+    """matches_any_file compiled once, for judging many paths against the same patterns."""
+    fold = os.name == "nt"
+    combined = "|".join(f"(?:{_compile(p.lower() if fold else p).pattern})" for p in patterns)
+    regex = re.compile(combined) if combined else None
+
+    def match(path: str) -> bool:
+        path = normalize(path)
+        return regex is not None and regex.match(path.lower() if fold else path) is not None
+
+    return match
+
+
 def matches_any_file(path: str, patterns) -> bool:
     """matches_any for a real file: on Windows the file system ignores case, so this does too.
 
