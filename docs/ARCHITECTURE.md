@@ -271,7 +271,7 @@ guard_kit = true
 | `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; if the owner corrected the same thing twice, proposes one rule line (never adds it unasked) | `kit lanes finish` |
 | `/code-health` | opus | Parallel area audits → dated report; changes no code | — |
 | `/design` | opus | Read one design-doc section → discuss → log the decision | — |
-| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `.claude/skills/next/` [26] | `kit lanes status` |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `kit lanes status` |
 
 Every skill's step 0 is the lane check (the hook output, plus `kit lanes status` when needed).
 Skills with side effects set `disable-model-invocation: true`. Model names use aliases (`opus`,
@@ -352,7 +352,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the plugin eval docs page isn't published yet | plan 11 |
 | `/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items (`changelog build` already does, plan 02) | plan 07 |
-| Kit-owned skills under `payload/` may be discovered by Claude Code while developing the kit (nested `.claude/skills`), and the installable `/next` would share a name with this repo's own `/next` prototype; use the `.tmpl`-style guard or rename one | plan 07 |
+| ~~Kit-owned skills under `payload/` discovered while developing the kit?~~ Yes, verified live in plan 07 (Claude Code 2.1.284): they load once a file under `payload/kit-owned/` is read; a name clashing with a root skill is listed as `/payload/kit-owned:next` (the root one wins `/next`), others under their plain names. This repo's prototype is now `/kit-next` (decision 64), and a test keeps the names apart. Also seen: a skill's `model` took effect when typed as `/name`, but not when Claude ran it through the Skill tool (one headless run each) | — |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
 | Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
 | ~~Worktrees nested in the main checkout load the root's `CLAUDE.md`?~~ Yes (instruction files load from every folder up to the root). Plan 04: `lanes create` adds `claudeMdExcludes` to the lane's `settings.local.json` (decision 35); verified live on Windows with forward-slash absolute paths containing a space: the session's loaded-instructions list had the main checkout's `CLAUDE.local.md` (not excluded) but not its `CLAUDE.md` in the same folder. Not shown: whether a parent folder's `.claude/CLAUDE.md` loads at all, the `AGENTS.md` entry on its own, macOS/Linux. Root tools must skip `.claude/worktrees/` (documented in `parallel-lanes.md`) | — |

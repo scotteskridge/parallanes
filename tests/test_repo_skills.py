@@ -54,14 +54,14 @@ def test_skills_have_a_name_matching_their_folder_and_a_description():
 
 
 def test_next_skill_is_granted_only_read_only_tools():
-    found = grants("next")
+    found = grants("kit-next")
     assert found, "allowed-tools must be a single space-separated line"
     for grant in found:
-        assert grant in READ_ONLY_GRANTS, f"/next is pre-approved for something that can change state: {grant}"
+        assert grant in READ_ONLY_GRANTS, f"/kit-next is pre-approved for something that can change state: {grant}"
 
 
 def test_next_skill_ends_with_a_recommended_prompt():
-    assert "**Recommended prompt:**" in (SKILLS / "next" / "SKILL.md").read_text(encoding="utf-8")
+    assert "**Recommended prompt:**" in (SKILLS / "kit-next" / "SKILL.md").read_text(encoding="utf-8")
 
 
 def test_skill_files_have_no_control_characters():
