@@ -3,6 +3,47 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-05: Plan 07 questions
+
+61. **Plan 07 is split.** 07 = the task loop (`/next`, `/plan-feature`, `/implement`, `/wrap-up`);
+    07b = `/design`, `/code-health`, `/onboard`. Later plans keep their numbers. *Why:* seven skills
+    don't fit one screen of steps, and `/onboard` writes what the installer (08) sets up.
+
+62. **The skills work outside a lane, with no new CLI.** Outside a lane folder (no `[[lanes]]`, or the
+    main checkout) `/plan-feature` makes the task branch with `git switch -c`, and `/wrap-up` commits,
+    then proposes the push and `gh pr create` (PR mode) or stops after the commit (local mode). Every
+    skill's step 0 says which case it is in. *Why:* `lanes start`/`finish` refuse outside a lane
+    (decision 51), and a project without lanes still deserves the loop.
+
+63. **`kit next` gathers the facts; the `/next` skill words them.** Read-only, stdlib, tested: lanes and
+    PRs, plan status lines, backlog headers, skipping `README.md`, `_TEMPLATE.md`, `done/`, `finished/`.
+    *Why:* rules written only as skill prose can't be tested.
+
+64. **No payload skill shares a name with this repo's own skills;** if Claude Code shows payload skills
+    here (nested `.claude/skills/` load when working on files there), this repo's prototype becomes
+    `/kit-next`. *Why:* plain `/next` must never mean two things.
+
+65. **`/wrap-up` writes the PR body to `.claude/kit/tmp/pr-body.md`** (gitignored by the installer),
+    passes it to `lanes finish --body-file` and deletes it after a successful finish.
+
+66. **Repeated corrections become one proposed rule, never an unasked one.** `/wrap-up` looks back over
+    its session and asks the owner; for each repeat it proposes one of a `.claude/rules/` line (know it
+    while writing), a `P` check (catch it in review) or a `kit.toml` pattern (a literal that must never
+    appear), and writes it on a yes, in its own commit. *Why:* a skill sees only its own session.
+
+67. **Skills pre-approve only read-only tools; skills that change things are user-invoked only**
+    (`disable-model-invocation: true`: `/plan-feature`, `/implement`, `/wrap-up`). Tests hold both.
+    *Why:* the owner's yes in chat is followed by a real permission prompt for commits and pushes.
+
+68. *(07b)* **`/onboard` proposes at most three `P` checks,** each tied to something it found, and calls
+    `kit settings sync` and `kit lanes create` after approval (ARCHITECTURE §9's `kit check settings`
+    doesn't exist).
+
+69. *(07b)* **`/code-health` writes `docs/health/YYYY-MM-DD.md`** from a template in its own skill folder.
+
+70. **Skill `model` and `effort` fields are kept only if they work:** checked against the docs page and a
+    live run before use; otherwise dropped from the skills and §9.
+
 ## 2026-10-05: Plan 06 questions
 
 54. **Review checklists live in `.claude/review/`**: `universal.md` (kit-owned), `project.md`

@@ -1,6 +1,6 @@
-# 07 — Skills
+# 07 — Skills: the task loop
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/07-skills` · PR link once open
 **Builds on:** plan 01 (the templates the skills fill in: plans, backlog, changelog fragments,
 decisions log, `WORKFLOW.md`); plans 04–05 (`kit lanes status`, `start`, `sync`, `finish`); plan 06
