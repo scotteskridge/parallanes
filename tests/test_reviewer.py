@@ -63,7 +63,25 @@ def test_agent_is_read_only():
     tools = {tool.strip() for tool in fields["tools"].split(",")}
     assert tools == READ_TOOLS
     assert "permissionMode" not in fields  # nothing that could loosen the caller's permissions
-    assert "matcher: \"Bash\"" in block and HOOK_COMMAND in block
+    # The exact block: the command under PreToolUse with the Bash matcher, not just somewhere.
+    # A timeout lets the call through, so it is generous (a cold Windows Python start is slow).
+    hooks = block[block.index("hooks:"):]
+    assert hooks == (
+        "hooks:\n"
+        "  PreToolUse:\n"
+        "    - matcher: \"Bash\"\n"
+        "      hooks:\n"
+        "        - type: command\n"
+        f"          {HOOK_COMMAND}\n"
+        "          timeout: 30"
+    )
+
+
+def test_agent_reads_status_without_taking_the_index_lock():
+    """`git status` may rewrite .git/index in the author's folder while they keep working."""
+    body = AGENT.read_text(encoding="utf-8")
+    assert "`git --no-optional-locks status --short`" in body
+    assert "`git status" not in body
 
 
 def test_universal_checklist_is_well_numbered():

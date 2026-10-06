@@ -80,7 +80,9 @@ def run_reviewer_bash() -> int:
         payload = json.loads(sys.stdin.read())
         if not isinstance(payload, dict):
             raise ValueError("hook input is not a JSON object")
-        if payload.get("tool_name") != "Bash":
+        if not payload.get("tool_name"):
+            raise ValueError("hook input has no tool_name")
+        if payload["tool_name"] != "Bash":
             return HOOK_OK  # the agent's matcher is Bash; other tools aren't this guard's business
         command = (payload.get("tool_input") or {}).get("command")
         if not isinstance(command, str):
@@ -95,8 +97,8 @@ def run_reviewer_bash() -> int:
         return HOOK_OK
     print(
         f"Blocked: the reviewer is read-only. {reason}.\n"
-        f"Allowed: {reviewer_hook.ALLOWED_TEXT}, one or more joined with && or ;, no pipes or "
-        "redirects. Use Read, Grep and Glob for files.",
+        f"Allowed: {reviewer_hook.ALLOWED_TEXT}; every command in a chain must be one of these "
+        "(or `cd <folder>`); no redirects or substitutions. Use Read, Grep and Glob for files.",
         file=sys.stderr,
     )
     return HOOK_BLOCK

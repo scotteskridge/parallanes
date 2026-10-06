@@ -286,8 +286,9 @@ at most three pre-existing problems, without severity [56]. Report: verdict, fin
 check ID with 🔴 fix now / 🟠 fix soon / 🟡 polish, checks run, outside this change; an unsettled
 design question is "needs the owner" [58]. **Read-only by enforcement** [57]: `tools: Read, Grep,
 Glob, Bash`, and a `PreToolUse` hook in its own frontmatter runs `sh
-"$CLAUDE_PROJECT_DIR/.claude/kit/hook" reviewer-bash`, which allows only read-only git (no pipes,
-redirects or substitutions) and fails closed. `.claude/kit/hook` is a launcher that takes Python
+"$CLAUDE_PROJECT_DIR/.claude/kit/hook" reviewer-bash`, which allows only read-only git (every command in a
+chain; `cd <folder>` too; no redirects or substitutions outside single quotes; plain `git`, no path)
+and fails closed, timeout 30 s. `.claude/kit/hook` is a launcher that takes Python
 from `.claude/kit/python-path`, because a kit-owned file can't hold a machine's interpreter path.
 
 ## 10. Installer and onboarding [17] [19]
@@ -364,7 +365,8 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows). Not yet shown live: an agent session driving `lanes start`/`finish` through the skills, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 07 |
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
-| The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. Not live-verified: macOS/Linux | plan 08 |
+| The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
+| Does `/wrap-up` propose a `P` check in `.claude/review/project.md`, a `.claude/rules/` line, or either, after the same correction twice? And does `/onboard` propose a first set of `P` checks? (Plan 06 left the installed `project.md` promising neither) | plan 07 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

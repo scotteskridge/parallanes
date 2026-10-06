@@ -25,7 +25,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     its caller does. *Why:* the docs don't say whether `tools` accepts `Bash(...)` patterns, and a
     reviewer that can run `git checkout` can lose the author's work. The hook runs through a `sh`
     launcher (`.claude/kit/hook`) that reads `.claude/kit/python-path`, because a kit-owned file
-    can't hold a machine's interpreter path; any launcher failure exits 2. *Found live:* Claude Code
+    can't hold a machine's interpreter path; any launcher failure exits 2. Allowed besides read-only
+    git: `cd <folder>` (agents start with it by habit), and `$`, backticks, `<`, `>` inside single
+    quotes (and `<`, `>` inside double quotes), where they are plain text. *Found live:* Claude Code
     skips an agent's frontmatter hooks in an untrusted folder (ARCHITECTURE §15).
 
 58. **The report has one fixed shape** (verdict, numbered findings with 🔴/🟠/🟡 from

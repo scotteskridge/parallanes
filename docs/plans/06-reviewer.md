@@ -149,8 +149,31 @@ Changes from the plan:
   anywhere (so `cd "..." && git diff` and `$(git merge-base ...)` are blocked; the agent is told to
   use `git diff <base>...HEAD`), and it refuses `--output`, `--ext-diff` and `git grep -O`, which
   write files or run programs from otherwise read-only commands.
+- **`AGENTS.md.tmpl` left as is:** its finishing step already says "an independent review", and
+  the checklists are named where the reviewer and the owner read them (`WORKFLOW.md`,
+  `CODE-STANDARDS.md`); the template's line budget is tight.
 - **This repo's own `.claude/review/project.md`** (P1–P5: stdlib only, Windows first, hook failure
   policy, never overwrite, the trail) so the dogfood reviewer checks what matters here.
+
+**Reviews.** Round 1 ran two reviewers on the same commit: the kit's own `reviewer` (its first real
+use) and the usual general-purpose one. Both found the same hole independently: `git grep -O<cmd>`
+(and `-nO<cmd>`) runs a program and got past the guard; the general-purpose reviewer reproduced it
+(`git grep "-Omkdir pwned"` made the folder). Every fix has a test; the new ones failed on the old
+code, except two that pin behaviour that was already right but untested (the launcher turning a
+crash into exit 2, and the import fallback blocking for this hook).
+- *Round 1* (1 🔴, 4 🟠, 9 🟡 across both): `-O` attached or clustered (🔴); untested launcher crash
+  path and import fallback; a 10 s timeout that lets the call through (now 30 s, and in §15); a
+  repo-local file named `git` passed as git; `$ < >` refused even inside single quotes and `@{1}`
+  refs split as commands (false blocks); a missing `tool_name` let the call through; "no pipes" in
+  the docs while pipes between read-only git commands pass (the docs now say every command in a
+  chain must be read-only git); the hook test was a substring check; `git status` could lock the
+  author's index (the agent now uses `--no-optional-locks`); `AGENTS.md.tmpl` not edited (see
+  above). One question for the owner: `project.md.tmpl` promised that `/onboard` and `/wrap-up`
+  propose `P` checks, which plan 07 hasn't decided; the promise is removed and the question is in
+  §15 for plan 07.
+- *From the live-check verifier:* the successful review ran before the folder was trusted, so the
+  guard wasn't active, and the reviewer's own first commands began with `cd "<repo>" &&`, which the
+  guard refused. `cd <folder>` is now allowed and the agent is told the shell starts at the root.
 
 **Live check** (Windows, Claude Code 2.1.284, headless `claude -p`, a throwaway project laid out
 as the kit installs it, in a path with a space; script and outputs kept in the session scratchpad):

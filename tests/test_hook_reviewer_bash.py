@@ -4,6 +4,7 @@ It sits in the reviewer agent's own frontmatter as a PreToolUse hook. In PreTool
 blocks; exit 1 and timeouts let the call through, so every error path must exit 2.
 """
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -31,9 +32,21 @@ ALLOWED = [
     "git rev-list --count main..HEAD",
     "git cat-file -p HEAD",
     "git diff --output-indicator-new=+",
-    "/usr/bin/git diff",
     "git diff && git status",
     "git diff\ngit log -1",
+    # Review findings: false blocks of commands a reviewer needs.
+    "git grep 'foo$'",
+    "git grep -e '<script'",
+    "git log --format='%H -> %s'",
+    "git log \"--format=%H <%ae>\"",
+    "git show HEAD@{1}",
+    "git rev-parse @{u}",
+    "git log main@{upstream}..HEAD",
+    "git --no-optional-locks status --short",
+    "git.exe diff",
+    # Agents habitually start with `cd <project> &&`; changing folder reads nothing and writes nothing.
+    "cd \"D:/my project\" && git diff main...HEAD",
+    "cd lane && git status",
 ]
 
 BLOCKED = [
@@ -66,6 +79,24 @@ BLOCKED = [
     "env GIT_EXTERNAL_DIFF=evil git diff",
     "git",
     "",
+    # Review findings: `-O` takes its program attached, alone or in a short-flag cluster.
+    "git grep -Omkdir TODO",
+    "git grep \"-Omkdir pwned\" hello",
+    "git grep -nOecho TODO",
+    "git grep -Orm TODO",
+    # A file named git is not git: it could be a script the branch under review added.
+    "./git log",
+    "scripts/git log",
+    "C:/tools/git.exe log",
+    "/usr/bin/git diff",
+    # Substitution still runs inside double quotes; a brace ref doesn't hide a second command.
+    "git log \"$(rm x)\"",
+    "git log \"`rm x`\"",
+    "git show HEAD@{1}; rm x",
+    # cd only as `cd <one folder>`, never anything else.
+    "cd",
+    "cd a b && git diff",
+    "cd - && git diff",
 ]
 
 
@@ -104,7 +135,7 @@ def test_hook_allows_read_only_git(tmp_path):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("stdin", ["not json", "[]", json.dumps({"tool_name": "Bash", "tool_input": {}})])
+@pytest.mark.parametrize("stdin", ["not json", "[]", "{}", json.dumps({"tool_name": "Bash", "tool_input": {}})])
 def test_hook_fails_closed_on_bad_input(tmp_path, stdin):
     result = run_cli(tmp_path, "hook", "reviewer-bash", stdin=stdin)
     assert result.returncode == 2
@@ -152,3 +183,35 @@ def test_launcher_fails_closed_without_python(tmp_path):
     result = subprocess.run(["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}",
                             capture_output=True, text=True, cwd=tmp_path)
     assert result.returncode == 2
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(shutil.which("sh") is None, reason="needs sh (Git Bash on Windows)")
+def test_launcher_turns_a_crash_into_a_block(tmp_path):
+    """Exit 1 from Python (a crash, a traceback) would let the call through in PreToolUse."""
+    kit = tmp_path / ".claude" / "kit"
+    kit.mkdir(parents=True)
+    shutil.copy(LAUNCHER, kit / "hook")
+    (kit / "cli.py").write_text("raise SystemExit(1)\n", encoding="utf-8")
+    (kit / "python-path").write_text(sys.executable + "\n", encoding="utf-8")
+    result = subprocess.run(["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}",
+                            capture_output=True, text=True, cwd=tmp_path)
+    assert result.returncode == 2
+    assert "failed (exit 1)" in result.stderr
+
+
+@pytest.mark.slow
+def test_kit_that_cannot_import_blocks(tmp_path):
+    """e.g. Python 3.10 (no tomllib): cli.py's import fallback must block for this hook too."""
+    fake = tmp_path / "fakes"
+    fake.mkdir()
+    (fake / "tomllib.py").write_text("raise ImportError('simulated: no tomllib')\n", encoding="utf-8")
+    from helpers import CLI
+
+    result = subprocess.run(
+        [sys.executable, str(CLI), "hook", "reviewer-bash"],
+        cwd=tmp_path, input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "git diff"}}),
+        capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+    )
+    assert result.returncode == 2, result.stderr
+    assert "simulated: no tomllib" in result.stderr
