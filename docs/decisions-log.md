@@ -5,12 +5,12 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-05: Plan 07 questions
 
-74. **A `blocked_by` names a backlog item's slug or a plan's file name (or path);** it is done once
+76. **A `blocked_by` names a backlog item's slug or a plan's file name (or path);** it is done once
     the item is in `docs/backlog/done/` or the plan in `docs/plans/finished/`. One that names
     neither is reported under Problems and still blocks. *The owner's call at PR review:* the
     backlog README already allowed plans, and a typo would otherwise block an item forever, unseen.
 
-73. **`lanes status` and the lane router count changed and untracked files apart,** like `kit next`
+75. **`lanes status` and the lane router count changed and untracked files apart,** like `kit next`
     and `lanes finish`, all through one parser (`lanes.changes`); only changed tracked files are
     called uncommitted work. *The owner's call at PR review:* decision 52 gave "unfinished" one
     meaning, and `/next` reads the `lanes status` block for other lanes.
@@ -69,6 +69,25 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 70. **Skill `model` and `effort` fields are kept only if they work:** checked against the docs page and a
     live run before use; otherwise dropped from the skills and §9.
+
+## 2026-10-05: Product name and lanekeeper
+
+74. **Build on lanekeeper rather than reinvent it.** `docs/survey-lanekeeper.md` records what to
+    borrow, step by step, at a pinned commit, like `survey-hoem.md` (reference, not spec). Borrowed
+    code keeps lanekeeper's MIT notice and names its source file and commit. Ideas and test cases
+    are taken freely. *Why:* it solves the same problem and found real bypasses and Windows pitfalls
+    the hard way; the owner wants the kit to improve on useful tools, not duplicate them. Where the
+    kit's design differs (long-lived lanes, enforcement inside Claude Code, stdlib only), the kit's
+    design wins.
+
+73. **The kit's name is `worklanes`** (plugin name, and the name the README and launch use).
+    *Why:* `claude plugin validate` reserves names starting with `claude-`, so
+    `claude-code-lanes-starter` can't be the plugin name, and a published plugin name can't change.
+    `worklanes` was free on PyPI, npm and GitHub (2026-10-05) and says what the kit does. `laneguard`
+    was the other finalist, but it means nearly the same as `lanekeeper`, an existing tool for the
+    same problem ([kish21/parallel-agents](https://github.com/kish21/parallel-agents)), so the two
+    would be confused. Renaming the repo, the `kit` CLI command and the docs is left to plan 08/12
+    (backlog `plugin-name`).
 
 ## 2026-10-05: Plan 06 questions
 
