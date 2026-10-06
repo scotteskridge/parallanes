@@ -26,7 +26,7 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Lanes core: config, create, status, remove, lane-router and ownership hooks | 04 | ✅ done |
 | Lane task cycle: start, sync, finish (PR and local mode) | 05 | ✅ done |
 | Reviewer: read-only subagent, numbered checklists (universal, project, stack) | 06 | ✅ done |
-| Skills: the task loop (`/next`, `/plan-feature`, `/implement`, `/wrap-up`) and `kit next` | 07 | 🔨 in progress |
+| Skills: the task loop (`/next`, `/plan-feature`, `/implement`, `/wrap-up`) and `kit next` | 07 | ✅ done |
 | Skills: `/design`, `/code-health`, `/onboard` | 07b | planned |
 | Installer (Windows first) and CI template | 08–09 | planned |
 | Unity pack | 10 | planned |

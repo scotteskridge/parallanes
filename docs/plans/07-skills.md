@@ -1,7 +1,7 @@
 # 07 — Skills: the task loop
 
-**Status:** In progress
-**Branch / PR:** `plan/07-skills` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/07-skills` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/12
 **Builds on:** plan 01 (the templates the skills fill in: plans, backlog, changelog fragments,
 decisions log, `WORKFLOW.md`); plans 04–05 (`kit lanes status`, `start`, `sync`, `finish`); plan 06
 (the `reviewer` and its report shape); ARCHITECTURE §8 (shared docs), §9 (skills); decisions 7
@@ -129,10 +129,10 @@ on the owner's yes, commits and runs `lanes finish`. Plus `/design`, `/code-heal
 | `test_next_*` | `kit next`: lanes and PRs, plan statuses, backlog headers, `README.md`/`_TEMPLATE.md`/`done/`/`finished/` skipped, a malformed header reported not hidden, no lanes, `--offline` |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Live run done and verified, or its gaps recorded in ARCHITECTURE §15
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
+- [x] Tests above pass locally and in CI (919 passed; Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Live run done and verified, or its gaps recorded in ARCHITECTURE §15
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
 Changes from the plan:
