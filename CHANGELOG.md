@@ -94,8 +94,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   error. `kit settings sync` keeps exemptions in `kit.toml`'s order, and `kit check settings`
   reports one out of order. The hook no longer blocks file-tool edits to kit config in
   `bypassPermissions` mode: a live check showed the ask rules are never auto-approved there or in
-  `acceptEdits`. It now blocks shell writes to kit config in every mode that runs shell commands without
-  asking (`acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`), copies into `.claude/` included. `protected-paths.md` names the Windows options for a real boundary
+  `acceptEdits`. It still blocks shell writes to kit config in bypass mode. `protected-paths.md` names the Windows options for a real boundary
   (WSL2, a container, a VM).
 - Lane instructions checked live on Linux (WSL2) and Windows (decision 84): no bug. A lane's own
   `settings.local.json` works on both. Claude Code 2.1.291 already keeps the main checkout's

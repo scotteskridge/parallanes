@@ -127,27 +127,33 @@ def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
         ("Set-Content .claude/settings.json '{}'", "PowerShell"),
     ],
 )
-@pytest.mark.parametrize("mode", ["bypassPermissions", "acceptEdits", "auto", "dontAsk"])
-def test_shell_writes_to_kit_config_are_blocked_where_nobody_is_asked(repo, command, tool, mode):
-    # Review rounds 1-2: the ask rules are Edit rules; the docs don't say they cover `rm` or
-    # PowerShell cmdlets, and these modes can run a shell command without asking (decision 92).
-    assert_blocked(bash(repo, command, mode=mode, tool=tool), "kit's own configuration")
+def test_shell_writes_to_kit_config_are_blocked_in_bypass_mode(repo, command, tool):
+    # Review round 1: the ask rules are Edit rules; the docs don't say they cover `rm` or PowerShell
+    # cmdlets, so in bypass mode the hook still stops shell writes to the kit's config (decision 92).
+    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "kit's own configuration")
 
 
-@pytest.mark.parametrize("mode", ["default", "plan"])
+@pytest.mark.parametrize("mode", ["default", "plan", "acceptEdits", "auto", "dontAsk"])
 @pytest.mark.parametrize("command", ["rm -rf .githooks", "echo x >> .claude/kit.toml"])
-def test_shell_writes_to_kit_config_are_left_to_the_prompt_where_the_owner_is_asked(repo, command, mode):
+def test_shell_writes_to_kit_config_in_other_modes_follow_the_normal_flow(repo, command, mode):
+    # Which other modes need this guard is open (backlog `kit-config-shell-guard-modes`): round 2
+    # widened it and blocked everyday commands, so it stays as it was before decision 92.
     assert_allowed(bash(repo, command, mode=mode))
+
+
+@pytest.mark.parametrize("command", ["rm -rf .claude", "rm -rf ."])
+def test_removing_a_folder_that_holds_kit_config_is_blocked(repo, command):
+    assert_blocked(bash(repo, command, mode="bypassPermissions"), "kit's own configuration")
 
 
 @pytest.mark.parametrize(
     "command, tool",
-    [("cp new.json .claude/", "Bash"), ("Copy-Item x.toml -Destination .claude", "PowerShell"),
-     ("rm -rf .claude", "Bash"), ("rm -rf .", "Bash")],
+    [("cp ../shared/LICENSE .", "Bash"), ("mv build/out/report.txt .", "Bash"), ("cp notes.md .claude/", "Bash"),
+     ("Copy-Item x .", "PowerShell")],
 )
-def test_shell_writes_into_or_over_the_kit_config_folder_are_blocked(repo, command, tool):
-    # Review round 2: a copy into `.claude/` can replace settings.json or kit.toml.
-    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "kit's own configuration")
+def test_copies_into_the_root_or_claude_folder_are_allowed(repo, command, tool):
+    # Review round 3: a write target that is a folder only gets a file inside it, not all of it.
+    assert_allowed(bash(repo, command, mode="bypassPermissions", tool=tool))
 
 
 def test_the_block_says_how_to_change_kit_config(repo):

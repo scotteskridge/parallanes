@@ -5,8 +5,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-06: Permission decisions, checked against the docs
 
-92. **The hook's kit-config block covers shell commands only, in every mode that runs them
-    unasked; secrets exemptions are bare `!` names.**
+92. **The hook's bypass-mode block for kit config covers shell commands only; secrets
+    exemptions are bare `!` names.**
     Replaces decision 30's bypass block and decision 31's list, as decision 82 planned. Settled on
     Claude's recommendation (backlog `revisit-permission-decisions`):
     - *Live check,* Claude Code 2.1.291, Windows, `claude -p` in a scratch project with an ask rule
@@ -18,9 +18,11 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       .githooks`, `Set-Content .claude/settings.json`), and the ask rules are `Edit` rules the docs
       don't say cover those; the live check used the Edit tool only. So the hook still blocks
       shell write and remove targets in kit config, and leaves file tools to the ask rules.
-      *Round 2:* `acceptEdits`, `auto` and `dontAsk` can run such commands unasked too, so the
-      block applies there as well (not in `default` or `plan`, where the owner sees the command),
-      and a copy into `.claude/` counts as a write to the files it holds.
+      *Rounds 2-3:* `acceptEdits`, `auto`, `dontAsk` and allow-listed commands have the same gap,
+      but widening the block there also blocked everyday commands (`cp file .`, `git restore
+      --staged .`). Which modes it should cover is left to the owner (backlog
+      `kit-config-shell-guard-modes`); until then it stays as before this decision, and
+      `protected-paths.md` lists the gap under Known misses.
     - An exemption is allowed only in `secrets`, only as a bare file name (no folder, no trailing
       `/`), only after a bare name it matches (a wildcard exemption: after any bare name), and a secret
       may not be listed twice, `./` ignored; anything else

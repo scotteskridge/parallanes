@@ -18,10 +18,9 @@ ALLOW_VARIABLE = "KIT_ALLOW_PROTECTED"
 
 # The kit's own configuration: whoever can edit these can switch the protection off. Ask rules
 # guard them (decision 30) and prompt in every mode, bypassPermissions included; but they are Edit
-# rules, not documented to cover `rm` or PowerShell cmdlets, so the hook blocks shell writes to
-# these in the modes that can run a shell command without asking anyone (decision 92).
+# rules, not documented to cover `rm` or PowerShell cmdlets, so in bypass mode the hook still
+# blocks shell writes to these (decision 92). Other modes: backlog `kit-config-shell-guard-modes`.
 KIT_GUARD = [".claude/settings.json", ".claude/kit.toml", ".claude/kit/**", ".githooks/**"]
-UNASKED_MODES = {"acceptEdits", "auto", "dontAsk", "bypassPermissions"}
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
@@ -139,7 +138,7 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
     tool_input = payload.get("tool_input") or {}
     cwd = Path(payload.get("cwd") or root)
     protected = config.protected
-    guard_kit = protected.guard_kit and payload.get("permission_mode") in UNASKED_MODES
+    guard_kit = protected.guard_kit and payload.get("permission_mode") == "bypassPermissions"
 
     if tool in FILE_TOOLS:
         file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
@@ -173,9 +172,8 @@ def _target_reason(protected, root: Path, cwd: Path, target: str, removes: bool 
     rel = relative(root, cwd, target, git_bash)
     if rel is None:
         return None
-    # Writes too count a folder as everything in it: `cp new.json .claude/` replaces settings.json.
-    if guard_kit and _matching(rel, KIT_GUARD, removes=True):
-        return (f"{normalize(rel)} is (or holds) the kit's own configuration, and in this permission "
+    if guard_kit and _matching(rel, KIT_GUARD, removes):
+        return (f"{normalize(rel)} is (or holds) the kit's own configuration, and in bypassPermissions "
                 "mode a shell command can change it without the owner's approval. Ask the owner to "
                 "run it, or use the Edit tool for a content change: that asks first")
     return path_reason(protected, rel, removes)
