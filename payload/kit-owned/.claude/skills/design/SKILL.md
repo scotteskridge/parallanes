@@ -20,8 +20,10 @@ Run `sh .claude/kit/kit next --offline`. Its first line says where this folder i
 - `Here: not a lane`: fine; check the branch as below.
 If this folder isn't on a task branch (it's on the integration branch, `integration_branch` in
 `.claude/kit.toml`, default `main`, or detached between tasks), discuss freely but edit nothing:
-say to start a task first: in a lane `sh .claude/kit/kit lanes start <task>`; without lanes
-`git switch -c <task>` from the integration branch, as `/plan-feature` step 3 does.
+say to start a task first. In a lane: `sh .claude/kit/kit lanes start <task>`. Without lanes, as
+`/plan-feature` step 3 does: with `merge_mode = "pr"`, `git fetch origin` then
+`git switch --no-track -c <task> origin/<integration branch>`; with `"local"`,
+`git switch -c <task> <integration branch>`. From the main checkout, move to a lane.
 
 ## 1. Find the one section
 - Search `docs/design/DESIGN.md` for the heading that fits the question (Grep for `^#`), and read

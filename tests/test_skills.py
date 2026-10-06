@@ -249,8 +249,16 @@ def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
     text = body(SKILLS / "code-health" / "SKILL.md")
     assert "in parallel" in text and "`sonnet`" in text  # decision 79
     assert "in the foreground" in text  # wait for every area before writing the report
-    # Decision 80 (review round 1): named per lane or area, so two runs on one day can't collide.
-    assert "docs/health/YYYY-MM-DD-<area>.md" in text and "health-YYYY-MM-DD-<area>" in text
+    # Decision 80 (review rounds 1-2): the report is named per lane and area, so two lanes' runs on
+    # one day can't collide; the branch leaves the lane out (its `<lane>/` prefix has it already).
+    assert "docs/health/YYYY-MM-DD-<lane>-<area>.md" in text and "health-YYYY-MM-DD-<area>" in text
+    assert "`all`" in text and "slug" in text  # a folder like `src/payments` isn't a valid task name
+
+
+def test_code_health_asks_to_write_only_when_it_can():
+    """Review round 2: the audit-only paths must not reach the question about writing."""
+    step3 = body(SKILLS / "code-health" / "SKILL.md").split("## 3.", 1)[1].split("## 4.", 1)[0]
+    assert "audit-only" in step3
 
 
 def test_code_health_area_agents_are_read_only():
@@ -294,4 +302,7 @@ def test_design_follows_the_rules_file():
 
 
 def test_design_offers_a_light_way_to_start_a_task():
-    assert "git switch -c <task>" in body(SKILLS / "design" / "SKILL.md")
+    """Without lanes, the same branch commands as /plan-feature step 3 (not a stale local base)."""
+    text = " ".join(body(SKILLS / "design" / "SKILL.md").split())
+    assert "--no-track -c <task> origin/<integration branch>" in text
+    assert "from the main checkout, move to a lane" in text.lower()

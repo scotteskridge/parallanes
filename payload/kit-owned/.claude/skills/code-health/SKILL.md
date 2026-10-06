@@ -31,8 +31,9 @@ Every tracked source file that no area covers (code outside every lane's `owns`,
 vendored or build folders) goes under *Not checked*, with the reason.
 
 ## 2. Audit the areas in parallel
-Use the Agent tool with `subagent_type: Explore` (read-only) and model `sonnet`, one call per area,
-all in one message so they run in parallel, in the foreground: wait for every area before step 3.
+Use the Agent tool with `subagent_type: Explore` (it can't Edit or Write, but has Bash) and model
+`sonnet`, one call per area, all in one message so they run in parallel, in the foreground: wait
+for every area before step 3.
 Tell each agent:
 - it is read-only: never run the tests, coverage, formatters or anything else that writes files;
 - its area (the globs), and to read `AGENTS.md`, `docs/CODE-STANDARDS.md`, every
@@ -48,20 +49,22 @@ Check a sample of the findings yourself (open the line) before reporting them.
 
 ## 3. Report to the owner
 Show the findings in one list, most severe first, numbered, with a summary and what wasn't checked.
-Ask which ones should become backlog items (suggest the 🔴 and 🟠 ones), and whether to write the
-report.
+On an audit-only run (step 0 found this folder can't write), stop here. Otherwise ask which ones
+should become backlog items (suggest the 🔴 and 🟠 ones), and whether to write the report.
 
 ## 4. Write, on the owner's yes
 Change files with Edit or Write, never shell redirects, `sed -i` or scripts: the hooks that guard
-the lane's paths watch only those tools. `<area>` below is the lane's name, the narrowed area, or
-`all`; add `-2`, `-3` if a report or branch of that name exists, so two runs never collide.
-1. Make a task branch `health-YYYY-MM-DD-<area>` (today's date):
+the lane's paths watch only those tools. Names: `<area>` is the narrowed area as a slug
+(lowercase letters, digits and hyphens: `src/payments` → `src-payments`), or `all`; `<lane>-` is
+the lane's name, left out without lanes. Add `-2`, `-3` if a report or branch of that name exists.
+1. Make a task branch `health-YYYY-MM-DD-<area>` (today's date; in a lane the branch is
+   `<lane>/health-...` already):
    - in a lane: `sh .claude/kit/kit lanes start health-YYYY-MM-DD-<area>`; if it refuses, show why
      and stop;
    - `Here: not a lane` (no lanes), as `/plan-feature` does: with `merge_mode = "pr"`,
      `git fetch origin` then `git switch --no-track -c <branch> origin/<integration branch>`; with
      `"local"`, `git switch -c <branch> <integration branch>`.
-2. Write `docs/health/YYYY-MM-DD-<area>.md` from `report-template.md` in this skill's folder
+2. Write `docs/health/YYYY-MM-DD-<lane>-<area>.md` from `report-template.md` in this skill's folder
    (`${CLAUDE_SKILL_DIR}/report-template.md`): every finding, and the backlog slug for each one
    the owner picked.
 3. One backlog item per picked finding: `docs/backlog/<slug>.md` from `docs/backlog/_TEMPLATE.md`,

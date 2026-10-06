@@ -115,6 +115,10 @@ Changes from the plan:
 - `/implement` names `docs/health/` among the shared docs (the test from plan 07 requires every
   default shared path).
 - No `WORKFLOW.md` or `CLAUDE.md` edits: both already describe the two skills as built.
+- **Changed by the reviews** (questions 2 and 3 above describe the plan as approved): without lanes
+  the areas are the top-level source folders, never the rules files' paths; the area agents are
+  `Explore`; the report is `docs/health/YYYY-MM-DD-<lane>-<area>.md` on branch
+  `health-YYYY-MM-DD-<area>`; an audit that can't be saved stops after showing the findings.
 
 **Live check** (Windows, Claude Code 2.1.284, headless `claude -p`; a throwaway project laid out as
 the kit installs it, two lanes `core` and `tools`, a `DESIGN.md` with an **[OPEN]** section, three
@@ -134,7 +138,8 @@ planted problems; scripts and outputs in the session scratchpad):
   without problems. No permission denials after the first audit turn, which had one refused
   compound shell command.
 - *Not shown live:* the owner approving the `DESIGN.md` prompt in an interactive session, a
-  project without lanes or without `DESIGN.md`, macOS/Linux.
+  project without lanes or without `DESIGN.md`, macOS/Linux. This run was before the reviews:
+  the `Explore` agents, the new names and the non-lane branch commands haven't run live.
 
 **Review** (by this repo's `reviewer`; every finding fixed, tests where a check is cheap; the
 `/design` order test passed before the fix, pinning behaviour already right):
@@ -148,3 +153,11 @@ planted problems; scripts and outputs in the session scratchpad):
   only the owner can start; its area agents could edit (now `Explore`, told never to run tests or
   coverage); `/design` offered no light way to start a task without lanes; weak test assertions;
   decision 81 lagged the skill.
+- *Round 2* (the fix commit; all ten round-1 fixes confirmed; no 🔴, 1 🟠 for the owner, 6 🟡):
+  the report name said one lane for a whole-project audit, and a narrowed folder wasn't a valid
+  task name (now `<lane>-<area>` in the report, `<area>` a slug or `all`); the audit-only paths
+  still reached the question about writing (now they stop); `/design`'s branch advice differed
+  from `/plan-feature`'s and left out the main checkout; `Explore` was called read-only though it
+  has Bash; the plan's text and live-check notes lagged the fixes. All fixed. **For the owner:**
+  the audit reads the folder as it is, but the report's branch starts from the newer integration
+  tip, so a lane that is behind reports `path:line`s that may have moved.
