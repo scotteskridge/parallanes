@@ -14,3 +14,5 @@ trusted. See `docs/survey-claude-code.md`, Plan 11.
 **Done when:** every scripted `claude -p` run in the repo's docs, tests and plans passes explicit
 flags for what it needs, trusts its scratch folder when it needs the reviewer's guard, and asserts
 from the `system/init` stream event that the hooks, skills and plugins it relies on loaded.
+
+Done 2026-10-06: decision 93. No committed `claude -p` script existed to fix; live checks now go through `tests/live/claude_run.py`.

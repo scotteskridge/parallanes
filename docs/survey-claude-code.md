@@ -51,7 +51,7 @@ waits for v0.2); 35 was checked live on Linux and Windows and isn't a bug (decis
 - ✓ But "**Nothing personal or project-level loads**": no `.claude/`, no `CLAUDE.md`, "even one a `scaffold_script` wrote". It can't test the kit as installed into a project, only what ships in a plugin.
 - ✓ "Native Windows has no backend, so run shell-granting suites under WSL2".
 - **So:** plan 11 keeps its own `claude -p` harness for whole-project scenarios, and borrows the eval design (repeat runs, baseline, cost cap, JSON exit codes). If the kit becomes a plugin, its skills and reviewer can also get a plugin-eval suite. Which to build first is the owner's call.
-- ✓ **`--bare` "will become the default for `-p` in a future release"** and skips hooks, skills and `CLAUDE.md` ([headless](https://code.claude.com/docs/en/headless.md)). Every live check and eval must state what it loads, and assert it from the `system/init` event (`plugins`, `plugin_errors`).
+- ✓ **`--bare` "will become the default for `-p` in a future release"** and skips hooks, skills and `CLAUDE.md` ([headless](https://code.claude.com/docs/en/headless.md)). Every live check and eval must state what it loads, and assert it from the `system/init` event (`plugins`, `plugin_errors`). Done: `tests/live/claude_run.py` (decision 93); hooks are asserted from `hook_started` events, since `system/init` doesn't list them.
 - ✓ A `-p` run executes project `settings.json` hooks even in an untrusted folder, but skips agent frontmatter hooks until the folder is trusted. Evals that need the reviewer's guard must trust the folder first and check that the guard loaded.
 
 ### Lanes (`lane-resources-env`, `lanes-and-worktree-flag`, ROADMAP §6 Later)
