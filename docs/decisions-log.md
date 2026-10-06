@@ -3,6 +3,33 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Plan 07b questions
+
+82. **07b runs a lighter process:** at most five open questions, one review round (another only for
+    a 🔴), one headless live run per skill. *Why:* two small skills don't need plan 07's weight;
+    a trial of backlog `lighten-plan-process`.
+
+81. **`/design` edits `DESIGN.md` where it is and changes no branches.** In a lane the ownership hook
+    asks once per edit, since `DESIGN.md` isn't shared; on the integration branch the skill stops
+    and says to start a task first. Without a `DESIGN.md` the decision goes only in the decisions
+    log, and the file is created only when the owner asks. *Why:* a design change is rare and the
+    owner is present for it; one prompt is the right friction.
+
+80. **`/code-health`'s report and the backlog items the owner picks are committed on their own task
+    branch, and `docs/health/**` is a default shared path.** *Why:* one dated file per run never
+    conflicts (decision 13), and the report goes through the same loop as any change.
+
+79. **`/code-health` audits by area with parallel read-only subagents:** areas from the lanes' `owns`,
+    else the `.claude/rules/` paths, else the top-level source folders, at most six; the skill on
+    `opus`, the area audits on `sonnet`; findings in one shape (severity, check ID, `path:line`,
+    why). *Why:* areas keep each audit small and parallel; Sonnet keeps a full audit affordable.
+
+78. **`/code-health` is the whole-codebase audit, not a diff review:** Claude Code's `/code-review`,
+    `/simplify` and `/security-review` cover the current change. It judges against the project's own
+    rules, writes a dated report, and turns chosen findings into backlog items; its description
+    says so. *Why:* the kit must add something over the built-ins (backlog
+    `readme-builtins-comparison`).
+
 ## 2026-10-06: Plan 07b scope
 
 77. **`/onboard` moves from plan 07b to plan 08; 07b is `/design` and `/code-health`.** *Why:*

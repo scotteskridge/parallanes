@@ -1,6 +1,6 @@
 # 07b — Skills: design and code health
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/07b-design-health` · PR link once open
 **Builds on:** plan 07 (skill layout, step-0 lane check, `kit next`, the skill tests in
 `tests/test_skills.py`); plan 01 (`docs/design/` templates, `.claude/rules/design-docs.md`); plan 06
