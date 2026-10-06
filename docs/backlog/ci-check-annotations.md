@@ -2,7 +2,6 @@
 status: later
 lane: any
 size: S
-blocked_by: plan 09
 ---
 # Show `kit check` results on the pull request page
 
