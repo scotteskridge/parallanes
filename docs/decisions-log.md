@@ -5,6 +5,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-06: Plan 07b questions
 
+83. **`/code-health` starts its task branch before the audit.** *The owner's call at review round 2:*
+    a lane that is behind would otherwise audit old code and file its report, with `path:line`s
+    that may have moved, on the newer integration tip; and a `lanes start` that refuses (unmerged
+    work) now stops it before any subagent runs. Cost: an empty branch when the owner keeps
+    nothing, which the next `lanes start` removes. A read-only `auditor` agent instead of
+    `Explore` waits in the backlog (`auditor-agent`).
+
 82. **07b runs a lighter process:** at most five open questions, one review round (another only for
     a 🔴), one headless live run per skill. *Why:* two small skills don't need plan 07's weight;
     a trial of backlog `lighten-plan-process`.

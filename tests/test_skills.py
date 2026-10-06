@@ -228,6 +228,11 @@ def test_implement_lists_every_default_shared_path():
 REPORT_TEMPLATE = SKILLS / "code-health" / "report-template.md"
 
 
+def section(skill: str, heading: str) -> str:
+    """The text of one `## N. <heading>` section, found by name so renumbering doesn't break tests."""
+    return body(SKILLS / skill / "SKILL.md").split(f". {heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
 def test_code_health_report_template():
     """Decisions 69, 79: the template sits in the skill's own folder and fixes the finding shape."""
     text = REPORT_TEMPLATE.read_text(encoding="utf-8")
@@ -257,8 +262,7 @@ def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
 
 def test_code_health_asks_to_write_only_when_it_can():
     """Review round 2: the audit-only paths must not reach the question about writing."""
-    step3 = body(SKILLS / "code-health" / "SKILL.md").split("## 3.", 1)[1].split("## 4.", 1)[0]
-    assert "audit-only" in step3
+    assert "audit-only" in section("code-health", "Report to the owner")
 
 
 def test_code_health_area_agents_are_read_only():
@@ -271,16 +275,24 @@ def test_code_health_area_agents_are_read_only():
 def test_code_health_without_lanes_audits_the_source():
     """Review round 1: every install ships rules files for docs and tests, so falling back to their
     `paths:` would audit those and skip the source."""
-    step1 = body(SKILLS / "code-health" / "SKILL.md").split("## 1.", 1)[1].split("## 2.", 1)[0]
-    assert "top-level folders" in step1 and "Not checked" in step1
-    assert "only to split" in step1
+    areas = section("code-health", "Choose the areas")
+    assert "top-level folders" in areas and "Not checked" in areas
+    assert "only to split" in areas
 
 
 def test_code_health_stops_before_the_audit_when_it_could_not_write():
     """Review round 1: a folder that can't start a task, or the main checkout, would lose the findings."""
     step0 = body(SKILLS / "code-health" / "SKILL.md").split("## 0.", 1)[1].split("## 1.", 1)[0]
-    assert "isn't merged" in step0
     assert "show the findings and stop" in step0
+
+
+def test_code_health_branches_before_it_audits():
+    """Review round 2, option A: the audit reads exactly the code the report lands on, and a
+    refused `lanes start` (unmerged previous work) stops it before any subagent runs."""
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    branch = text.index("## 1. Start the task branch")
+    assert branch < text.index("## 3. Audit the areas in parallel")
+    assert "lanes start health-YYYY-MM-DD-<area>" in text[branch:text.index("## 2.")]
 
 
 def test_code_health_branches_like_plan_feature():

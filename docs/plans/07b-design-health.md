@@ -161,3 +161,5 @@ planted problems; scripts and outputs in the session scratchpad):
   has Bash; the plan's text and live-check notes lagged the fixes. All fixed. **For the owner:**
   the audit reads the folder as it is, but the report's branch starts from the newer integration
   tip, so a lane that is behind reports `path:line`s that may have moved.
+- *Owner's answers after round 2:* option A, the task branch first (decision 83, with a test that
+  the branch step comes before the audit); a backlog item for a dedicated `auditor` agent.
