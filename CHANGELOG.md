@@ -7,7 +7,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Live checks for the kit's own development (`docs/live-checks.md`, decision 93): pytest tests in
-  `tests/live/`, run only with `-m live`, through a helper that pins what each `claude -p` session
+  `tests/live/`, run only with `pytest --live`, through a helper that pins what each `claude -p` session
   loads and fails unless its skills, agents, plugins and hooks actually loaded, so a future `--bare`
   default can't make a check pass while testing nothing. The first is decision 92's ask-rule check.
 - `/design` and `/code-health` (plan 07b), kit-owned. `/design` settles one design question from one

@@ -5,7 +5,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-06: Live checks say what they load
 
-93. **Live checks are pytest tests under `tests/live/`, marked `live` and run only with `-m live`;
+93. **Live checks are pytest tests under `tests/live/`, marked `live` and run only with `--live`;
     each goes through `tests/live/claude_run.py`, which pins and asserts what the session loads.**
     Settled on Claude's recommendation (backlog `live-checks-pin-what-loads`):
     - Never in CI or the normal test commands: they cost money and need the owner's login.
@@ -17,8 +17,18 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       skills and agents by name but has no `hooks` field. *Why:* `--bare` will become the `-p`
       default with no opt-out flag, and would make a check pass while testing nothing.
     - Each check reuses a fixed folder under the temp folder (`kit-live/<check>`), so the owner
-      accepts a trust dialog once; the helper only reads `~/.claude.json` to check trust, never
-      writes it.
+      accepts a trust dialog once; the helper only reads `~/.claude.json` (or
+      `$CLAUDE_CONFIG_DIR/.claude.json`) to check trust, never writes it.
+    - *Review round 1:* a run must end in a `success` result unless the check asks for an error
+      (a run stopped by the budget or turn cap would pass "nothing changed" assertions); trust
+      must be on the exact folder, since nothing shows Claude Code passes it down; a hook is
+      named as the stream names it (`PreToolUse:Edit`), and `expect_hooks` only shows the session
+      wasn't stripped down, so a check relying on one particular hook needs a canary of its own;
+      `--live` replaces `-m live`, which `-m "not (slow and live)"` would have tripped; a `.cmd`
+      shim is refused, since cmd.exe mangles prompts. Personal skills stay out under
+      `--setting-sources project,local`: the owner's `~/.claude/skills/unity-mcp-skill` was absent
+      from a pinned run's `system/init`. Plan 11 keeps its own harness design but follows these
+      rules.
 
     Decision 92's ask-rule check is the first one. Its first run under the helper failed on a
     broken scratch project (no Edit call, so the canary hook never fired), which is the point.

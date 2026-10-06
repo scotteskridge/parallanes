@@ -5,6 +5,10 @@ subagents, plugins and CLAUDE.md, with no flag to opt out; a live check that onl
 then pass while testing nothing. So every run states what it loads, and asserts it from the stream:
 skills, agents and plugins from the `system/init` event, hooks from the `hook_started` events that
 `--include-hook-events` adds (init doesn't list hooks). See docs/live-checks.md.
+
+What this proves is that the session wasn't stripped down: an `expect_hooks` entry shows a hook with
+that name fired, not which file it came from. A check that relies on one particular hook needs a
+canary with an effect of its own (a marker file, a block in `permission_denials`).
 """
 import json
 import os
@@ -14,7 +18,12 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-CLAUDE_CONFIG = Path.home() / ".claude.json"
+
+
+def claude_config_path() -> Path:
+    """Where Claude Code keeps per-project trust: `CLAUDE_CONFIG_DIR` moves it."""
+    folder = os.environ.get("CLAUDE_CONFIG_DIR")
+    return Path(folder) / ".claude.json" if folder else Path.home() / ".claude.json"
 
 
 class LiveCheckError(AssertionError):
@@ -44,26 +53,39 @@ def scratch_project(name: str) -> Path:
     return folder
 
 
-def is_trusted(folder: Path, claude_config: Path = CLAUDE_CONFIG) -> bool:
-    """Whether Claude Code has recorded the trust dialog as accepted for folder or a folder above it.
-    Read only: the kit never writes the owner's Claude config."""
+def is_trusted(folder: Path, claude_config: Path | None = None) -> bool:
+    """Whether Claude Code has recorded the trust dialog as accepted for exactly this folder. Not a
+    folder above it: nothing shows Claude Code passes trust down (review round 1). Read only: the
+    kit never writes the owner's Claude config."""
+    claude_config = claude_config or claude_config_path()
+    if not claude_config.exists():
+        return False
     try:
         projects = json.loads(claude_config.read_text(encoding="utf-8")).get("projects", {})
-    except (OSError, ValueError):
-        return False
+    except (OSError, ValueError, AttributeError) as error:
+        raise LiveCheckError(f"can't read {claude_config} to check folder trust: {error}") from None
     fold = str.lower if os.name == "nt" else str  # Windows paths ignore case; the keys vary
     trusted = {fold(key.rstrip("/")) for key, value in projects.items()
                if isinstance(value, dict) and value.get("hasTrustDialogAccepted") is True}
-    path = Path(folder).resolve()
-    return any(fold(candidate.as_posix()) in trusted for candidate in (path, *path.parents))
+    return fold(Path(folder).resolve().as_posix()) in trusted
+
+
+def _launcher(found: str) -> list:
+    """The command for the claude found on PATH. A `.cmd`/`.bat` shim runs through cmd.exe, which
+    cuts a prompt at a newline and mangles `%`, `^` and quotes, and a timeout kills only cmd.exe."""
+    if Path(found).suffix.lower() in (".cmd", ".bat"):
+        raise LiveCheckError(f"{found} is a cmd.exe shim; live checks need the native claude install "
+                             "(see the Claude Code setup docs)")
+    return [found]
 
 
 def run_claude(project: Path, prompt: str, *, permission_mode: str, model: str = "haiku",
                budget_usd: float = 1.0, max_turns: int | None = None, allowed_tools=(), disallowed_tools=(),
                extra_args=(), expect_skills=(), expect_agents=(), expect_plugins=(), expect_hooks=(),
-               needs_trust: bool = False, claude_config: Path = CLAUDE_CONFIG,
+               expect_error: bool = False, needs_trust: bool = False, claude_config: Path | None = None,
                command=None, timeout: int = 600) -> Run:
-    """One headless session in project. expect_hooks: `Event` or `Event:Matcher` names that must fire.
+    """One headless session in project. expect_hooks: hook names as the stream gives them
+    (`PreToolUse:Edit`) that must fire. expect_error: the check wants a run that ends in an error.
     needs_trust: agent frontmatter hooks (the reviewer's guard) are skipped in an untrusted folder."""
     if needs_trust and not is_trusted(project, claude_config):
         raise LiveCheckError(
@@ -73,7 +95,7 @@ def run_claude(project: Path, prompt: str, *, permission_mode: str, model: str =
         found = shutil.which("claude")
         if found is None:
             raise LiveCheckError("claude isn't on PATH; install Claude Code to run live checks")
-        command = [found]
+        command = _launcher(found)
     args = [*command, "-p", prompt,
             # Everything that decides what loads, stated: personal ~/.claude settings stay out.
             "--output-format", "stream-json", "--verbose", "--include-hook-events",
@@ -86,28 +108,33 @@ def run_claude(project: Path, prompt: str, *, permission_mode: str, model: str =
             args += [flag, *tools]
     args += list(extra_args)
     done = subprocess.run(args, cwd=project, capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=timeout)
+                          errors="replace", timeout=timeout, stdin=subprocess.DEVNULL)
     if done.returncode != 0:
         raise LiveCheckError(f"claude -p failed (exit {done.returncode}): {done.stderr.strip() or done.stdout[-500:]}")
     events = [json.loads(line) for line in done.stdout.splitlines() if line.strip()]
     init = next((event for event in events if event.get("type") == "system" and event.get("subtype") == "init"), None)
     if init is None:
         raise LiveCheckError("no system/init event in the stream: can't tell what this session loaded")
-    result = next((event for event in reversed(events) if event.get("type") == "result"), {})
-    run = Run(events=events, init=init, result=result)
+    result = next((event for event in reversed(events) if event.get("type") == "result"), None)
+    # A run that stopped early (budget, turns, an API error) can pass a check whose assertions are
+    # all "nothing changed", so it fails here unless the check asked for it (review round 1).
+    finished = result is not None and result.get("subtype") == "success" and not result.get("is_error")
+    if not finished and not expect_error:
+        ending = "no result event" if result is None else f"result {result.get('subtype')}, is_error={result.get('is_error')}"
+        raise LiveCheckError(f"the session didn't finish its work ({ending}): {(result or {}).get('result', '')}")
+    run = Run(events=events, init=init, result=result or {})
     _expect_loaded(run, expect_skills, expect_agents, expect_plugins, expect_hooks)
     return run
 
 
 def _expect_loaded(run: Run, skills, agents, plugins, hooks) -> None:
     fired = run.hooks_fired()
-    fired_events = {name.split(":", 1)[0] for name in fired if name}
     missing = {
         "skills not loaded": [name for name in skills if name not in run.init.get("skills", [])],
         "agents not loaded": [name for name in agents if name not in run.init.get("agents", [])],
         "plugins not loaded": [name for name in plugins
                                if name not in [plugin.get("name") for plugin in run.init.get("plugins", [])]],
-        "hooks that didn't fire": [name for name in hooks if name not in fired and name not in fired_events],
+        "hooks that didn't fire": [name for name in hooks if name not in fired],
     }
     lines = [f"{what}: {', '.join(names)}\n" for what, names in missing.items() if names]
     if lines:

@@ -344,7 +344,8 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Unit | kitlib, each check, config parsing, command normalization | `tests/` | every push (Windows + Ubuntu, Python 3.11 + 3.13) |
 | Integration | lanes commands on throwaway git repos (with a bare repo as `origin`); installer into temp folders, including paths with spaces | `tests/` | every push |
 | Hook protocol | feed recorded Claude Code hook JSON on stdin; assert exit codes and output | `tests/` | every push |
-| Evals | `claude -p --output-format json` sessions on the example project: reviewer finds a planted bug, backstop blocks a force-push, `/next` reports correctly | `evals/` | on demand / nightly |
+| Evals | `claude -p --output-format stream-json` sessions on the example project, with pinned settings and asserting what loaded (decision 93): reviewer finds a planted bug, backstop blocks a force-push, `/next` reports correctly | `evals/` | on demand / nightly (plan 11 decides) |
+| Live checks (kit dev only) | `tests/live/`, through `claude_run.py`: Claude Code runs the kit as assumed (decision 93) | `tests/live/` | on demand, `pytest --live` |
 
 ## 14. Platform notes (Windows first)
 

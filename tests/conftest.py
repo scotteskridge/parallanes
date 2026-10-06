@@ -44,12 +44,17 @@ def _fixture_cache(tmp_path_factory):
     lane_helpers._TEMPLATES.clear()
 
 
+def pytest_addoption(parser):
+    parser.addoption("--live", action="store_true", help="run the live checks in tests/live (real claude -p sessions)")
+
+
 def pytest_collection_modifyitems(config, items):
     """Live checks run real Claude Code sessions: they cost money and need a login, so they run only
-    when asked for with `-m live` (docs/live-checks.md). Never in CI, and not in `-m "not slow"`."""
-    if "live" in (config.getoption("markexpr") or ""):
+    with --live (docs/live-checks.md). A flag, not a `-m` expression: review round 1 found
+    `-m "not (slow and live)"` would have started them."""
+    if config.getoption("--live"):
         return
-    skip = pytest.mark.skip(reason="live check: run with -m live")
+    skip = pytest.mark.skip(reason="live check: run with --live")
     for item in items:
         if "live" in item.keywords:
             item.add_marker(skip)
