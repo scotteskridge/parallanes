@@ -46,6 +46,9 @@ ALLOWED = [
     "git.exe diff",
     "git ls-files -- '*.py'",
     "git grep -n \"TODO*\"",
+    "git diff -- \\*.py",
+    "git cat-file -p HEAD^{tree}",
+    "git rev-parse HEAD^{commit}",
     # Agents habitually start with `cd <project> &&`; changing folder reads nothing and writes nothing.
     "cd \"D:/my project\" && git diff main...HEAD",
     "cd lane && git status",
@@ -116,6 +119,12 @@ def test_read_only_git_is_allowed(command):
 @pytest.mark.parametrize("command", BLOCKED)
 def test_everything_else_is_blocked(command):
     assert reviewer_hook.reason(command)
+
+
+def test_the_reason_fits_the_character():
+    """The agent decides its next try from the reason: quoting fixes a glob, not a redirect."""
+    assert "quote" in reviewer_hook.reason("git diff *")
+    assert "quote" not in reviewer_hook.reason("git log > x")
 
 
 def pre_tool_use(cwd, tool, tool_input):

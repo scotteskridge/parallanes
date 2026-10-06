@@ -287,7 +287,7 @@ check ID with 🔴 fix now / 🟠 fix soon / 🟡 polish, checks run, outside th
 design question is "needs the owner" [58]. **Read-only by enforcement** [57]: `tools: Read, Grep,
 Glob, Bash`, and a `PreToolUse` hook in its own frontmatter runs `sh
 "$CLAUDE_PROJECT_DIR/.claude/kit/hook" reviewer-bash`, which allows only read-only git (every command in a
-chain; `cd <folder>` too; no redirects or substitutions outside single quotes; plain `git`, no path)
+chain; `cd <folder>` too; no redirects, substitutions or globs outside quotes; plain `git`, no path)
 and fails closed, timeout 30 s. `.claude/kit/hook` is a launcher that takes Python
 from `.claude/kit/python-path`, because a kit-owned file can't hold a machine's interpreter path.
 

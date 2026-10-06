@@ -145,8 +145,8 @@ Changes from the plan:
   `.claude/kit/python-path` (as the pre-commit hook does), because a kit-owned file can't hold a
   machine's interpreter path, and turns any failure into exit 2. This repo's copy of the agent
   points at `payload/kit-owned/.claude/kit/hook`, with a gitignored `python-path` beside it.
-- **The guard is stricter than "read-only git"**: it refuses `$`, backticks, `<`, `>` and globs
-  outside quotes (so `$(git merge-base ...)` is blocked; the agent is told to use
+- **The guard is stricter than "read-only git"**: it refuses `<`, `>` and globs outside quotes,
+  and `$` and backticks outside single quotes (so `$(git merge-base ...)` is blocked; the agent is told to use
   `git diff <base>...HEAD`), a path before `git`, and `--output`, `--ext-diff` and `git grep -O`,
   which write files or run programs from otherwise read-only commands. It allows `cd <folder>`.
 - **`AGENTS.md.tmpl` left as is:** its finishing step already says "an independent review", and
@@ -177,6 +177,9 @@ crash into exit 2, and the import fallback blocking for this hook).
   would overwrite it): now refused. The index lock isn't enforced, only instructed (recorded in
   decision 57). This repo has no `docs/CODE-STANDARDS.md` (its `project.md` now says where the
   standards are). A stale note here. The guard blocked one command it tried (`git check-attr`).
+- *Round 3* (the glob fix, by this repo's reviewer): ready, 5 🟡: ARCHITECTURE §9 and a plan note
+  lagged the code, the block message advised quoting for a redirect too, two over-long lines;
+  plus `HEAD^{tree}` blocked like `@{1}` was (now allowed) and an untested escaped glob (now pinned).
 - *From the live-check verifier:* the successful review ran before the folder was trusted, so the
   guard wasn't active, and the reviewer's own first commands began with `cd "<repo>" &&`, which the
   guard refused. `cd <folder>` is now allowed and the agent is told the shell starts at the root.

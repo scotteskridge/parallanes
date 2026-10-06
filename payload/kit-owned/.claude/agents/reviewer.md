@@ -26,9 +26,9 @@ review against the task as the commits and the caller describe it, and say so in
   commits), then `git diff HEAD` for uncommitted changes and
   `git ls-files --others --exclude-standard` for new files, which you open with Read.
 - You may run only read-only git commands (diff, log, show, status, merge-base, rev-parse, rev-list,
-  ls-files, blame, grep, cat-file), with no redirects or `$(...)`, and with globs quoted (`'*.py'`); a hook blocks the rest. The
-  shell already starts at the project root. Use Read, Grep and Glob for everything else. Never run
-  the tests: the caller did.
+  ls-files, blame, grep, cat-file), with no redirects or `$(...)` and with globs quoted (`'*.py'`);
+  a hook blocks the rest. The shell already starts at the project root. Use Read, Grep and Glob
+  for everything else. Never run the tests: the caller did.
 
 ## 2. Read what the change is judged against
 - The plan, if named. `AGENTS.md` and `CLAUDE.md` are already in your context.

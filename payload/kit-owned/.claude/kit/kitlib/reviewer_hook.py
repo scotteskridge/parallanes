@@ -3,8 +3,9 @@
 An allowlist, unlike the protected-paths guard's denylist: every simple command in the text must
 be git with a read-only subcommand (or a plain `cd <folder>`). Like `commands.py`, it guards against
 mistakes, not adversaries; it refuses anything it can't read plainly (substitutions, redirects,
-environment overrides). Programs git itself runs because of the repo's config (`diff.external`,
-textconv drivers, `core.fsmonitor`) are out of its reach: the reviewer can't change that config.
+unquoted globs, environment overrides). Programs git itself runs because of the repo's config
+(`diff.external`, textconv drivers, `core.fsmonitor`) are out of its reach: the reviewer can't
+change that config.
 """
 import re
 
@@ -15,8 +16,9 @@ READ_ONLY = {
     "grep", "cat-file",
 }
 _GLOBAL_FLAGS = {"--no-pager", "-P", "--no-optional-locks", "--literal-pathspecs"}
-# `HEAD@{1}`, `@{u}`: the tokenizer splits on braces, so a ref like this would read as two commands.
-_BRACE_REF = re.compile(r"@\{[^{}\s;&|()]*\}")
+# `HEAD@{1}`, `@{u}`, `HEAD^{tree}`: the tokenizer splits on braces, so a ref like this would read
+# as two commands.
+_BRACE_REF = re.compile(r"[@^]\{[^{}\s;&|()]*\}")
 
 ALLOWED_TEXT = "git with one of " + ", ".join(sorted(READ_ONLY))
 
@@ -24,8 +26,11 @@ ALLOWED_TEXT = "git with one of " + ", ".join(sorted(READ_ONLY))
 def reason(text: str) -> str | None:
     """Why text isn't a read-only git command (or a chain of them), or None if it is."""
     if found := _unquoted_specials(text):
-        return f"`{''.join(sorted(found))}` (substitution, redirect or unquoted glob) is not allowed; quote patterns"
-    segments = tokenize(_BRACE_REF.sub("@REF", text), "bash")
+        chars = "".join(sorted(found))
+        if found <= set("*?["):
+            return f"`{chars}` outside quotes is a glob bash expands; quote the pattern"
+        return f"`{chars}` (substitution or redirect) is not allowed"
+    segments = tokenize(_BRACE_REF.sub("REF", text), "bash")
     if not segments:
         return "empty command"
     for words in segments:
