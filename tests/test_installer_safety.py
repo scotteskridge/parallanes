@@ -313,6 +313,24 @@ def test_no_precommit_answer_is_saved_when_nobody_was_asked(tmp_path):
     manifest = json.loads((folder / ".claude" / "kit" / "manifest.json").read_text(encoding="utf-8"))
     assert "precommit" not in manifest["values"]
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=folder, check=True)
-    result = run_setup(folder, stdin="n\n")
+    result = run_setup(folder, stdin="y\n")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert git(folder, "config", "--default", "", "core.hooksPath").strip() == ""
+    assert "Run the kit's checks before each commit?" in result.stdout  # asked, now that it is a repo
+    assert git(folder, "config", "core.hooksPath").strip() == ".githooks"
+
+
+# ---- review round 3 ---------------------------------------------------------------------------
+
+
+def test_an_edited_kit_new_deleted_after_the_note_comes_back(tmp_path):
+    """write -> the owner edits the .kit-new -> re-run (note) -> delete -> re-run: offered again."""
+    repo = new_repo(tmp_path)
+    (repo / "AGENTS.md").write_bytes(b"# mine\n")
+    setup(repo)
+    offered = repo / "AGENTS.md.kit-new"
+    original = offered.read_bytes()
+    offered.write_bytes(original + b"merging...\n")
+    assert "delete it to get a new one" in setup(repo).stdout
+    offered.unlink()
+    setup(repo)
+    assert offered.read_bytes() == original

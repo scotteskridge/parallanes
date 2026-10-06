@@ -184,9 +184,8 @@ def _offer(plan: FilePlan, target: Path, rel: str, data: bytes, mode, offered: d
         plan.offered[rel] = digest
         plan.unchanged.append(new_rel)
     elif existing is not None:
-        # Not delivered: keep the old record, so deleting it (as the note says) brings this one.
-        if rel in offered:
-            plan.offered[rel] = offered[rel]
+        # Not delivered, and no record kept: deleting it, as the note says, brings the kit's version
+        # back even when the file there is an edited copy of one the kit offered (review round 3).
         plan.notes.append(f"{new_rel} kept as it is: it differs from the kit's version (delete it to get a new one)")
     elif offered.get(rel) == digest:
         plan.offered[rel] = digest  # offered before and deleted by the owner: not again until it changes

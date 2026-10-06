@@ -176,3 +176,16 @@ def test_an_owner_edited_kit_hook_is_not_added_again():
 def test_a_malformed_hook_record_is_an_error(recorded):
     with pytest.raises(settings_hooks.HooksError):
         settings_hooks.merge({}, recorded)
+
+
+# ---- review round 3 ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("answers", [[(128, "")], [(1, ""), (128, "")], [(1, ""), (0, "")]])
+def test_precommit_is_left_alone_when_git_cant_answer(tmp_path, monkeypatch, answers):
+    """core.hooksPath switches off .git/hooks: if git can't say where the hooks are, don't set it."""
+    from installer import main
+
+    replies = iter(answers)
+    monkeypatch.setattr(main, "_git", lambda target, *args: next(replies))
+    assert main._plan_precommit(tmp_path, tmp_path, True) == "unknown"

@@ -112,8 +112,8 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
 
 ## Notes after implementation
 - **Layout:** `kit_setup.py` plus an `installer/` package (`values`, `plan`, `blocks`,
-  `settings_hooks`, `main`, `report`), importing kitlib straight from the payload. Everything is planned
-  before anything is written, so `--dry-run` and the real run print the same list, and a broken
+  `settings_hooks`, `main`, `report`), importing kitlib straight from the payload. Everything is
+  planned before anything is written, so `--dry-run` and the real run print the same list, and a broken
   managed block stops the install with nothing written.
 - **Project-owned files on a re-run:** the manifest also lists the templates the kit rendered, so a
   re-run never touches them again (decision 7), even after the owner edits them. Only a file the
@@ -135,6 +135,15 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
   and mixed endings kept, the kit repo itself refused as a target, next steps read the files.
   `.gitattributes` with the owner's rules gets only the kit's `eol=lf` lines (decision 100, flagged
   for the owner).
+- **Review round 2** (no 🔴): a `.kit-new` the owner was told to delete never came back; the
+  `.gitattributes` variant flipped on re-runs (now chosen once and kept); a missing drive hung; a
+  pre-commit "yes" was saved for questions nobody was asked (now saved only once given, so a folder
+  that later becomes a repo is asked then). Six tests, written first.
+- **Review round 3** (no 🔴): the same `.kit-new` promise broke when the copy on disk was an edited
+  one the kit had offered; such a copy now leaves no record (reviewer's option A: at worst the
+  owner is offered the file once more, never overwritten). The pre-commit check fails closed when
+  git can't say where the repository's hooks are. Docs corrected: a re-run may still ask the
+  pre-commit question.
 - **`.claude/kit/VERSION`** is written as a kit-owned file, as ARCHITECTURE §4 lists it.
 - **Live check** (`tests/live/test_installed_kit.py`, Windows, Claude Code with haiku): all four
   hooks fired from the installed `settings.json`, the protected hook blocked a `cp` into `vendor/`

@@ -56,6 +56,7 @@ def _precommit_message(precommit: str) -> str:
         "subfolder": "pre-commit check not turned on: this folder is not the root of its git repository",
         "other": f"pre-commit check not turned on: core.hooksPath is already {detail!r}",
         "own-hooks": f"pre-commit check not turned on: it would switch off your hooks in .git/hooks ({detail})",
+        "unknown": "pre-commit check not turned on: git couldn't say where this repository's hooks are",
     }[kind]
 
 

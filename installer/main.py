@@ -204,23 +204,28 @@ def _plan_precommit(target: Path, repo: Path | None, wanted: bool) -> str:
         return "subfolder"
     if not wanted:
         return "declined"
-    current = _git(target, "config", "--get", "core.hooksPath")
+    # Fails closed: if git can't answer, the owner's hooks are left as they are (review round 3).
+    code, current = _git(target, "config", "--get", "core.hooksPath")
+    if code not in (0, 1):  # 1: not set
+        return "unknown"
     if current == HOOKS_PATH:
         return "already"
     if current:
         return "other:" + current
     # core.hooksPath replaces .git/hooks entirely: the owner's own hooks there would stop running.
-    hooks_rel = _git(target, "rev-parse", "--git-path", "hooks")
+    code, hooks_rel = _git(target, "rev-parse", "--git-path", "hooks")
+    if code != 0 or not hooks_rel:
+        return "unknown"
     hooks = target / hooks_rel
     own = []
-    if hooks_rel and hooks.is_dir():  # "" would be the project folder itself
+    if hooks.is_dir():
         own = sorted(path.name for path in hooks.iterdir() if path.is_file() and not path.name.endswith(".sample"))
     return "own-hooks:" + ", ".join(own) if own else "set"
 
 
-def _git(target: Path, *args: str) -> str:
+def _git(target: Path, *args: str) -> tuple[int, str]:
     result = subprocess.run(["git", *args], cwd=target, capture_output=True, text=True)
-    return result.stdout.strip()
+    return result.returncode, result.stdout.strip()
 
 
 def _manifest(answers: dict, files: plan.FilePlan, hooks: list) -> bytes:
