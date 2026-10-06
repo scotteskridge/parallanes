@@ -133,7 +133,11 @@ def _item_problem(fields: dict, lane_names: list) -> str | None:
 def backlog(root: Path, lane_names: list) -> tuple[list, list]:
     """Backlog items (not done/), sorted now → idea; problems for any whose header doesn't parse."""
     folder = Path(root) / BACKLOG_REL
-    done = {path.stem for path in _docs(folder / "done")}
+    plans_folder = Path(root) / PLANS_REL
+    # A blocker is an item's slug or a plan, by name or path (the backlog README); it is done once the
+    # item is in done/ or the plan in finished/. Anything else is probably a typo: say so.
+    done = {path.stem for path in (*_docs(folder / "done"), *_docs(plans_folder / "finished"))}
+    pending = {path.stem for path in (*_docs(folder), *_docs(plans_folder))}
     found, problems = [], []
     for path in _docs(folder):
         rel = _rel(root, path)
@@ -149,8 +153,11 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
             problems.append(f"{rel}: {problem}")
             continue
         blocked_by = fields.get("blocked_by") or None
+        blocker = Path(blocked_by).stem if blocked_by else None  # `docs/plans/x.md` and `x` name the same plan
+        if blocker and blocker not in done and blocker not in pending:
+            problems.append(f"{rel}: blocked_by {blocked_by!r} names no backlog item or plan")
         found.append(Item(path.stem, _title(text, path.stem), fields["status"], fields["lane"], fields["size"],
-                          blocked_by, blocked_by in done))
+                          blocked_by, blocker in done))
     found.sort(key=lambda item: (ITEM_STATUSES.index(item.status), item.slug))
     return found, problems
 

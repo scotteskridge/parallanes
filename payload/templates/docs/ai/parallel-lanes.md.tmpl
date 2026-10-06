@@ -19,7 +19,7 @@ start.
 
 ```
 {{kit_command}} lanes create          # one worktree per lane in .claude/kit.toml
-{{kit_command}} lanes status          # every lane: folder, branch, ahead/behind, uncommitted, unpushed, PR
+{{kit_command}} lanes status          # every lane: folder, branch, ahead/behind, changed, untracked, unpushed, PR
 ```
 
 Then start one Claude Code session in each lane's folder. Two to four lanes is usually the limit of
@@ -38,9 +38,9 @@ inside the project aren't gitignored, and tells you the line to add to `.gitigno
 
 **What each session is told.** When a session starts (or resumes, clears or compacts) in a lane folder, a hook
 tells the agent its lane, scope, owned paths, resources and branch, and warns about drift: no task
-branch yet, a branch from another lane, already merged, behind `{{integration_branch}}`, uncommitted
-changes, or `.claude/kit.toml` changed on `{{integration_branch}}`. It uses local git data only, so
-"behind" is as of your last fetch.
+branch yet, a branch from another lane, already merged, behind `{{integration_branch}}`, changed
+or untracked files, or `.claude/kit.toml` changed on `{{integration_branch}}`. It uses local git
+data only, so "behind" is as of your last fetch.
 
 **Lane folders inside the project.** By default lanes live in `.claude/worktrees/<lane>/`. Claude
 Code loads every `CLAUDE.md` from the session's folder up to the drive root, so a lane would also

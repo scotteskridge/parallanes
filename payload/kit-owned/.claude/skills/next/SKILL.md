@@ -37,12 +37,13 @@ If the command fails, show its message and stop: the facts below can't be truste
    a task branch ahead of the integration branch with no PR. The next step is `/wrap-up`.
 4. **An open pull request** for this lane (or, outside a lane, any): waiting on the owner's review.
    In a lane, the next task can't start until it is merged (`lanes start` checks).
-5. **The first ready backlog item:** status `now`, then `next`; not blocked, or blocked by an item
-   marked `(done)`. Size `S`: just ask for it. `M` or `L`: `/plan-feature <slug>`.
+5. **The first ready backlog item:** status `now`, then `next`; not blocked, or its blocker (an item
+   or a plan) is marked `(done)`. Size `S`: just ask for it. `M` or `L`: `/plan-feature <slug>`.
 6. **Nothing ready:** say so; suggest moving an `idea` or `later` item up, or adding one.
 
-**Blocked** lists items whose `blocked by` isn't done, and what they wait on. Don't guess
-dependencies that aren't written down.
+**Blocked** lists items whose blocker isn't done, and what they wait on. A blocker that names
+nothing shows under Problems: report it, it is probably a typo. Don't guess dependencies that
+aren't written down.
 
 ## 3. Answer in about 15 lines, exactly this shape
 ```

@@ -187,10 +187,6 @@ def ahead_behind(folder: Path, tip: str) -> tuple[int, int]:
     return int(out[0]), int(out[1])
 
 
-def dirty_count(folder: Path) -> int:
-    return len(git(folder, "status", "--porcelain").splitlines())
-
-
 def changes(folder: Path) -> tuple[int, list[str]]:
     """(tracked changes, untracked paths): only tracked changes are unfinished work (decision 52).
 

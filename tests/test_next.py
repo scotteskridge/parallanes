@@ -124,6 +124,31 @@ def test_blocked_by_an_item_that_is_done_says_so(tmp_path):
     assert by_slug["report"].blocked_by == "export" and not by_slug["report"].blocker_done
 
 
+@pytest.mark.parametrize("blocker", ["2026-10-01-schema", "docs/plans/finished/2026-10-01-schema.md",
+                                     "docs/plans/2026-10-01-schema.md"])
+def test_blocked_by_a_finished_plan_is_done(tmp_path, blocker):
+    """The backlog README allows a plan as a blocker (by name or path); it's done once finished."""
+    plan(tmp_path, "finished/2026-10-01-schema.md", "Done")
+    item(tmp_path, "export", extra=f"blocked_by: {blocker}\n")
+    found, problems = next_facts.backlog(tmp_path, [])
+    assert problems == [] and found[0].blocker_done
+
+
+def test_blocked_by_an_open_plan_is_not_done(tmp_path):
+    plan(tmp_path, "2026-10-01-schema.md", "In progress")
+    item(tmp_path, "export", extra="blocked_by: 2026-10-01-schema\n")
+    found, problems = next_facts.backlog(tmp_path, [])
+    assert problems == [] and not found[0].blocker_done
+
+
+def test_an_unknown_blocker_is_a_problem_and_still_blocks(tmp_path):
+    """A typo would otherwise block the item forever without a word."""
+    item(tmp_path, "export", extra="blocked_by: shcema\n")
+    found, problems = next_facts.backlog(tmp_path, [])
+    assert [i.slug for i in found] == ["export"] and not found[0].blocker_done
+    assert problems == ["docs/backlog/export.md: blocked_by 'shcema' names no backlog item or plan"]
+
+
 @pytest.mark.parametrize("text, reason", [
     ("# No header\n", "no header"),
     ("---\nstatus: now\nlane: any\n# never closed\n", "no header"),

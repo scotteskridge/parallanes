@@ -141,7 +141,7 @@ Changes from the plan:
   not when Claude ran the skill through the Skill tool (one headless run each).
 - **Question 4:** payload skills do load here once a payload file is read: plain names unless they
   clash, then `/payload/kit-owned:next`. This repo's prototype is now `/kit-next`; its own text says
-  never to run a payload skill here. The plan's `CLAUDE.md` line is proposed to the owner, not added.
+  never to run a payload skill here. The `CLAUDE.md` line was added after the owner's OK at PR review.
 - **A launcher for skills** (decision 71, settled during the build): `sh .claude/kit/kit <command>`,
   because a kit-owned skill can hold neither `{{kit_command}}` nor an interpreter path.
 - **The PR body goes on stdin** (`lanes finish --body-file -`, decision 65 changed): the approved
@@ -200,3 +200,7 @@ skills have tests where a check is cheap (rule commit order, shared paths, step-
   and for a path that can't be opened; the step-0 labels are constants in `next_facts`, and the
   skill tests check them; the launcher check keys on the kit, not on `python`, and reads code
   blocks; `/wrap-up` says what `lanes finish` really refuses; the BOM in a test is now an escape.
+- *At PR review the owner went with every recommendation:* a `blocked_by` may name a plan, done once
+  it is in `finished/`, and an unknown one is a problem (decision 74); `lanes status` and the lane
+  router count untracked files apart too (decision 73, a change to plan 04–05 output); decisions 65,
+  71 and 72 confirmed; the `CLAUDE.md` line added.

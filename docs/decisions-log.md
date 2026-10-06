@@ -5,14 +5,25 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-05: Plan 07 questions
 
+74. **A `blocked_by` names a backlog item's slug or a plan's file name (or path);** it is done once
+    the item is in `docs/backlog/done/` or the plan in `docs/plans/finished/`. One that names
+    neither is reported under Problems and still blocks. *The owner's call at PR review:* the
+    backlog README already allowed plans, and a typo would otherwise block an item forever, unseen.
+
+73. **`lanes status` and the lane router count changed and untracked files apart,** like `kit next`
+    and `lanes finish`, all through one parser (`lanes.changes`); only changed tracked files are
+    called uncommitted work. *The owner's call at PR review:* decision 52 gave "unfinished" one
+    meaning, and `/next` reads the `lanes status` block for other lanes.
+
 72. **`docs/design/decisions-log.md` is a default shared path.** *Found in the live run:* the skills
     add decisions there from a lane (ARCHITECTURE §8 allows one entry per task), and the ownership
     hook asked because only `docs/changelog.d/`, `docs/backlog/` and `docs/plans/` were shared.
+    Confirmed by the owner at PR review, as were 65 and 71.
 
 71. **Skills run the kit as `sh .claude/kit/kit <command>`,** a kit-owned launcher beside the hook
     launcher that takes Python from `.claude/kit/python-path` and passes exit codes through. *Settled
-    during the build, for the owner to confirm:* a kit-owned skill can hold neither the rendered
-    `{{kit_command}}` nor an interpreter path (decision 57's reason), and one fixed command lets
+    during the build, confirmed by the owner at PR review:* a kit-owned skill can hold neither the
+    rendered `{{kit_command}}` nor an interpreter path (decision 57's reason), and one fixed command lets
     `allowed-tools` pre-approve exactly `kit next`. It doesn't settle the root shim question (§15,
     plan 08), which is about what humans type.
 

@@ -264,6 +264,14 @@ def test_status_between_tasks(repo):
     assert ".claude/worktrees/core" in line
 
 
+def test_status_counts_untracked_files_apart(repo):
+    """Decision 52: untracked files (a test report) aren't unfinished work; /next relies on this."""
+    assert create(repo, "core").returncode == 0
+    write(lane_dir(repo, "core"), "junit.xml", "<testsuite/>\n")
+    line = lane_line(status(repo).stdout, "core")
+    assert "1 untracked" in line and "changed" not in line and "uncommitted" not in line
+
+
 def test_status_reports_branch_ahead_behind_dirty_unpushed(repo):
     assert create(repo, "core").returncode == 0
     folder = lane_dir(repo, "core")
@@ -277,7 +285,7 @@ def test_status_reports_branch_ahead_behind_dirty_unpushed(repo):
     line = lane_line(status(repo).stdout, "core")
     assert "core/login" in line
     assert "2 ahead" in line and "1 behind" in line and "origin/main" in line
-    assert "1 uncommitted" in line
+    assert "1 changed" in line and "untracked" not in line
     assert "not pushed" in line
     assert "PR: unknown" in line
 
