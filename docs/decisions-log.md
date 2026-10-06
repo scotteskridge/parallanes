@@ -3,6 +3,26 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: What the kit adds over the built-ins
+
+98. **Answer an outside review's "why not the built-ins?" with enforcement, not persistence, and
+    keep the v0.1 order.** Owner's OK on Claude's recommendations (backlog
+    `outside-review-showcase-gaps`, now done). A first draft rested the case on persistent lanes,
+    but Claude Code reuses a named worktree across sessions with its dependencies intact
+    (https://code.claude.com/docs/en/worktrees.md#reuse-a-worktree-name). Timing a fresh
+    worktree against a lane would compare the kit with something nobody does. What the built-ins
+    lack is lanes that own paths, a hook that stops to ask before an edit outside them, cross-lane
+    changes refused by `kit check lanes` and `lanes finish`, and the start → sync → finish cycle
+    that tests the exact commit that lands.
+    - *Show it on the web trial:* `prove-it-on-a-real-project` now records what the kit caught
+      (out-of-lane edits asked about, cross-lane changes refused, ties flagged, conflicts surfaced
+      before landing). It fits build order step 5.
+    - *The README carries a reader in about two minutes;* the process docs stay as depth. Folded
+      into `readme-builtins-comparison` (plan 12).
+    - *Unity stays v0.2:* plan 10 keeps its place (decision 77); the case above doesn't depend on
+      a Unity number.
+    - *No fixed ship date:* v0.1 ships when it's ready.
+
 ## 2026-10-06: The most specific lane owns a file two lanes claim
 
 97. **A file in `shared_paths` is open to every lane; otherwise the lane whose matching `owns`
