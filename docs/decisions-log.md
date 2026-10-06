@@ -50,9 +50,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     (`disable-model-invocation: true`: `/plan-feature`, `/implement`, `/wrap-up`). Tests hold both.
     *Why:* the owner's yes in chat is followed by a real permission prompt for commits and pushes.
 
-68. *(07b)* **`/onboard` proposes at most three `P` checks,** each tied to something it found, and calls
-    `kit settings sync` and `kit lanes create` after approval (ARCHITECTURE §9's `kit check settings`
-    doesn't exist).
+68. *(07b)* **`/onboard` proposes at most three `P` checks,** each tied to something it found, and after
+    approval calls `kit settings sync` and `kit lanes create` besides `kit check settings`. (The plan
+    draft said `kit check settings` doesn't exist; it does, from plan 03: it reports settings drift.)
 
 69. *(07b)* **`/code-health` writes `docs/health/YYYY-MM-DD.md`** from a template in its own skill folder.
 

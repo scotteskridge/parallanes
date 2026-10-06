@@ -6,6 +6,19 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The task-loop skills (plan 07), kit-owned: `/next` (what to work on, from `kit next`), `/plan-feature`
+  (task branch and a plan, then stop for approval), `/implement` (test-first, stops on anything the
+  plan doesn't settle) and `/wrap-up` (tests, the reviewer, changelog fragment and plan notes, rule
+  proposals for repeated corrections, then commit and `lanes finish` on the owner's yes). Each starts
+  with a lane check and also works in projects without lanes; only read-only commands are
+  pre-approved. Tests check that every `kit` command and path a skill names exists.
+- `kit next`: this folder's lane, every lane, open plans by status and backlog items by header, with
+  unreadable files listed as problems. `sh .claude/kit/kit`, a launcher skills use to run the kit.
+- `lanes finish --body-file -` reads the PR body from stdin, so `/wrap-up` needs no file.
+
+### Changed
+- `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
+  `.claude/kit/python-path` through `.worktreeinclude`. This repo's own `/next` is now `/kit-next`.
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
   slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,

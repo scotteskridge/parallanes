@@ -1,6 +1,6 @@
 # 07 — Skills: the task loop
 
-**Status:** Approved
+**Status:** In progress
 **Branch / PR:** `plan/07-skills` · PR link once open
 **Builds on:** plan 01 (the templates the skills fill in: plans, backlog, changelog fragments,
 decisions log, `WORKFLOW.md`); plans 04–05 (`kit lanes status`, `start`, `sync`, `finish`); plan 06
@@ -135,4 +135,35 @@ on the owner's yes, commits and runs `lanes finish`. Plus `/design`, `/code-heal
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **Question 10 settled by the docs page itself:** `model` and `effort` are skill fields (the docs
+  lookup for the draft was wrong). Seen live: `model: haiku` took effect when typed as `/name`, but
+  not when Claude ran the skill through the Skill tool (one headless run each).
+- **Question 4:** payload skills do load here once a payload file is read: plain names unless they
+  clash, then `/payload/kit-owned:next`. This repo's prototype is now `/kit-next`; its own text says
+  never to run a payload skill here. The plan's `CLAUDE.md` line is proposed to the owner, not added.
+- **A launcher for skills** (decision 71, settled during the build): `sh .claude/kit/kit <command>`,
+  because a kit-owned skill can hold neither `{{kit_command}}` nor an interpreter path.
+- **The PR body goes on stdin** (`lanes finish --body-file -`, decision 65 changed): the approved
+  `.claude/kit/tmp/` file asked on every wrap-up (live run). A small change to plan 05's code.
+- **`docs/design/decisions-log.md` became a default shared path** (decision 72) and
+  **`.worktreeinclude` copies `python-path` into lanes**: both found in the live run.
+- **Question 8 was wrong about `kit check settings`:** it exists (plan 03). Decision 68 corrected.
+- Plan file globs (`test_plans.py`, `/kit-next`) accept split plans such as `07b`.
+- No template edits were needed: `WORKFLOW.md` and `CLAUDE.md` already describe the loop as built.
+
+**Live run** (Windows, Claude Code 2.1.284, headless `claude -p`, throwaway projects laid out as the
+kit installs them, one lane `core`, paths with spaces; scripts and outputs in the session
+scratchpad). Permission prompts were stood in for by `--allowedTools` for kit, git and Python.
+- *Local mode:* `/next` → `/plan-feature subtract` → approval → `/implement` → `/next` → `/wrap-up`
+  → yes. Each skill ran on its model (Sonnet; Opus for `/plan-feature` and the reviewer), `/next`
+  gave the right step both times, `/implement` wrote tests first, `/wrap-up` ran the reviewer, named
+  the fragment `core-subtract.md` (the plan had guessed `subtract.md`), moved the plan and backlog
+  item, asked, then `lanes finish` fast-forwarded `main`. Found: the PR body file and the
+  decisions-log edit both hit permission asks (fixed above).
+- *PR mode,* after the fixes, with a local bare `origin` and a stand-in `gh` recording its input:
+  the same loop with no permission denials; `gh pr create ... --body-file -` received the body as
+  UTF-8 with LF endings, and the branch reached `origin`.
+- *Not shown live:* a real GitHub PR, macOS/Linux, the owner clicking real permission prompts, a
+  sync conflict during `/wrap-up`, a project without lanes, and the reviewer's guard (the scratch
+  folders weren't trusted, so its frontmatter hook was skipped, as recorded in plan 06).
