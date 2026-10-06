@@ -1,7 +1,7 @@
 # 07b — Skills: design and code health
 
-**Status:** In progress
-**Branch / PR:** `plan/07b-design-health` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/07b-design-health` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/15
 **Builds on:** plan 07 (skill layout, step-0 lane check, `kit next`, the skill tests in
 `tests/test_skills.py`); plan 01 (`docs/design/` templates, `.claude/rules/design-docs.md`); plan 06
 (the review checklists and severities); decisions 61, 69, 85; `survey-hoem.md` rows `design` and
@@ -100,10 +100,10 @@ Settled without a question: both skills have side effects (files, subagent cost)
 | Existing skill tests | Frontmatter, read-only grants, kit commands and paths exist, step 0, line length |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
-- [ ] Live check done and verified, or its gaps recorded in ARCHITECTURE §15
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ARCHITECTURE and decisions log updated where this plan changed them
+- [x] Tests above pass locally and in CI (960 passed; Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Live check done and verified, or its gaps recorded in ARCHITECTURE §15
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
 Changes from the plan:
