@@ -15,7 +15,8 @@ and `packs/` (once they exist). Plan and status: `docs/ROADMAP.md`. Why things a
 ## Checking your work
 - Run Python tools with the project's `.venv`, not the `python` on PATH (it may lack pytest and
   ruff): `.venv/Scripts/python` on Windows, `.venv/bin/python` on macOS/Linux. Set up once with
-  `python -m venv .venv`, then `.venv/Scripts/python -m pip install -e ".[dev]"`.
+  `python -m venv .venv` (`python3` on macOS/Linux), then
+  `.venv/Scripts/python -m pip install -e ".[dev]"`.
 - While working, run the fast set: `.venv/Scripts/python -m pytest -m "not slow"`. Before a commit
   or PR, run the full suite (`.venv/Scripts/python -m pytest`) and report its result lines.
   Evidence, not claims. Don't pipe test output through `tail` or `head`: the pipe hides a failing
