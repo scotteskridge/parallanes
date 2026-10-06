@@ -9,8 +9,10 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 KIT_CODE = ROOT / "payload" / "kit-owned" / ".claude" / "kit"
 
-if str(KIT_CODE) not in sys.path:
-    sys.path.insert(0, str(KIT_CODE))
+# The repo root too, for the installer (kit_setup.py and installer/), which never gets installed.
+for _path in (KIT_CODE, ROOT):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
 # A human override exported in a developer's shell, or the PR branch name in the kit's own CI, would
 # change what the lane and protected checks decide in every CLI test that inherits os.environ.

@@ -56,6 +56,7 @@ and on `run.denied_paths()`, not on what Claude says it did.
 | Check | Proves |
 | --- | --- |
 | `test_ask_rules.py` | Ask rules are never auto-approved in `bypassPermissions` or `acceptEdits`; a control run without the rule edits the file (decision 92) |
+| `test_installed_kit.py` | A project set up by the installer has its hooks firing from `settings.json` (SessionStart, PreToolUse on Edit and Bash, PostToolUse), the protected hook blocking a `cp` into a protected folder, and the generated deny rule refusing a Write (plan 08) |
 
 Earlier live checks (plans 03–07b) were run by hand and are recorded in their plans' notes. Later
 live checks use this helper. Plan 11's evals design their own harness, but follow the same rules

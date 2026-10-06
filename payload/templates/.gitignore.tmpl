@@ -10,6 +10,10 @@
 .claude/worktrees/
 # The Python this machine uses for the kit (written by the installer; differs per machine)
 .claude/kit/python-path
+# The kit's bytecode, and the installer's files to review (*.kit-new) or half-written (*.kit-tmp)
+.claude/kit/**/__pycache__/
+*.kit-new
+*.kit-tmp
 
 # OS and editor clutter
 .DS_Store

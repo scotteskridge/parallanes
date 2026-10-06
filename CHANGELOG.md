@@ -6,6 +6,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The installer (plan 08): `install.ps1` / `install.sh` find a Python 3.11+ that really runs
+  (the Windows Store alias doesn't) and run `kit_setup.py [--target DIR] [--dry-run] [--yes]`. It
+  asks five values with detected defaults and whether to turn on the pre-commit check (decision
+  101), and a re-run reuses those answers; copies the kit-owned files, renders the templates
+  (values TOML-escaped in `kit.toml`), merges the deny rules and the kit's four hooks into
+  `.claude/settings.json`, and writes `python-path` and a manifest with each kit-owned file's hash.
+  It never overwrites: an existing file gets a `.kit-new` beside it (offered once), managed blocks
+  go into `.gitignore`-style files, and a re-run changes only unedited kit files. A broken manifest
+  or managed block, a folder or symbolic link in the way, or the owner's own git hooks stop it or
+  are left alone (decision 100). Everyone runs the kit as `sh .claude/kit/kit` (decision 99).
 - A rule for files two lanes claim (decision 97): shared paths first, then the lane with the most
   specific matching pattern owns the file, whatever the order in `kit.toml` (more literal names,
   then rooted over any depth, then more literal characters, then fewer wildcards). The ownership
@@ -109,6 +119,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- `.claude/kit/hook` fails closed only for the guards (`protected`, `reviewer-bash`); for the other
+  hooks a missing Python or a crash no longer turns into a block (plan 08).
 - **Breaking for some `kit.toml` files** (decision 97): the same `owns` pattern in two lanes, which
   used to load with a note, is now a config error, and every kit command and hook reports it until
   the pattern is given to one lane or moved to `shared_paths`. A lane owning a wide pattern
