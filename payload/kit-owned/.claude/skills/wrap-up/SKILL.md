@@ -22,8 +22,9 @@ Run the full test command (`test_command` in `.claude/kit.toml`) and keep its re
 anything fails, fix the cause or stop and say so. Never weaken or skip a test.
 
 ## 2. Review
-Use the `reviewer` subagent (`.claude/agents/reviewer.md`). Give it the integration branch, the plan
-path and the test result lines. Then:
+Use the `reviewer` subagent (`.claude/agents/reviewer.md`) in the foreground, and wait for its
+report before anything else: it reviews what you have, so change nothing while it runs. Give it
+the integration branch, the plan path and the test result lines. Then:
 - 🔴 fix now: fix each one, with a test that fails without the fix.
 - 🟠 fix soon: fix it, or ask the owner whether it can wait (then it becomes a backlog item).
 - 🟡 polish: fix the cheap ones; list the rest.
@@ -31,6 +32,8 @@ path and the test result lines. Then:
 After substantial fixes, run the tests and the reviewer again, until a round has no 🔴.
 
 ## 3. Docs
+Change files with Edit or Write, never shell redirects, `sed -i` or scripts: the hooks that guard
+the lane's paths watch only those tools. Moves are `git mv`.
 - **Changelog fragment:** `docs/changelog.d/<lane>-<task>.md` (outside a lane: `<task>.md`), in
   the format `docs/changelog.d/README.md` describes. Nothing user-visible: no fragment.
 - **Plan:** fill *Notes after implementation* (what changed from the plan and why, the review

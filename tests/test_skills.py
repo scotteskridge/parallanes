@@ -163,3 +163,16 @@ def test_skill_files_are_short_lf_and_clean(path):
     assert len(text.splitlines()) <= 120, "one screen of procedure; move detail to the docs it points at"
     bad = sorted({hex(ord(c)) for c in text if ord(c) < 32 and c not in "\n\t"})
     assert not bad, f"control characters {bad}"
+
+
+def test_wrap_up_waits_for_the_reviewer():
+    """Live run: the reviewer was started in the background and the docs were written before its
+    report came back (and the session then left the skill's model)."""
+    assert "in the foreground" in body(SKILLS / "wrap-up" / "SKILL.md")
+
+
+@pytest.mark.parametrize("skill", ["plan-feature", "implement", "wrap-up"])
+def test_skills_that_write_files_say_edit_or_write(skill):
+    """Live run: agents changed files with heredocs, sed and `python -`, which the ownership hook
+    (Edit|Write|MultiEdit|NotebookEdit) never sees."""
+    assert "with Edit or Write, never shell redirects" in body(SKILLS / skill / "SKILL.md")

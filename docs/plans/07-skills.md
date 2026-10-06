@@ -162,8 +162,18 @@ scratchpad). Permission prompts were stood in for by `--allowedTools` for kit, g
   item, asked, then `lanes finish` fast-forwarded `main`. Found: the PR body file and the
   decisions-log edit both hit permission asks (fixed above).
 - *PR mode,* after the fixes, with a local bare `origin` and a stand-in `gh` recording its input:
-  the same loop with no permission denials; `gh pr create ... --body-file -` received the body as
-  UTF-8 with LF endings, and the branch reached `origin`.
+  the same loop; `/wrap-up` and its finish had no permission denials, `gh pr create ...
+  --body-file -` received the body as UTF-8 with LF endings only, and the branch reached `origin`.
+  `/plan-feature` and `/implement` each had one compound shell command refused (a `$(...)`, a
+  `printf >>; sed -i` chain) and carried on with other tools.
+- *From the verifier* (read-only subagent, checked the transcripts, not the summaries): all claims
+  above confirmed, plus three things the summaries didn't say. `/wrap-up` started the reviewer in
+  the background and wrote the docs before its report came back, and the session then ran on Opus,
+  not the skill's Sonnet. Agents changed files with heredocs, `sed -i` and `python -`, which the
+  ownership hook (Edit/Write only) never sees: `/implement` wrote its tests that way, in the right
+  order. The PR run's plan commit also held its decisions-log entry. Fixed in the skills: the
+  reviewer runs in the foreground, and the three writing skills say to change files with Edit or
+  Write only (tests hold both). Not re-run live after this last fix.
 - *Not shown live:* a real GitHub PR, macOS/Linux, the owner clicking real permission prompts, a
   sync conflict during `/wrap-up`, a project without lanes, and the reviewer's guard (the scratch
   folders weren't trusted, so its frontmatter hook was skipped, as recorded in plan 06).

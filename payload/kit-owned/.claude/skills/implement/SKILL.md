@@ -34,6 +34,8 @@ For each step of the plan:
 3. Update **Left to do:** to what remains.
 
 Rules while building (the full set is in `AGENTS.md`):
+- Change files with Edit or Write, never shell redirects, `sed -i` or scripts: the hooks that
+  guard the lane's paths watch only those tools.
 - **Never weaken, skip or delete a test, or swallow an exception, to make something pass.** Fix
   the cause, or stop and say so.
 - **The plan doesn't settle something?** Stop and ask, with a recommendation. If the owner isn't

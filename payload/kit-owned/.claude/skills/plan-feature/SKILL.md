@@ -43,7 +43,8 @@ Pick a short task name: lowercase letters, digits and hyphens (e.g. `export-csv`
 
 ## 4. Write the plan
 Copy `docs/plans/_TEMPLATE.md` to `docs/plans/YYYY-MM-DD-<task>.md` (today's date) and fill
-every section:
+every section. Change files with Edit or Write, never shell redirects, `sed -i` or scripts: the
+hooks that guard the lane's paths watch only those tools.
 - **Status:** Draft. **Branch / PR:** the branch from step 3. **Left to do:** "approval".
 - **Open questions:** everything still undecided, each with a recommendation. Never settle one
   silently.
