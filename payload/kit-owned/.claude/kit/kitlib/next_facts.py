@@ -131,7 +131,8 @@ def _item_problem(fields: dict, lane_names: list) -> str | None:
 
 
 def backlog(root: Path, lane_names: list) -> tuple[list, list]:
-    """Backlog items (not done/), sorted now → idea; problems for any whose header doesn't parse."""
+    """Backlog items (not done/), sorted now → idea; problems for unreadable files, bad headers and
+    blockers that name nothing."""
     folder = Path(root) / BACKLOG_REL
     plans_folder = Path(root) / PLANS_REL
     # A blocker is an item's slug or a plan, by name or path (the backlog README); it is done once the
@@ -153,8 +154,12 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
             problems.append(f"{rel}: {problem}")
             continue
         blocked_by = fields.get("blocked_by") or None
-        blocker = Path(blocked_by).stem if blocked_by else None  # `docs/plans/x.md` and `x` name the same plan
-        if blocker and blocker not in done and blocker not in pending:
+        # `docs/plans/x.md` and `x` name the same plan. Only `.md` is dropped (a slug may be `py3.12`),
+        # and `\` splits too, so a Windows path means the same on every OS.
+        blocker = blocked_by.replace("\\", "/").rsplit("/", 1)[-1].removesuffix(".md") if blocked_by else None
+        if blocker and blocker == path.stem:
+            problems.append(f"{rel}: blocked_by names the item itself")
+        elif blocker and blocker not in done and blocker not in pending:
             problems.append(f"{rel}: blocked_by {blocked_by!r} names no backlog item or plan")
         found.append(Item(path.stem, _title(text, path.stem), fields["status"], fields["lane"], fields["size"],
                           blocked_by, blocker in done))

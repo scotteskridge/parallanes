@@ -141,6 +141,22 @@ def test_blocked_by_an_open_plan_is_not_done(tmp_path):
     assert problems == [] and not found[0].blocker_done
 
 
+@pytest.mark.parametrize("blocker", ["py3.12", "docs/backlog/done/py3.12.md", "docs\\backlog\\done\\py3.12.md"])
+def test_blocker_names_keep_their_dots_and_accept_backslashes(tmp_path, blocker):
+    """Review finding: only `.md` is a suffix to drop; `py3.12` is a whole slug, on every OS."""
+    item(tmp_path, "done/py3.12", status="now")
+    item(tmp_path, "export", extra=f"blocked_by: {blocker}\n")
+    found, problems = next_facts.backlog(tmp_path, [])
+    assert problems == [] and found[0].blocker_done
+
+
+def test_an_item_blocked_by_itself_is_a_problem(tmp_path):
+    item(tmp_path, "export", extra="blocked_by: export\n")
+    found, problems = next_facts.backlog(tmp_path, [])
+    assert problems == ["docs/backlog/export.md: blocked_by names the item itself"]
+    assert not found[0].blocker_done
+
+
 def test_an_unknown_blocker_is_a_problem_and_still_blocks(tmp_path):
     """A typo would otherwise block the item forever without a word."""
     item(tmp_path, "export", extra="blocked_by: shcema\n")

@@ -19,6 +19,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 - `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
   `.claude/kit/python-path` through `.worktreeinclude`. This repo's own `/next` is now `/kit-next`.
+- `lanes status` and the lane router's warning count changed and untracked files apart ("N changed ·
+  N untracked" instead of "N uncommitted"): only changed tracked files are unfinished work.
+- A backlog item's `blocked_by` may name a plan (done once it is in `docs/plans/finished/`); a
+  blocker that names nothing, or the item itself, is reported by `kit next`.
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
   slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,

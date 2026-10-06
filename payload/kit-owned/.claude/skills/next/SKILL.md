@@ -22,7 +22,7 @@ If the command fails, show its message and stop: the facts below can't be truste
 
 ## 1. Gather
 - The rest of `kit next`: lanes (branch, ahead/behind, changed files, PR), plans by status, backlog
-  items by status, and **Problems** (files it couldn't read).
+  items by status, and **Problems** (files it couldn't read or parse, blockers that name nothing).
 - Not in a lane, and the project opens pull requests: `gh pr list --state open --json
   number,title,headRefName,url`, then `gh pr checks <n>` for each. A non-zero exit from
   `gh pr checks` means failing or pending checks: report it. If `gh pr list` itself fails, say
@@ -52,7 +52,7 @@ aren't written down.
 **Ready next:** <the step from section 2: one line on what it is>
 **Blocked:** <items and what they wait on> or "nothing"
 **Other lanes:** <one line each: lane, branch or idle, PR> (omit when there are no lanes)
-**Problems:** <files kit next couldn't read, with its reason> (omit when none)
+**Problems:** <each problem kit next listed, with its reason> (omit when none)
 
 **Recommended prompt:**
 > <the exact message the owner could send next>

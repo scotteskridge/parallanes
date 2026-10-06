@@ -204,3 +204,7 @@ skills have tests where a check is cheap (rule commit order, shared paths, step-
   it is in `finished/`, and an unknown one is a problem (decision 74); `lanes status` and the lane
   router count untracked files apart too (decision 73, a change to plan 04–05 output); decisions 65,
   71 and 72 confirmed; the `CLAUDE.md` line added.
+- *Round 3* (the whole PR after the owner's answers): ready, 1 🟠, 3 🟡. A `blocked_by` like `py3.12`
+  lost its `.12` (only `.md` is dropped now, and `\` splits as `/` on every OS); an item blocked by
+  itself is now a problem; `/next` and a docstring described Problems too narrowly; the CHANGELOG
+  lacked decisions 73 and 74. All fixed, with tests for the first two.
