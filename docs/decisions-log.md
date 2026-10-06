@@ -3,6 +3,14 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Windows CI speed
+
+83. **CI jobs time out after 10 minutes, and Windows CI leaves Defender on.** *Measured in
+    `chore/faster-windows-ci`:* with real-time scanning off, the Windows full job took 4m03s
+    (pytest 3m34s), against 3m17s–3m54s on main; the time goes to process start-up, not scanning.
+    The timeout stops a hung job holding a runner for GitHub's 6-hour default; the slowest job
+    takes about 4 minutes.
+
 ## 2026-10-05: The v0.1 plan
 
 The owner asked for guidance on how the kit should be built. These were Claude's recommendations,
