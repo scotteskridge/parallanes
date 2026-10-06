@@ -5,15 +5,15 @@
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# `python` may be the Microsoft Store alias, which opens the Store instead of running (decision 19):
-# skip anything under WindowsApps, and run each candidate to be sure. The candidate prints its own
+# `python` may be the Microsoft Store alias, which doesn't run Python (decision 19). Each candidate
+# is run, and the alias fails the probe. No path is skipped: python.org's install manager and Store
+# Python put working interpreters under WindowsApps too. The candidate prints its own
 # sys.executable, so the `py` launcher resolves to the real interpreter it picked.
 $probe = 'import sys; print(sys.executable) if sys.version_info >= (3, 11) else sys.exit(1)'
 $python = $null
 foreach ($candidate in @(@('py', '-3'), @('python'), @('python3'))) {
     $commands = Get-Command $candidate[0] -All -CommandType Application -ErrorAction SilentlyContinue
     foreach ($command in $commands) {
-        if ($command.Source -like '*\WindowsApps\*') { continue }
         $extra = @($candidate | Select-Object -Skip 1)
         try {
             $found = & $command.Source @extra -c $probe 2>$null
@@ -28,7 +28,7 @@ foreach ($candidate in @(@('py', '-3'), @('python'), @('python3'))) {
     if ($python) { break }
 }
 if (-not $python) {
-    [Console]::Error.WriteLine('install.ps1: the kit needs Python 3.11 or newer (not the Microsoft Store alias): https://www.python.org/downloads/')
+    [Console]::Error.WriteLine('install.ps1: the kit needs Python 3.11 or newer as py, python or python3 on PATH: https://www.python.org/downloads/')
     exit 1
 }
 
@@ -53,5 +53,8 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     [Console]::Error.WriteLine('install.ps1: GitHub CLI (gh) not found: optional, needed only for lanes in pull-request mode')
 }
 
-& $python (Join-Path $here 'kit_setup.py') @args
+# Windows PowerShell 5.1 passes 'D:\my proj\' (tab completion adds the backslash) as "D:\my proj\",
+# which Python reads as D:\my proj" : drop a trailing backslash from an argument with a space.
+$passed = @($args | ForEach-Object { if ($_ -match ' ' -and $_ -match '\\$') { $_.TrimEnd('\') } else { $_ } })
+& $python (Join-Path $here 'kit_setup.py') @passed
 exit $LASTEXITCODE

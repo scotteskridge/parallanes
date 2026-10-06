@@ -1,12 +1,16 @@
 """Which files the installer writes, and what happens to each one that already exists (decision 100).
 
 Everything is decided here, before anything is written, so `--dry-run` shows exactly what a real
-run does and a problem (a broken managed block) stops the install with nothing half-written.
+run does and a problem (a broken managed block, a folder or link in the way) stops the install
+with nothing half-written.
 
-- Kit-owned (`payload/kit-owned/`): created; replaced only if it still matches the manifest's hash
-  (nobody edited it); otherwise the new version goes beside it as `<name>.kit-new`.
+- Kit-owned (`payload/kit-owned/`): created; replaced only if it matches the hash the manifest
+  recorded when the kit wrote it (nobody edited it). Otherwise the owner's file stays and the kit's
+  version is offered beside it as `<name>.kit-new`.
 - Project-owned (`payload/templates/`, rendered): created once. A file the owner already had gets a
-  `.kit-new` beside it; a file an earlier install rendered is never touched again (decision 7).
+  `.kit-new`; a file an earlier install rendered is never touched again (decision 7).
+- A `.kit-new` is offered once per kit version: an existing one is never overwritten (the owner may
+  be mid-merge), and one the owner deleted isn't offered again until the kit's version changes.
 - `.gitignore`, `.gitattributes`, `.worktreeinclude`: the kit's lines live in a managed block.
 """
 
@@ -31,6 +35,20 @@ VERSION_REL = ".claude/kit/VERSION"
 _SKIP_PARTS = {"__pycache__"}
 _SKIP_NAMES = {"python-path"}
 
+# In .gitattributes later lines win, so a block after the owner's rules would override them (and
+# `* text=auto eol=lf` would renormalize a CRLF repo). When the owner has rules, the kit adds only
+# what its own scripts need (review round 1; the owner's call, flagged in the PR).
+OWNER_GITATTRIBUTES_BODY = """\
+# The kit's shell scripts must keep LF line endings, whatever the rest of the repository uses.
+.claude/kit/hook text eol=lf
+.claude/kit/kit text eol=lf
+.githooks/* text eol=lf
+"""
+
+
+class PlanError(ValueError):
+    """Something in the target makes a planned write unsafe; nothing has been written."""
+
 
 @dataclass
 class Write:
@@ -46,8 +64,10 @@ class FilePlan:
     writes: list = field(default_factory=list)
     unchanged: list = field(default_factory=list)
     kept: list = field(default_factory=list)  # project-owned files an earlier install rendered
-    files: dict = field(default_factory=dict)  # kit-owned rel -> sha256, for the manifest
+    notes: list = field(default_factory=list)  # things not written, and why
+    files: dict = field(default_factory=dict)  # kit-owned rel -> sha256 of what the kit wrote there
     templates: list = field(default_factory=list)  # project-owned rels the kit has rendered
+    offered: dict = field(default_factory=dict)  # rel -> sha256 of the .kit-new last offered for it
 
 
 def sha256(data: bytes) -> str:
@@ -55,7 +75,7 @@ def sha256(data: bytes) -> str:
 
 
 def kit_owned() -> dict:
-    """rel -> (bytes, mode) for every kit-owned file, plus VERSION."""
+    """rel -> (bytes, mode) for every kit-owned file."""
     found = {}
     for path in sorted(KIT_OWNED.rglob("*")):
         rel = path.relative_to(KIT_OWNED)
@@ -86,64 +106,99 @@ def rendered_templates(values: dict) -> dict:
 
 
 def build(target: Path, values: dict, previous: dict) -> FilePlan:
-    """previous: the manifest an earlier install wrote, or {}."""
+    """previous: the manifest an earlier install wrote (already checked), or {}."""
     plan = FilePlan()
     recorded = previous.get("files", {})
+    offered = previous.get("offered", {})
     owned = kit_owned()
     owned[VERSION_REL] = ((values["kit_version"] + "\n").encode("utf-8"), None)
     for rel, (data, mode) in owned.items():
-        current = _read(target / rel)
-        plan.files[rel] = sha256(data)
+        current = _read(target, rel)
         if current is None:
+            plan.files[rel] = sha256(data)
             plan.writes.append(Write(rel, data, "create", mode))
         elif current == data:
+            plan.files[rel] = sha256(data)
             plan.unchanged.append(rel)
-        elif recorded.get(rel) == sha256(current):
+        elif rel in recorded and recorded[rel] == sha256(current):
+            plan.files[rel] = sha256(data)
             plan.writes.append(Write(rel, data, "replace", mode))
         else:
-            plan.files[rel] = recorded.get(rel, sha256(current))  # still the edited one's record
-            plan.writes.append(_kit_new(target, rel, data, mode, "edited since install; yours is kept"))
+            # The owner's file (or their edit of the kit's): keep whatever the kit last wrote on
+            # record, and never the owner's hash, or a re-run would "replace" their file.
+            if rel in recorded:
+                plan.files[rel] = recorded[rel]
+            why = "edited since install" if rel in recorded else "exists"
+            _offer(plan, target, rel, data, mode, offered, f"{why}; yours is kept")
 
     rendered_before = set(previous.get("templates", []))
     for rel, data in rendered_templates(values).items():
-        plan.templates.append(rel)
-        current = _read(target / rel)
+        current = _read(target, rel)
         if rel in BLOCK_FILES:
-            try:
-                merged = blocks.merge(_text(current, rel), data.decode("utf-8"))
-            except blocks.BlockError as error:
-                raise blocks.BlockError(f"{rel}: {error}") from None
-            if current is not None and merged.encode("utf-8") == current:
-                plan.unchanged.append(rel)
-            else:
-                plan.writes.append(Write(rel, merged.encode("utf-8"), "block" if current else "create"))
+            plan.templates.append(rel)
+            _block(plan, rel, current, data.decode("utf-8"))
         elif current is None:
+            plan.templates.append(rel)
             plan.writes.append(Write(rel, data, "create"))
         elif current == data:
+            plan.templates.append(rel)
             plan.unchanged.append(rel)
         elif rel in rendered_before:
+            plan.templates.append(rel)
             plan.kept.append(rel)  # project-owned: rendered once, then the project's
         else:
-            plan.templates.remove(rel)  # the owner's file, not one the kit rendered
-            plan.writes.append(_kit_new(target, rel, data, None, "exists; yours is kept"))
+            _offer(plan, target, rel, data, None, offered, "exists; yours is kept")
     return plan
 
 
-def _kit_new(target: Path, rel: str, data: bytes, mode, note: str) -> Write:
-    return Write(rel + ".kit-new", data, "kit-new", mode, note)
-
-
-def _read(path: Path) -> bytes | None:
-    return path.read_bytes() if path.is_file() else None
-
-
-def _text(data: bytes | None, rel: str) -> str:
-    if data is None:
-        return ""
+def _block(plan: FilePlan, rel: str, current: bytes | None, body: str) -> None:
     try:
-        return data.decode("utf-8-sig")
+        text = "" if current is None else current.decode("utf-8")  # a BOM stays part of the text
+        if rel == ".gitattributes" and blocks.outside(text):
+            body = OWNER_GITATTRIBUTES_BODY
+        merged = blocks.merge(text, body).encode("utf-8")
     except UnicodeDecodeError:
-        raise blocks.BlockError("not UTF-8 text, so the kit can't add its lines") from None
+        raise PlanError(f"{rel}: not UTF-8 text, so the kit can't add its lines") from None
+    except blocks.BlockError as error:
+        raise PlanError(f"{rel}: {error}") from None
+    if merged == current:
+        plan.unchanged.append(rel)
+    else:
+        plan.writes.append(Write(rel, merged, "block" if current is not None else "create"))
+
+
+def _offer(plan: FilePlan, target: Path, rel: str, data: bytes, mode, offered: dict, note: str) -> None:
+    new_rel = rel + ".kit-new"
+    existing = _read(target, new_rel)
+    digest = sha256(data)
+    plan.offered[rel] = digest
+    if existing == data:
+        plan.unchanged.append(new_rel)
+    elif existing is not None:
+        plan.notes.append(f"{new_rel} kept as it is: it differs from the kit's version (delete it to get a new one)")
+    elif offered.get(rel) == digest:
+        pass  # offered before and deleted by the owner: not again until the kit's version changes
+    else:
+        plan.writes.append(Write(new_rel, data, "kit-new", mode, f"{rel} {note}"))
+
+
+def check_path(target: Path, rel: str) -> None:
+    """A planned file must not be a folder, and nothing on its way may be a link: the kit never
+    writes outside the project through one."""
+    path = target
+    for part in Path(rel).parts:
+        path = path / part
+        if path.is_symlink():
+            shown = path.relative_to(target).as_posix()
+            raise PlanError(f"{rel}: {shown} is a symbolic link; the installer doesn't write through links")
+    if path.is_dir():
+        raise PlanError(f"{rel}: a folder is where the kit's file goes; move it, then run the installer again")
+
+
+def _read(target: Path, rel: str) -> bytes | None:
+    check_path(target, rel)
+    path = target / rel
+    return path.read_bytes() if path.is_file() else None
 
 
 def apply(target: Path, plan: FilePlan) -> None:

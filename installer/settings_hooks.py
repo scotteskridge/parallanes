@@ -10,8 +10,6 @@ reviewer's guard already runs live; whether placeholders expand in the exec-form
 documented, so it isn't used.
 """
 
-import json
-
 TOOLS_THAT_EDIT = "Edit|Write|MultiEdit|NotebookEdit"
 TIMEOUT = 30  # seconds; the default is 600, and a stuck hook shouldn't stall a session that long
 
@@ -37,37 +35,55 @@ def expected() -> dict:
 
 
 class HooksError(ValueError):
-    """settings.json's hooks aren't in the shape Claude Code reads; left untouched."""
+    """settings.json's hooks, or the manifest's record of them, aren't in the expected shape."""
+
+
+def _commands(group: dict) -> set:
+    return {hook.get("command") for hook in group.get("hooks", []) if isinstance(hook, dict)}
+
+
+def _check(hooks, recorded) -> None:
+    if not isinstance(hooks, dict) or not all(
+        isinstance(groups, list) and all(isinstance(group, dict) for group in groups) for groups in hooks.values()
+    ):
+        raise HooksError('.claude/settings.json: "hooks" must map event names to lists of hook groups')
+    if not isinstance(recorded, list) or not all(
+        isinstance(entry, dict) and isinstance(entry.get("event"), str) and isinstance(entry.get("group"), dict)
+        for entry in recorded
+    ):
+        raise HooksError('.claude/kit/manifest.json: "hooks" must be a list of {"event", "group"} entries')
 
 
 def merge(settings: dict, recorded: list) -> list:
-    """Update settings in place; return the new record of groups the kit wrote."""
+    """Update settings in place; return the new record of groups the kit wrote.
+
+    A kit group is found by its command, so one the owner edited (a longer timeout) still counts as
+    present and isn't added again. Only an unedited copy of a group the kit no longer wants is removed.
+    """
     hooks = settings.get("hooks", {})
-    if not isinstance(hooks, dict) or not all(isinstance(groups, list) for groups in hooks.values()):
-        raise HooksError('.claude/settings.json: "hooks" must map event names to lists')
+    _check(hooks, recorded)
     wanted = expected()
-    record = []
+    wanted_keys = {(event, command) for event, groups in wanted.items() for g in groups for command in _commands(g)}
     for entry in recorded:
         event, group = entry["event"], entry["group"]
+        stale = not any((event, command) in wanted_keys for command in _commands(group))
         groups = hooks.get(event, [])
-        if group not in wanted.get(event, []) and group in groups:
-            groups.remove(group)  # the first copy: the one the kit added
+        if stale and group in groups:
+            groups.remove(group)
             if not groups:
                 del hooks[event]
-    recorded_now = {(entry["event"], _key(entry["group"])) for entry in recorded}
+    recorded_keys = {(entry["event"], command) for entry in recorded for command in _commands(entry["group"])}
+    record = []
     for event, groups in wanted.items():
         present = hooks.setdefault(event, [])
         for group in groups:
-            if group not in present:
+            (command,) = _commands(group)
+            if not any(command in _commands(other) for other in present):
                 present.append(group)
                 record.append({"event": event, "group": group})
-            elif (event, _key(group)) in recorded_now:
+            elif (event, command) in recorded_keys:
                 record.append({"event": event, "group": group})
-            # else: the owner wrote the same group; it stays theirs and unrecorded
+            # else: the owner wrote a group running the same command; it stays theirs and unrecorded
     if hooks:
         settings["hooks"] = hooks
     return record
-
-
-def _key(group: dict) -> str:
-    return json.dumps(group, sort_keys=True)

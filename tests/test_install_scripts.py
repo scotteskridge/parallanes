@@ -47,7 +47,8 @@ def test_install_sh_skips_a_python_that_does_not_run(tmp_path):
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert marker.exists()  # the stub was tried
-    assert (target / ".claude" / "kit" / "python-path").read_text(encoding="utf-8").strip()
+    recorded = (target / ".claude" / "kit" / "python-path").read_text(encoding="utf-8").strip()
+    assert same_file(recorded, sys.executable)
     assert (target / "AGENTS.md").is_file()
 
 
@@ -66,33 +67,74 @@ def test_install_sh_without_any_python_says_what_to_install(tmp_path):
     assert "Python 3.11" in result.stderr
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="install.ps1 is for Windows")
-def test_install_ps1_skips_the_store_alias(tmp_path):
-    store = tmp_path / "Microsoft" / "WindowsApps"
-    store.mkdir(parents=True)
-    marker = tmp_path / "alias ran"
-    (store / "python.cmd").write_text(f'@echo off\r\ntype nul > "{marker}"\r\nexit /b 9009\r\n', encoding="utf-8")
-    target = tmp_path / "my project"
+def same_file(a, b):
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
 
-    result = subprocess.run(
-        [
-            "powershell",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(ROOT / "install.ps1"),
-            "--target",
-            str(target),
-            "--yes",
-        ],
-        env={**os.environ, "PATH": path_with(store, Path(sys.executable).parent)},
+
+def windows_path(*folders):
+    """Only these folders, git's, sh's and System32: no C:\\Windows\\py.exe to find first."""
+    keep = [*folders, Path(shutil.which("git")).parent, Path(os.environ["SystemRoot"]) / "System32"]
+    if shutil.which("sh"):
+        keep.append(Path(shutil.which("sh")).parent)
+    return os.pathsep.join(str(folder) for folder in keep)
+
+
+def install_ps1(target, path, *extra):
+    script = str(ROOT / "install.ps1")
+    return subprocess.run(
+        [shutil.which("powershell"), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script]
+        + ["--target", str(target), "--yes", *extra],
+        env={**os.environ, "PATH": path},
         capture_output=True,
         text=True,
     )
 
+
+def cmd_file(path, *lines):
+    path.write_bytes(("\r\n".join(["@echo off", *lines]) + "\r\n").encode("utf-8"))
+
+
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="install.ps1 is for Windows")
+
+
+@windows_only
+def test_install_ps1_skips_a_python_that_does_not_run(tmp_path):
+    """The Store alias stand-in exits 9009; the probe moves on to the real interpreter."""
+    store = tmp_path / "WindowsApps"
+    store.mkdir()
+    marker = tmp_path / "alias ran"
+    cmd_file(store / "python.cmd", f'type nul > "{marker}"', "exit /b 9009")
+    real = tmp_path / "real"
+    real.mkdir()
+    cmd_file(real / "python3.cmd", f'"{sys.executable}" %*')
+    target = tmp_path / "my project"
+
+    result = install_ps1(target, windows_path(store, real))
+
     assert result.returncode == 0, result.stdout + result.stderr
-    assert not marker.exists()
+    assert marker.exists()  # tried, and skipped because it didn't run
     recorded = (target / ".claude" / "kit" / "python-path").read_text(encoding="utf-8").strip()
-    assert "WindowsApps" not in recorded
+    assert same_file(recorded, sys.executable)
+
+
+@windows_only
+def test_install_ps1_accepts_a_working_python_under_windowsapps(tmp_path):
+    """python.org's install manager and Store Python put real, working pythons there (review round 1)."""
+    store = tmp_path / "Microsoft" / "WindowsApps"
+    store.mkdir(parents=True)
+    cmd_file(store / "python.cmd", f'"{sys.executable}" %*')
+    target = tmp_path / "my project"
+    result = install_ps1(target, windows_path(store))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert same_file((target / ".claude/kit/python-path").read_text(encoding="utf-8").strip(), sys.executable)
+
+
+@windows_only
+def test_install_ps1_takes_a_target_with_a_trailing_backslash(tmp_path):
+    """Tab completion adds one; PowerShell 5.1 then passes `"D:\\my proj\\"`, which Python reads as
+    `D:\\my proj"` (review round 1)."""
+    target = tmp_path / "my project"
+    target.mkdir()
+    result = install_ps1(str(target) + "\\", windows_path(Path(sys.executable).parent))
+    assert result.returncode == 0, result.stdout + result.stderr
     assert (target / "AGENTS.md").is_file()

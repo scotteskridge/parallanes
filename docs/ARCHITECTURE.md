@@ -338,11 +338,13 @@ install.ps1 / install.sh
           1. detect defaults: folder name, stack and test command from marker files, the
              integration branch from git; an earlier install's answers (in the manifest) win
           2. ask five values and whether to turn on the pre-commit check (decision 101)
-          3. plan every write; a broken managed block stops here with nothing written
+          3. plan every write; a broken managed block or manifest, a folder or a symbolic link in
+             the way stops here with nothing written
           4. print the plan; --dry-run stops here
           5. write: kit-owned files (replaced only if unedited, else `.kit-new`), templates
-             (an owner's existing file gets a `.kit-new`; one the kit rendered before is left
-             alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude, deny rules and
+             (an owner's existing file gets a `.kit-new`, offered once; one the kit rendered before
+             is left alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude (only the
+             kit's own `eol=lf` lines when the owner has a .gitattributes), deny rules and
              hooks merged into settings.json, python-path, manifest (decision 100)
           6. print next steps: accept the trust dialog, review .kit-new files, fill TODOs, lanes
 /onboard (v0.2, agentic): stack, test command, rules files, lane split → owner approves → written
@@ -412,7 +414,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows); plan 07 drove `lanes start`/`finish` through the skills in headless sessions (local mode, and PR mode against a local origin with a stand-in `gh`). Not yet shown live: the skills opening a real GitHub PR, a project without lanes, a sync conflict during `/wrap-up`, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 11 |
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps have the owner open Claude Code in the project once and accept the trust dialog (done in plan 08); evals (plan 11) must trust their folder first | plan 11 |
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. **Plan 08:** `install.ps1` requires Git for Windows' `sh` (decision 99) and writes `.claude/kit/python-path`; which shell runs a hook by default on Windows still isn't documented. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 11 |
-| ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 08 |
+| ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | — |
 | ~~The installer writes and gitignores `.claude/kit/python-path`~~ Done in plan 08; `.worktreeinclude` copies it into each lane | — |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 

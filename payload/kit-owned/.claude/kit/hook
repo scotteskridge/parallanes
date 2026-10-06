@@ -19,14 +19,20 @@ fi
 if [ -z "$python" ]; then
     python=$(command -v python3 || command -v python)
 fi
-if [ -z "$python" ] || ! [ -x "$python" ]; then
-    message="kit hook $1: no Python found; record one in .claude/kit/python-path"
+fail() {
     if [ "$failure" -eq 2 ]; then
-        echo "Blocked: $message" >&2
+        echo "Blocked: kit hook $1: $2" >&2
     else
-        echo "$message (this hook fails open: nothing was blocked)" >&2
+        echo "kit hook $1: $2 (this hook fails open: nothing was blocked)" >&2
     fi
     exit "$failure"
+}
+if [ -z "$python" ] || ! [ -x "$python" ]; then
+    fail "$1" "no Python found; re-run the kit's installer, or record one in .claude/kit/python-path"
+fi
+# Checked here because Python itself exits 2 when it can't open the script: a block in PreToolUse.
+if ! [ -f "$kit/cli.py" ]; then
+    fail "$1" "$kit/cli.py is missing; re-run the kit's installer"
 fi
 
 "$python" "$kit/cli.py" hook "$@"

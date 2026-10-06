@@ -112,7 +112,7 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
 
 ## Notes after implementation
 - **Layout:** `kit_setup.py` plus an `installer/` package (`values`, `plan`, `blocks`,
-  `settings_hooks`, `main`), importing kitlib straight from the payload. Everything is planned
+  `settings_hooks`, `main`, `report`), importing kitlib straight from the payload. Everything is planned
   before anything is written, so `--dry-run` and the real run print the same list, and a broken
   managed block stops the install with nothing written.
 - **Project-owned files on a re-run:** the manifest also lists the templates the kit rendered, so a
@@ -120,9 +120,21 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
   owner had *before* the kit gets a `.kit-new`. The manifest keeps the answers too, so a re-run
   renders the same files (the install date included).
 - **Python:** `python-path` holds the interpreter that ran the installer (`sys.executable`). The
-  bootstrappers pick it by running each candidate; `install.ps1` also skips anything under
-  `WindowsApps` without running it, and lets the `py` launcher report the real interpreter it chose.
-- **New folder:** no `git init`; the next steps say to run it and turn on the pre-commit check.
+  bootstrappers pick it by running each candidate, and the `py` launcher reports the real
+  interpreter it chose. Nothing is skipped by path: review round 1 found real pythons under
+  `WindowsApps` (python.org's install manager, Store Python), and the alias fails the probe anyway.
+- **New folder:** no `git init`; the next steps say to run it and turn on the pre-commit check. A
+  subfolder of a repo gets no pre-commit and no `git init` advice; the owner's own hooks in
+  `.git/hooks` keep the pre-commit check off (`core.hooksPath` would switch them off).
+- **Review round 1** (repo `reviewer` plus a general-purpose reviewer; both found the 🔴): a file the
+  owner had at a kit-owned path got the *owner's* hash recorded, so the second run replaced it.
+  Fixed with 36 tests written first (all failing on the round-1 code), split into
+  `test_installer_units.py`, `test_installer_safety.py` and the ps1 tests. Also: `.kit-new`
+  offered once, a broken manifest stops, hook groups found by command, the launcher fails open on a
+  missing `cli.py`, `.gitignore` covers bytecode and `*.kit-new`, the dry run lists every file, BOM
+  and mixed endings kept, the kit repo itself refused as a target, next steps read the files.
+  `.gitattributes` with the owner's rules gets only the kit's `eol=lf` lines (decision 100, flagged
+  for the owner).
 - **`.claude/kit/VERSION`** is written as a kit-owned file, as ARCHITECTURE §4 lists it.
 - **Live check** (`tests/live/test_installed_kit.py`, Windows, Claude Code with haiku): all four
   hooks fired from the installed `settings.json`, the protected hook blocked a `cp` into `vendor/`

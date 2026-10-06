@@ -20,6 +20,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      A kit-owned file is replaced only if it still matches the manifest; an edited one gets a
      `.kit-new`. So a re-run is safe. *Why:* a prompt per file is slow and easy to answer wrongly,
      and `--dry-run` already shows every case.
+     *Refined in review round 1:* a `.kit-new` is offered once per kit version (one already there
+     is never overwritten; one the owner deleted isn't offered again); a broken manifest stops the
+     install, since it is what keeps a re-run from replacing the owner's files; a kit hook group is
+     found by its command, so an owner's edit to it isn't duplicated. **Needs the owner's OK:** when
+     the owner already has a `.gitattributes`, the kit's block holds only `eol=lf` for its own
+     scripts, not `* text=auto eol=lf`, because later lines win there and that line would override
+     the owner's rules and renormalize a CRLF repository.
 
 99. **Everyone runs the kit as `sh .claude/kit/kit` (`{{kit_command}}`); no shims at the project
     root.** On Windows the installer requires Git for Windows' `sh`. *Why:* the skills already use

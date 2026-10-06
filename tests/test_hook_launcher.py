@@ -58,3 +58,13 @@ def test_other_hooks_pass_a_crash_through_as_a_non_blocking_error(tmp_path, name
 def test_other_hooks_keep_their_own_answers(tmp_path, name):
     result = run(launcher(tmp_path, sys.executable, cli="raise SystemExit(2)\n"), name)
     assert result.returncode == 2  # an answer the hook gave on purpose (e.g. a block it decided)
+
+
+@pytest.mark.parametrize("name", FAIL_OPEN + FAIL_CLOSED)
+def test_a_missing_cli_never_turns_into_a_fail_open_block(tmp_path, name):
+    """Python itself exits 2 when it can't open the script: for the fail-open hooks that would be a
+    block in PreToolUse (review round 1)."""
+    kit = launcher(tmp_path, sys.executable)  # no cli.py
+    result = run(kit, name)
+    assert result.returncode == (2 if name in FAIL_CLOSED else 1)
+    assert "cli.py" in result.stderr

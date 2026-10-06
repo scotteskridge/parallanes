@@ -15,46 +15,69 @@ from kitlib import config as kit_config
 from kitlib import render
 from kitlib import settings as kit_settings
 
-from . import blocks, plan, settings_hooks, values
+from . import plan, report, settings_hooks, values
 
 MANIFEST_REL = ".claude/kit/manifest.json"
 PYTHON_PATH_REL = ".claude/kit/python-path"
 HOOKS_PATH = ".githooks"
+STOPS = (
+    plan.PlanError,
+    kit_config.ConfigError,
+    kit_settings.SettingsError,
+    settings_hooks.HooksError,
+    render.TemplateError,
+)
+
+
+class ManifestError(ValueError):
+    """manifest.json can't be trusted; without it a re-run could overwrite the owner's files."""
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     target = Path(args.target).absolute()
+    try:
+        _check_target(target)
+        previous = read_manifest(target)
+    except (ManifestError, plan.PlanError) as error:
+        return _stop(error)
     print(f"Installing claude-code-lanes-starter into {target}")
     print(f"Python: {sys.executable}")
-    previous = _read_json(target / MANIFEST_REL)
-    defaults = values.detect(target, previous.get("values", {}))
-    is_repo = (target / ".git").exists()
+    repo = report.repo_root(target)
+    answers = values.detect(target, previous.get("values", {}))
+    saved = previous.get("values", {})
     try:
-        answers = defaults if args.yes else {**defaults, **values.ask(defaults)}
-        want_precommit = is_repo and (args.yes or values.confirm("Run the kit's checks before each commit?", True))
+        if saved:
+            # A re-run renders the same files, and never undoes an earlier "no" to the pre-commit check.
+            print("Using the answers from the earlier install (.claude/kit/manifest.json).")
+            precommit_answer = saved.get("precommit", "yes")
+        else:
+            if not args.yes:
+                answers.update(values.ask(answers))
+            asked = repo == target and not args.yes
+            yes = not asked or values.confirm("Run the kit's checks before each commit?", True)
+            precommit_answer = "yes" if yes else "no"
     except EOFError:
-        print("kit setup: no answer (input closed); run with --yes to take the defaults", file=sys.stderr)
-        return 2
+        return _stop("no answer (input closed); run with --yes to take the defaults")
+    answers["precommit"] = precommit_answer
+    want_precommit = repo == target and precommit_answer == "yes"
     answers["kit_version"] = _kit_version()
 
     try:
         files = plan.build(target, answers, previous)
         settings_change = _plan_settings(target, files, previous)
-    except (
-        blocks.BlockError,
-        kit_config.ConfigError,
-        kit_settings.SettingsError,
-        settings_hooks.HooksError,
-        render.TemplateError,
-    ) as error:
-        print(f"kit setup: stopped, nothing written: {error}", file=sys.stderr)
-        return 2
-    precommit = _plan_precommit(target, is_repo, want_precommit)
-    python_path = f"{sys.executable}\n".encode()
-    manifest = _manifest(answers, files, settings_change["hooks"])
+        for rel in (PYTHON_PATH_REL, MANIFEST_REL):
+            plan.check_path(target, rel)
+    except STOPS as error:
+        return _stop(error)
+    precommit = _plan_precommit(target, repo, want_precommit)
+    extra = {
+        PYTHON_PATH_REL: f"{sys.executable}\n".encode(),
+        MANIFEST_REL: _manifest(answers, files, settings_change["hooks"]),
+    }
+    extra = {rel: data for rel, data in extra.items() if _read(target / rel) != data}
 
-    _print_plan(target, files, settings_change, precommit)
+    report.plan(files, settings_change, extra, precommit)
     if args.dry_run:
         print("\nDry run: nothing was written.")
         return 0
@@ -62,11 +85,12 @@ def main(argv=None) -> int:
     target.mkdir(parents=True, exist_ok=True)
     plan.apply(target, files)
     settings_change["apply"]()
-    _write_if_changed(target / PYTHON_PATH_REL, python_path)
-    _write_if_changed(target / MANIFEST_REL, manifest)
+    for rel, data in extra.items():
+        (target / rel).parent.mkdir(parents=True, exist_ok=True)
+        (target / rel).write_bytes(data)
     if precommit == "set":
         subprocess.run(["git", "config", "core.hooksPath", HOOKS_PATH], cwd=target, check=True)
-    _print_next_steps(target, files, answers, precommit)
+    report.next_steps(target, files, precommit)
     return 0
 
 
@@ -78,54 +102,120 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _stop(error) -> int:
+    print(f"kit setup: stopped, nothing written: {error}", file=sys.stderr)
+    return 2
+
+
+def _check_target(target: Path) -> None:
+    if target.exists() and not target.is_dir():
+        raise plan.PlanError(f"{target} is not a folder")
+    if target.exists() and target.resolve() == plan.PAYLOAD.parent.resolve():
+        raise plan.PlanError(f"{target} is the kit's own repository; pass --target <your project folder>")
+
+
 def _kit_version() -> str:
     pyproject = plan.PAYLOAD.parent / "pyproject.toml"
     return tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
 
 
-def _read_json(path: Path) -> dict:
+def _read(path: Path) -> bytes | None:
+    return path.read_bytes() if path.is_file() else None
+
+
+def _strings(value) -> bool:
+    return all(isinstance(item, str) for item in value)
+
+
+_MANIFEST_SHAPE = {
+    "values": lambda v: isinstance(v, dict) and _strings(v.values()),
+    "files": lambda v: isinstance(v, dict) and _strings(v.values()),
+    "offered": lambda v: isinstance(v, dict) and _strings(v.values()),
+    "templates": lambda v: isinstance(v, list) and _strings(v),
+    "hooks": lambda v: isinstance(v, list),  # entries are checked by settings_hooks
+}
+
+
+def read_manifest(target: Path) -> dict:
+    """The earlier install's record, or {} if there was none. A broken one stops the install: it is
+    what keeps a re-run from overwriting the owner's files and duplicating hooks."""
+    path = target / MANIFEST_REL
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
-    except (ValueError, OSError):
-        return {}  # a broken manifest only loses re-run memory: every kit file is then treated as edited
-    return data if isinstance(data, dict) else {}
+    except (ValueError, OSError) as error:
+        raise ManifestError(f"{MANIFEST_REL} can't be read ({error}); fix it or delete it") from None
+    if not isinstance(data, dict):
+        raise ManifestError(f"{MANIFEST_REL}: expected a JSON object; fix it or delete it")
+    for key, valid in _MANIFEST_SHAPE.items():
+        if key in data and not valid(data[key]):
+            raise ManifestError(f"{MANIFEST_REL}: {key!r} has the wrong shape; fix it or delete it")
+    try:
+        settings_hooks.merge({}, data.get("hooks", []))  # checks the entries' shape
+    except settings_hooks.HooksError as error:
+        raise ManifestError(f"{error}; fix it or delete it") from None
+    return data
 
 
 def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
     """Deny and ask rules from the kit.toml in effect (the owner's if they kept one), plus the hooks."""
     existing = target / ".claude" / "kit.toml"
     if existing.is_file():
-        text = existing.read_text(encoding="utf-8")
+        try:
+            text = existing.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            raise kit_config.ConfigError(".claude/kit.toml: not UTF-8 text") from None
     else:
         text = next(w.data for w in files.writes if w.rel == ".claude/kit.toml").decode("utf-8")
+    for rel in (kit_settings.SETTINGS_REL, kit_settings.RECORD_REL):
+        plan.check_path(target, rel.as_posix())
     sync = kit_settings.plan_sync(target, kit_config.parse(text))
     before = json.dumps(kit_settings.read_json(target / kit_settings.SETTINGS_REL, "settings.json"), sort_keys=True)
-    record = settings_hooks.merge(sync.settings, previous.get("hooks", []))
+    old_record = previous.get("hooks", [])
+    record = settings_hooks.merge(sync.settings, old_record)
     changed = json.dumps(sync.settings, sort_keys=True) != before
-    added_hooks = len([e for e in record if e not in previous.get("hooks", [])])
+    writes_record = sync.record_changed or sync.settings_changed
 
     def apply():
         if changed:
             kit_settings.write_json(target / kit_settings.SETTINGS_REL, sync.settings, sync.style)
-        if sync.record_changed or sync.settings_changed:
+        if writes_record:
             kit_settings.write_json(target / kit_settings.RECORD_REL, sync.record, kit_settings.Style())
 
-    rules = sum(len(added) for added in sync.added.values())
-    return {"changed": changed, "rules": rules, "added_hooks": added_hooks, "hooks": record, "apply": apply}
+    return {
+        "changed": changed,
+        "writes_record": writes_record,
+        "rules": sum(len(added) for added in sync.added.values()),
+        "added_hooks": len([entry for entry in record if entry not in old_record]),
+        "hooks": record,
+        "apply": apply,
+    }
 
 
-def _plan_precommit(target: Path, is_repo: bool, wanted: bool) -> str:
-    if not is_repo:
+def _plan_precommit(target: Path, repo: Path | None, wanted: bool) -> str:
+    if repo is None:
         return "no-repo"
+    if repo != target:
+        return "subfolder"
     if not wanted:
         return "declined"
-    result = subprocess.run(["git", "config", "--get", "core.hooksPath"], cwd=target, capture_output=True, text=True)
-    current = result.stdout.strip()
+    current = _git(target, "config", "--get", "core.hooksPath")
     if current == HOOKS_PATH:
         return "already"
-    return "other:" + current if current else "set"
+    if current:
+        return "other:" + current
+    # core.hooksPath replaces .git/hooks entirely: the owner's own hooks there would stop running.
+    hooks = target / _git(target, "rev-parse", "--git-path", "hooks")
+    own = []
+    if hooks.is_dir():
+        own = sorted(path.name for path in hooks.iterdir() if path.is_file() and not path.name.endswith(".sample"))
+    return "own-hooks:" + ", ".join(own) if own else "set"
+
+
+def _git(target: Path, *args: str) -> str:
+    result = subprocess.run(["git", *args], cwd=target, capture_output=True, text=True)
+    return result.stdout.strip()
 
 
 def _manifest(answers: dict, files: plan.FilePlan, hooks: list) -> bytes:
@@ -134,59 +224,7 @@ def _manifest(answers: dict, files: plan.FilePlan, hooks: list) -> bytes:
         "values": {key: answers[key] for key in sorted(answers) if key != "kit_version"},
         "files": dict(sorted(files.files.items())),
         "templates": sorted(files.templates),
+        "offered": dict(sorted(files.offered.items())),
         "hooks": hooks,
     }
     return (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
-
-
-def _write_if_changed(path: Path, data: bytes) -> None:
-    if not path.is_file() or path.read_bytes() != data:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-
-
-def _print_plan(target: Path, files: plan.FilePlan, settings_change: dict, precommit: str) -> None:
-    print()
-    for write in files.writes:
-        note = f"  ({write.note})" if write.note else ""
-        print(f"  {write.kind:<8} {write.rel}{note}")
-    if settings_change["changed"]:
-        print(
-            f"  settings .claude/settings.json  (+{settings_change['rules']} permission rules, "
-            f"+{settings_change['added_hooks']} hooks; your entries are kept)"
-        )
-    if files.unchanged or files.kept:
-        print(f"  {len(files.unchanged)} files already up to date; {len(files.kept)} project files left as they are")
-    messages = {
-        "set": "git config core.hooksPath .githooks (the pre-commit check)",
-        "already": "",
-        "declined": "pre-commit check not turned on (you said no)",
-        "no-repo": "pre-commit check not turned on: not a git repository",
-    }
-    message = messages.get(precommit, f"pre-commit check not turned on: core.hooksPath is already {precommit[6:]!r}")
-    if message:
-        print(f"  {message}")
-
-
-def _print_next_steps(target: Path, files: plan.FilePlan, answers: dict, precommit: str) -> None:
-    steps = [
-        f"Open Claude Code in {target} once and accept the folder trust dialog: until you do, the "
-        "reviewer agent runs without its read-only guard.",
-    ]
-    kit_new = [w.rel for w in files.writes if w.kind == "kit-new"]
-    if kit_new:
-        steps.append("Compare each .kit-new file with yours, take what you want, then delete it: " + ", ".join(kit_new))
-    if not answers["test_command"]:
-        steps.append("Set test_command in .claude/kit.toml: tasks can't finish without it.")
-    if answers["project_description"] == values.TODO_DESCRIPTION or answers["stack"] == values.TODO_STACK:
-        steps.append("Replace the TODO lines in AGENTS.md.")
-    if precommit == "no-repo":
-        steps.append("Not a git repository yet: run `git init`, then `git config core.hooksPath .githooks`.")
-    steps.append(
-        "For parallel lanes, add [[lanes]] tables to .claude/kit.toml (docs/ai/parallel-lanes.md), then run "
-        f"`{values.KIT_COMMAND} lanes create`."
-    )
-    steps.append("Commit the kit's files (python-path stays out: it's this machine's).")
-    print("\nNext:")
-    for number, step in enumerate(steps, start=1):
-        print(f"  {number}. {step}")
