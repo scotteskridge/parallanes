@@ -19,10 +19,11 @@ def config(mode="pr"):
     return SimpleNamespace(lane_settings=SimpleNamespace(merge_mode=mode, integration_branch="main"))
 
 
-# ---- lane_cycle._clean: one `git status --porcelain -z` ------------------------------------------
+# ---- lane_cycle._clean and lanes.changes: one `git status --porcelain -z` ----------------------
 
 def clean(monkeypatch, status_output):
-    monkeypatch.setattr(lane_cycle, "_git", lambda top, *args, **kwargs: status_output)
+    # The parser is lanes.changes, shared with `kit next`; it reads git through lanes.git.
+    monkeypatch.setattr(lanes, "git", lambda top, *args, **kwargs: status_output)
     return lane_cycle._clean(Path("."))
 
 

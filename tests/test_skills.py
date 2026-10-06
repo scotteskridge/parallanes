@@ -137,7 +137,10 @@ def test_skill_step0_lane_check(path):
     step0 = re.search(r"^## 0\. .*?(?=^## 1\. )", text, re.MULTILINE | re.DOTALL)
     assert step0, "step 0 is the lane check"
     assert "sh .claude/kit/kit next" in step0.group(0)
-    for case in ("`Here: lane", "`Here: main checkout`", "`a worktree that isn't a lane`", "`Here: not a lane`"):
+    from kitlib import next_facts  # the labels `kit next` really prints
+
+    for case in (f"`Here: {next_facts.HERE_LANE} ", f"`Here: {next_facts.HERE_MAIN}`",
+                 f"`{next_facts.HERE_OTHER_WORKTREE}`", f"`Here: {next_facts.HERE_NO_LANES}`"):
         assert case in step0.group(0), f"step 0 must cover {case}"
 
 
@@ -146,11 +149,14 @@ def test_every_kit_call_goes_through_the_launcher(path):
     """Otherwise a call slips past test_skill_commands_exist: `python .claude/kit/cli.py`,
     `{{kit_command}}` (not rendered in kit-owned files) or a bare `kit lanes ...`."""
     text = body(path)
-    spans = re.findall(r"`([^`\n]+)`", text) + re.findall(r"^\s*(sh .*|kit .*|python .*)$", text, re.MULTILINE)
+    fenced_lines = [line.strip() for block in re.findall(r"^\s*```\n(.*?)^\s*```", text, re.MULTILINE | re.DOTALL)
+                    for line in block.splitlines()]
+    spans = re.findall(r"`([^`\n]+)`", text) + fenced_lines
     for span in spans:
         if span in ("kit next", "kit lanes start", "kit lanes finish"):
             continue  # the command's name in prose, not a call
-        if ".claude/kit/" in span or span.startswith(("kit ", "python ")) or "{{" in span:
+        # What identifies the kit, not the interpreter: `python -m pytest` is fine to mention.
+        if re.search(r"\.claude/kit/|\bcli\.py\b|\{\{kit_command\}\}", span) or span.startswith("kit "):
             assert span.startswith("sh .claude/kit/kit "), f"/{path.parent.name}: `{span}` doesn't use the launcher"
 
 
@@ -198,3 +204,19 @@ def test_skills_that_write_files_say_edit_or_write(skill):
     """Live run: agents changed files with heredocs, sed and `python -`, which the ownership hook
     (Edit|Write|MultiEdit|NotebookEdit) never sees."""
     assert "with Edit or Write, never shell redirects" in body(SKILLS / skill / "SKILL.md")
+
+
+def test_wrap_up_commits_rules_after_the_task():
+    """Review round 1: a rule written in step 4 would sit uncommitted beside the task's commit."""
+    text = body(SKILLS / "wrap-up" / "SKILL.md")
+    assert "Write nothing yet" in text
+    step6 = text.split("## 6.", 1)[1]
+    assert step6.index("commit them on their own") < step6.index("lanes finish")
+
+
+def test_implement_lists_every_default_shared_path():
+    from kitlib.config import DEFAULT_SHARED_PATHS
+
+    text = body(SKILLS / "implement" / "SKILL.md")
+    for shared in DEFAULT_SHARED_PATHS:
+        assert f"`{shared.removesuffix('**')}`" in text, f"/implement doesn't name {shared} as shared"

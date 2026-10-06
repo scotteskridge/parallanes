@@ -227,17 +227,7 @@ def _clean(top: Path) -> list[str]:
     would push an agent to `git add -A` them into the branch. git itself still refuses a switch
     that would overwrite one.
     """
-    # One `git status` for both lists (each git call costs ~35 ms on Windows). -z: names as they are,
-    # not git's quoted octal form; a rename's second entry is its old name, with no status prefix.
-    entries = iter(_git(top, "status", "--porcelain", "-z", "--untracked-files=normal").split("\0"))
-    tracked, untracked = 0, []
-    for entry in entries:
-        if entry.startswith("?? "):
-            untracked.append(entry[3:])
-        elif entry:
-            tracked += 1
-            if entry[0] in "RC" or entry[1] in "RC":  # staged, or in the worktree (`add -N` then rename)
-                next(entries, None)
+    tracked, untracked = lanes.changes(top)
     if tracked:
         raise LaneError(f"{tracked} uncommitted change(s) to tracked files in this lane: commit or stash them first")
     if not untracked:

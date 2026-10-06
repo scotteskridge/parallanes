@@ -57,7 +57,8 @@ commit message that says *why*. Ask: "Commit and open the pull request?" Wait fo
 ## 6. Finish, on the owner's yes
 1. Stage the task's files by name and commit. Untracked files you didn't create: ask first.
    Then write the rules the owner approved in step 4 and commit them on their own ("Add a rule:
-   <what>"), so the task's commit holds only the task. `lanes finish` needs a clean folder.
+   <what>"), so the task's commit holds only the task. `lanes finish` refuses uncommitted changes
+   to tracked files, and a new file left uncommitted won't land.
 2. The PR body: the plan link, a short summary, the test result lines, the reviewer's report, and
    a table of findings and their fixes. Pass it on stdin (`--body-file -`), never as a file: a
    file outside the lane's paths makes the ownership hook ask.

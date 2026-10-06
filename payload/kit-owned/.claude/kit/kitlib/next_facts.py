@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import lane_status
-from .lanes import branch_of, find_current, git, run_git, same_path
+from .lanes import branch_of, changes, find_current, run_git, same_path
 
 PLANS_REL = Path("docs") / "plans"
 BACKLOG_REL = Path("docs") / "backlog"
@@ -17,6 +17,12 @@ PLAN_STATUSES = ("Draft", "Approved", "In progress", "Done")
 ITEM_STATUSES = ("now", "next", "later", "idea")
 ITEM_SIZES = ("S", "M", "L")
 ITEM_KEYS = ("status", "lane", "size", "blocked_by")
+
+# The `Here:` labels the skills' step 0 quotes (tests/test_skills.py builds its checks from these).
+HERE_LANE = "lane"
+HERE_MAIN = "main checkout"
+HERE_OTHER_WORKTREE = "a worktree that isn't a lane"  # `git worktree add`, or a Claude Code --worktree session
+HERE_NO_LANES = "not a lane"
 
 STATUS_LINE = re.compile(r"^\*\*Status:\*\*[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 LEFT_LINE = re.compile(r"^\*\*Left to do:\*\*[ \t]*(.*?)[ \t]*$", re.MULTILINE)
@@ -149,13 +155,6 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
     return found, problems
 
 
-def _changes(folder: Path) -> tuple[int, int]:
-    """(tracked changes, untracked files): only the first is unfinished work (decision 52)."""
-    lines = git(folder, "status", "--porcelain").splitlines()
-    untracked = sum(line.startswith("??") for line in lines)
-    return len(lines) - untracked, untracked
-
-
 def has_commits(folder: Path) -> bool:
     return run_git(folder, "rev-parse", "--verify", "--quiet", "HEAD").returncode == 0
 
@@ -176,19 +175,19 @@ def facts(start: Path, root: Path, config, offline: bool = False) -> Facts:
     # A brand-new project has no HEAD yet: say so rather than failing on rev-parse.
     branch = (branch_of(folder) or "detached") if has_commits(folder) else "no commits yet"
     if lane:
-        where = f"lane {lane.name}"
+        where = f"{HERE_LANE} {lane.name}"
     elif config.lanes and top and same_path(top, main):
-        where = "main checkout"
+        where = HERE_MAIN
     elif config.lanes and top:
-        where = "a worktree that isn't a lane"  # `git worktree add`, or a Claude Code --worktree session
+        where = HERE_OTHER_WORKTREE
     else:
-        where = "not a lane"
-    changed, untracked = _changes(folder)
+        where = HERE_NO_LANES
+    changed, untracked = changes(folder)
     state = []
     if changed:
         state.append(f"{changed} changed")
     if untracked:
-        state.append(f"{untracked} untracked")
+        state.append(f"{len(untracked)} untracked")
     here = " · ".join([f"Here: {where}", branch, *(state or ["clean"])])
     lanes_text = None
     if config.lanes:

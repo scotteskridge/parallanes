@@ -234,12 +234,25 @@ def test_a_worktree_that_is_not_a_lane_is_not_called_the_main_checkout(tmp_path)
 @pytest.mark.parametrize("folder", ["plans", "backlog"])
 def test_a_file_that_is_not_utf8_is_a_problem_not_a_crash(tmp_path, folder):
     """Review finding: Notepad's ANSI encoding would otherwise stop every skill at step 0."""
-    path = tmp_path / "docs" / folder / "café.md"
+    path = tmp_path / "docs" / folder / "caf\u00e9.md"
     path.parent.mkdir(parents=True)
-    path.write_bytes("---\nstatus: now\nlane: any\nsize: S\n---\n# Café\n**Status:** Draft\n".encode("cp1252"))
-    item(tmp_path, "fine")
-    found, problems = (next_facts.plans(tmp_path) if folder == "plans" else next_facts.backlog(tmp_path, []))
-    assert len(problems) == 1 and "can't read" in problems[0] and "café.md" in problems[0]
+    path.write_bytes("---\nstatus: now\nlane: any\nsize: S\n---\n# Caf\u00e9\n**Status:** Draft\n".encode("cp1252"))
+    if folder == "plans":
+        plan(tmp_path, "fine.md")
+        found, problems = next_facts.plans(tmp_path)
+    else:
+        item(tmp_path, "fine")
+        found, problems = next_facts.backlog(tmp_path, [])
+    assert len(problems) == 1 and "can't read" in problems[0] and "caf\u00e9.md" in problems[0]
+    assert [entry.title for entry in found] == ["Export CSV" if folder == "plans" else "Do a thing"]
+
+
+def test_a_md_path_that_cannot_be_opened_is_a_problem(tmp_path):
+    (tmp_path / "docs" / "plans" / "folder.md").mkdir(parents=True)  # IsADirectory or PermissionError
+    plan(tmp_path, "fine.md")
+    found, problems = next_facts.plans(tmp_path)
+    assert [p.path for p in found] == ["docs/plans/fine.md"]
+    assert len(problems) == 1 and "docs/plans/folder.md: can't read" in problems[0]
 
 
 def test_untracked_files_are_counted_apart_from_changes(tmp_path):

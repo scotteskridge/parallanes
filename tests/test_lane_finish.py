@@ -197,7 +197,7 @@ def test_local_mode_fast_forwards_then_leaves_the_lane_between_tasks(local_lane,
 def test_local_mode_accepts_a_stdin_body_and_lands(local_lane, tmp_path):
     """/wrap-up always passes the body; local mode reads it (with a BOM here) and doesn't need it."""
     repo, lane, work = local_lane
-    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin="﻿Plan: x\n", env=no_gh_env(tmp_path))
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin="\ufeffPlan: x\n", env=no_gh_env(tmp_path))
     assert result.returncode == 0, result.stderr
     assert rev(repo, "main") == work
 

@@ -178,8 +178,9 @@ scratchpad). Permission prompts were stood in for by `--allowedTools` for kit, g
   sync conflict during `/wrap-up`, a project without lanes, and the reviewer's guard (the scratch
   folders weren't trusted, so its frontmatter hook was skipped, as recorded in plan 06).
 
-**Reviews.** By this repo's own `reviewer`. Every fix has a test, and the new tests failed on the old
-code except one that pins behaviour already right (a stdin body in local mode).
+**Reviews.** By this repo's own `reviewer`. Every code fix has a test that failed on the old code,
+except one that pins behaviour already right (a stdin body in local mode). Wording fixes in the
+skills have tests where a check is cheap (rule commit order, shared paths, step-0 labels).
 - *Round 1* (1 🔴, 4 🟠, 7 🟡): a backlog or plan file that isn't UTF-8 crashed `kit next`, which
   every skill's step 0 runs (🔴; now listed under Problems); untracked files counted as unfinished
   work, against decision 52 (now `N changed · N untracked`, and the skills stop on changed files
@@ -191,3 +192,11 @@ code except one that pins behaviour already right (a stdin body in local mode).
   what `blocked_by` may name (an item slug, or also a plan, as the backlog README says) and
   whether an unknown blocker is a problem; and confirming decisions 65, 71 and 72, made or changed
   during the build.
+- *Round 2* (the fix commit; no 🔴, 1 🟠, 7 🟡): the `Lanes:` block of `kit next` still counts
+  untracked files as "uncommitted", because it comes from `lanes status` (plan 05), which this
+  plan left alone: **for the owner** (split the count in `lanes status` too, or only say so in
+  `/next`). Fixed: one shared tracked/untracked parser (`lanes.changes`) for `kit next` and
+  `lanes finish`, with the same untracked mode; tests for readable files next to an unreadable one
+  and for a path that can't be opened; the step-0 labels are constants in `next_facts`, and the
+  skill tests check them; the launcher check keys on the kit, not on `python`, and reads code
+  blocks; `/wrap-up` says what `lanes finish` really refuses; the BOM in a test is now an escape.
