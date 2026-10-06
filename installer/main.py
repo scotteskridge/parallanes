@@ -48,18 +48,20 @@ def main(argv=None) -> int:
     saved = previous.get("values", {})
     try:
         if saved:
-            # A re-run renders the same files, and never undoes an earlier "no" to the pre-commit check.
+            # A re-run renders the same files from the same answers.
             print("Using the answers from the earlier install (.claude/kit/manifest.json).")
-            precommit_answer = saved.get("precommit", "yes")
-        else:
-            if not args.yes:
-                answers.update(values.ask(answers))
-            asked = repo == target and not args.yes
-            yes = not asked or values.confirm("Run the kit's checks before each commit?", True)
+        elif not args.yes:
+            answers.update(values.ask(answers))
+        # The pre-commit answer is saved only once it was given (or --yes at a repo root), so a re-run
+        # never undoes a "no", and a folder that only now became a repo is still asked.
+        precommit_answer = saved.get("precommit")
+        if precommit_answer is None and repo == target:
+            yes = args.yes or values.confirm("Run the kit's checks before each commit?", True)
             precommit_answer = "yes" if yes else "no"
     except EOFError:
         return _stop("no answer (input closed); run with --yes to take the defaults")
-    answers["precommit"] = precommit_answer
+    if precommit_answer is not None:
+        answers["precommit"] = precommit_answer
     want_precommit = repo == target and precommit_answer == "yes"
     answers["kit_version"] = _kit_version()
 
@@ -108,6 +110,8 @@ def _stop(error) -> int:
 
 
 def _check_target(target: Path) -> None:
+    if not Path(target.anchor).exists():
+        raise plan.PlanError(f"{target}: its drive or share {target.anchor} doesn't exist")
     if target.exists() and not target.is_dir():
         raise plan.PlanError(f"{target} is not a folder")
     if target.exists() and target.resolve() == plan.PAYLOAD.parent.resolve():
@@ -206,9 +210,10 @@ def _plan_precommit(target: Path, repo: Path | None, wanted: bool) -> str:
     if current:
         return "other:" + current
     # core.hooksPath replaces .git/hooks entirely: the owner's own hooks there would stop running.
-    hooks = target / _git(target, "rev-parse", "--git-path", "hooks")
+    hooks_rel = _git(target, "rev-parse", "--git-path", "hooks")
+    hooks = target / hooks_rel
     own = []
-    if hooks.is_dir():
+    if hooks_rel and hooks.is_dir():  # "" would be the project folder itself
         own = sorted(path.name for path in hooks.iterdir() if path.is_file() and not path.name.endswith(".sample"))
     return "own-hooks:" + ", ".join(own) if own else "set"
 

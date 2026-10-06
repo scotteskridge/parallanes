@@ -337,7 +337,8 @@ install.ps1 / install.sh
      └─ kit_setup.py [--dry-run] [--target DIR] [--yes]
           1. detect defaults: folder name, stack and test command from marker files, the
              integration branch from git; an earlier install's answers (in the manifest) win
-          2. ask five values and whether to turn on the pre-commit check (decision 101)
+          2. ask five values and whether to turn on the pre-commit check (decision 101); a
+             re-run reuses the saved answers and asks nothing (change a value in the files)
           3. plan every write; a broken managed block or manifest, a folder or a symbolic link in
              the way stops here with nothing written
           4. print the plan; --dry-run stops here

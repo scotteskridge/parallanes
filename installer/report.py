@@ -13,6 +13,8 @@ def repo_root(target: Path) -> Path | None:
     """The git repository the target is in, or None. The target may not exist yet."""
     folder = target
     while not folder.exists():
+        if folder.parent == folder:  # main.py refuses a missing drive first; never loop on one
+            return None
         folder = folder.parent
     result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=folder, capture_output=True, text=True)
     if result.returncode != 0:

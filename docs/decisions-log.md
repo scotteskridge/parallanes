@@ -9,8 +9,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      name (the folder), a one-line description, the stack, the test command (from `pyproject.toml`,
      `package.json`, `go.mod` or `Cargo.toml`), the integration branch (from git, else `main`), and
      whether to turn on the pre-commit hook (decision 25). No lane questions: `kit.toml` ships the
-     commented example. `--yes` takes every default. *Why:* decision 17, ask only what can't be
-     detected; lanes need judgement the owner applies after reading `parallel-lanes.md`.
+     commented example. `--yes` takes every default. A re-run reuses the answers saved in the
+     manifest and asks nothing; to change one, edit the files. *Why:* decision 17, ask only what
+     can't be detected; lanes need judgement the owner applies after reading `parallel-lanes.md`.
 
 100. **No prompt per existing file.** An existing project-owned file is left alone and the kit's
      version is written beside it as `<name>.kit-new`. `.gitignore`, `.gitattributes` and

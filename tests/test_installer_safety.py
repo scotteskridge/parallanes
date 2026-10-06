@@ -241,3 +241,78 @@ def test_the_installed_kit_runs_through_its_launcher(tmp_path):
         == hashlib.sha256((KIT_OWNED / ".claude/kit/cli.py").read_bytes()).hexdigest()
     )
     assert tomllib.loads(config.read_text(encoding="utf-8"))["project"]["test_command"] == "exit 0"
+
+
+# ---- review round 2 ---------------------------------------------------------------------------
+
+
+def test_a_kit_new_deleted_after_the_kept_note_comes_back(tmp_path):
+    """The note says "delete it to get a new one": the next run must keep that promise."""
+    repo = new_repo(tmp_path)
+    (repo / "AGENTS.md").write_bytes(b"# mine\n")
+    (repo / "AGENTS.md.kit-new").write_bytes(b"my own notes\n")
+    assert "delete it to get a new one" in setup(repo).stdout
+    (repo / "AGENTS.md.kit-new").unlink()
+    setup(repo)
+    offered = (repo / "AGENTS.md.kit-new").read_text(encoding="utf-8")
+    assert offered.startswith("# my project") and "my own notes" not in offered  # the kit's rendered AGENTS.md
+
+
+def test_a_new_kit_version_is_offered_again_after_a_deletion(tmp_path):
+    repo = new_repo(tmp_path)
+    (repo / "AGENTS.md").write_bytes(b"# mine\n")
+    setup(repo)
+    (repo / "AGENTS.md.kit-new").unlink()
+    manifest_path = repo / ".claude" / "kit" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["offered"]["AGENTS.md"] = "0" * 64  # as if an older kit version had been offered
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    setup(repo)
+    assert (repo / "AGENTS.md.kit-new").is_file()
+
+
+def test_gitattributes_keeps_the_full_block_when_the_owner_adds_a_rule(tmp_path):
+    repo = new_repo(tmp_path)
+    setup(repo)
+    path = repo / ".gitattributes"
+    path.write_bytes(path.read_bytes() + b"*.sln text eol=crlf\n")
+    setup(repo)
+    assert "* text=auto eol=lf" in path.read_text(encoding="utf-8")
+
+
+def test_gitattributes_keeps_the_narrow_block_when_the_owner_removes_their_rules(tmp_path):
+    repo = new_repo(tmp_path)
+    path = repo / ".gitattributes"
+    path.write_bytes(b"*.sln text eol=crlf\n")
+    setup(repo)
+    path.write_bytes(path.read_bytes().replace(b"*.sln text eol=crlf\n", b""))
+    setup(repo)
+    assert "* text=auto" not in path.read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="drive letters are Windows")
+def test_a_target_on_a_missing_drive_stops_instead_of_hanging(tmp_path):
+    from pathlib import Path
+
+    letter = next(letter for letter in "QRSTUVWXYZ" if not Path(f"{letter}:/").exists())
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "kit_setup.py"), "--target", f"{letter}:/proj", "--yes", "--dry-run"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 2
+    assert "doesn't exist" in result.stderr
+
+
+def test_no_precommit_answer_is_saved_when_nobody_was_asked(tmp_path):
+    """Outside a repo nothing is asked, so a later run (after `git init`) must still ask."""
+    folder = tmp_path / "my project"
+    folder.mkdir()
+    setup(folder)
+    manifest = json.loads((folder / ".claude" / "kit" / "manifest.json").read_text(encoding="utf-8"))
+    assert "precommit" not in manifest["values"]
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=folder, check=True)
+    result = run_setup(folder, stdin="n\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert git(folder, "config", "--default", "", "core.hooksPath").strip() == ""

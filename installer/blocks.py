@@ -48,6 +48,15 @@ def merge(existing: str, body: str) -> str:
     return kept + gap + block
 
 
+def inside(existing: str) -> list | None:
+    """The block's own lines, or None if there is no block."""
+    lines = existing.splitlines(keepends=True)
+    begins, ends = _markers(lines)
+    if not begins:
+        return None
+    return [_bare(line).strip() for line in lines[begins[0] + 1 : ends[0]]]
+
+
 def outside(existing: str) -> list:
     """The owner's non-blank lines: everything not inside the block."""
     lines = existing.splitlines(keepends=True)

@@ -154,8 +154,8 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
 def _block(plan: FilePlan, rel: str, current: bytes | None, body: str) -> None:
     try:
         text = "" if current is None else current.decode("utf-8")  # a BOM stays part of the text
-        if rel == ".gitattributes" and blocks.outside(text):
-            body = OWNER_GITATTRIBUTES_BODY
+        if rel == ".gitattributes":
+            body = _gitattributes_body(text, body)
         merged = blocks.merge(text, body).encode("utf-8")
     except UnicodeDecodeError:
         raise PlanError(f"{rel}: not UTF-8 text, so the kit can't add its lines") from None
@@ -167,18 +167,31 @@ def _block(plan: FilePlan, rel: str, current: bytes | None, body: str) -> None:
         plan.writes.append(Write(rel, merged, "block" if current is not None else "create"))
 
 
+def _gitattributes_body(text: str, full: str) -> str:
+    """Decided once: a block already there keeps its variant, so a re-run never changes the repo's
+    line-ending policy as a side effect (review round 2). Only a new block looks at the owner's rules."""
+    inside = blocks.inside(text)
+    if inside is not None:
+        return full if any(line.startswith("* text=auto") for line in inside) else OWNER_GITATTRIBUTES_BODY
+    return OWNER_GITATTRIBUTES_BODY if blocks.outside(text) else full
+
+
 def _offer(plan: FilePlan, target: Path, rel: str, data: bytes, mode, offered: dict, note: str) -> None:
     new_rel = rel + ".kit-new"
     existing = _read(target, new_rel)
     digest = sha256(data)
-    plan.offered[rel] = digest
     if existing == data:
+        plan.offered[rel] = digest
         plan.unchanged.append(new_rel)
     elif existing is not None:
+        # Not delivered: keep the old record, so deleting it (as the note says) brings this one.
+        if rel in offered:
+            plan.offered[rel] = offered[rel]
         plan.notes.append(f"{new_rel} kept as it is: it differs from the kit's version (delete it to get a new one)")
     elif offered.get(rel) == digest:
-        pass  # offered before and deleted by the owner: not again until the kit's version changes
+        plan.offered[rel] = digest  # offered before and deleted by the owner: not again until it changes
     else:
+        plan.offered[rel] = digest
         plan.writes.append(Write(new_rel, data, "kit-new", mode, f"{rel} {note}"))
 
 
