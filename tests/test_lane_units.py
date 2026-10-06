@@ -3,6 +3,7 @@
 The slow tests prove the same commands end to end on real repos; these keep each lane module covered
 by `python -m pytest -m "not slow"` while working.
 """
+
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,19 +22,23 @@ def config(mode="pr"):
 
 # ---- lane_cycle._clean and lanes.changes: one `git status --porcelain -z` ----------------------
 
+
 def clean(monkeypatch, status_output):
     # The parser is lanes.changes, shared with `kit next`; it reads git through lanes.git.
     monkeypatch.setattr(lanes, "git", lambda top, *args, **kwargs: status_output)
     return lane_cycle._clean(Path("."))
 
 
-@pytest.mark.parametrize("output, changes", [
-    (" M src/a.py\0", 1),
-    ("R  new.py\0old.py\0", 1),  # staged rename: the old name is a second entry with no status
-    (" R new.py\0old.py\0", 1),  # worktree rename (`add -N`, then rename)
-    ("C  copy.py\0orig.py\0M  b.py\0", 2),
-    ("UU both.py\0", 1),
-])
+@pytest.mark.parametrize(
+    "output, changes",
+    [
+        (" M src/a.py\0", 1),
+        ("R  new.py\0old.py\0", 1),  # staged rename: the old name is a second entry with no status
+        (" R new.py\0old.py\0", 1),  # worktree rename (`add -N`, then rename)
+        ("C  copy.py\0orig.py\0M  b.py\0", 2),
+        ("UU both.py\0", 1),
+    ],
+)
 def test_clean_counts_tracked_changes_once_each(monkeypatch, output, changes):
     with pytest.raises(lanes.LaneError, match=rf"^{changes} uncommitted change\(s\) to tracked files"):
         clean(monkeypatch, output)
@@ -56,6 +61,7 @@ def test_clean_shortens_a_long_untracked_list(monkeypatch):
 
 # ---- lane_merged: the merge proof ----------------------------------------------------------------
 
+
 def merged(monkeypatch, prs, mode="pr", in_tip=False, error=None):
     monkeypatch.setattr(lanes, "git", lambda *args, **kwargs: A + "\n")  # the branch tip is A
     monkeypatch.setattr(lanes, "is_ancestor", lambda folder, commit, of: in_tip)
@@ -71,15 +77,18 @@ def test_in_the_tip_is_merged_without_asking(monkeypatch):
     assert merged(monkeypatch, [], in_tip=True)[0] is True
 
 
-@pytest.mark.parametrize("prs, done, words", [
-    ([pr(1, "MERGED")], True, "merged by PR #1"),
-    ([pr(1, "OPEN")], False, "still open"),
-    ([pr(1, "CLOSED")], False, "closed without merging"),
-    ([pr(1, "MERGED", base="core/parent")], False, "into core/parent, not main"),
-    ([pr(2, "MERGED", base="core/parent"), pr(1, "MERGED")], True, "merged by PR #1"),
-    ([pr(1, "MERGED", head=B)], False, "other commit"),  # B unknown locally: no claim
-    ([], False, "no PR for core/x"),
-])
+@pytest.mark.parametrize(
+    "prs, done, words",
+    [
+        ([pr(1, "MERGED")], True, "merged by PR #1"),
+        ([pr(1, "OPEN")], False, "still open"),
+        ([pr(1, "CLOSED")], False, "closed without merging"),
+        ([pr(1, "MERGED", base="core/parent")], False, "into core/parent, not main"),
+        ([pr(2, "MERGED", base="core/parent"), pr(1, "MERGED")], True, "merged by PR #1"),
+        ([pr(1, "MERGED", head=B)], False, "other commit"),  # B unknown locally: no claim
+        ([], False, "no PR for core/x"),
+    ],
+)
 def test_pr_decides(monkeypatch, prs, done, words):
     fetched = []
     monkeypatch.setattr(lane_merged, "_have", lambda folder, commit: False)
@@ -101,22 +110,28 @@ def test_local_mode_never_asks_gh(monkeypatch):
 
 def gh_says(monkeypatch, stdout, returncode=0):
     monkeypatch.setattr(lane_merged.shutil, "which", lambda name: "gh")
-    monkeypatch.setattr(lane_merged.subprocess, "run",
-                        lambda *args, **kwargs: subprocess.CompletedProcess(args, returncode, stdout, "boom"))
+    monkeypatch.setattr(
+        lane_merged.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, returncode, stdout, "boom"),
+    )
     return lane_merged.pull_requests(Path("."), "core/x", "all")
 
 
 def test_pull_requests_reads_gh_json(monkeypatch):
-    prs, error = gh_says(monkeypatch, '[{"number": 1, "state": "OPEN", "headRefOid": "%s", "baseRefName": "main"}]' % A)
+    prs, error = gh_says(monkeypatch, f'[{{"number": 1, "state": "OPEN", "headRefOid": "{A}", "baseRefName": "main"}}]')
     assert error is None and prs[0]["number"] == 1
 
 
-@pytest.mark.parametrize("stdout, returncode, words", [
-    ("not json", 0, "isn't JSON"),
-    ('[{"number": "1"}]', 0, "unexpected shape"),
-    ('{"number": 1}', 0, "unexpected shape"),
-    ("", 1, "gh pr list failed: boom"),
-])
+@pytest.mark.parametrize(
+    "stdout, returncode, words",
+    [
+        ("not json", 0, "isn't JSON"),
+        ('[{"number": "1"}]', 0, "unexpected shape"),
+        ('{"number": 1}', 0, "unexpected shape"),
+        ("", 1, "gh pr list failed: boom"),
+    ],
+)
 def test_pull_requests_never_guesses(monkeypatch, stdout, returncode, words):
     prs, error = gh_says(monkeypatch, stdout, returncode)
     assert prs == [] and words in error
@@ -134,12 +149,30 @@ def test_shares_work_ignores_a_pr_already_in_the_tip(monkeypatch):
 
 # ---- lane_status.format_status, lane_pr.compare_url, lane_cli --------------------------------------
 
+
 def test_status_text(tmp_path):
-    lane = lane_status.LaneStatus("core", tmp_path / ".claude/worktrees/core", "ok", branch="core/x",
-                                  ahead=2, behind=1, changed=1, untracked=2, gone=True, pr="PR #4 MERGED")
-    text = lane_status.format_status(lane_status.Status(tmp_path, None, "origin/main", lanes=[
-        lane, lane_status.LaneStatus("api", tmp_path / ".claude/worktrees/api", "not created")],
-        warnings=["careful"], notes=["overlap"]))
+    lane = lane_status.LaneStatus(
+        "core",
+        tmp_path / ".claude/worktrees/core",
+        "ok",
+        branch="core/x",
+        ahead=2,
+        behind=1,
+        changed=1,
+        untracked=2,
+        gone=True,
+        pr="PR #4 MERGED",
+    )
+    text = lane_status.format_status(
+        lane_status.Status(
+            tmp_path,
+            None,
+            "origin/main",
+            lanes=[lane, lane_status.LaneStatus("api", tmp_path / ".claude/worktrees/api", "not created")],
+            warnings=["careful"],
+            notes=["overlap"],
+        )
+    )
     assert "detached HEAD" in text and "! careful" in text and "Note: overlap" in text
     assert "core .claude/worktrees/core · core/x · 2 ahead, 1 behind origin/main · 1 changed · 2 untracked" in text
     assert "pushed branch gone from origin · PR #4 MERGED" in text
@@ -147,8 +180,14 @@ def test_status_text(tmp_path):
 
 
 def test_github_remote_gets_a_compare_url():
-    assert compare_url("git@github.com:o/r.git", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
-    assert compare_url("https://github.com/o/r", "main", "core/t") == "https://github.com/o/r/compare/main...core/t?expand=1"
+    assert (
+        compare_url("git@github.com:o/r.git", "main", "core/t")
+        == "https://github.com/o/r/compare/main...core/t?expand=1"
+    )
+    assert (
+        compare_url("https://github.com/o/r", "main", "core/t")
+        == "https://github.com/o/r/compare/main...core/t?expand=1"
+    )
     assert compare_url("D:/repos/origin.git", "main", "core/t") is None
 
 

@@ -7,13 +7,23 @@ unquoted globs, environment overrides). Programs git itself runs because of the 
 (`diff.external`, textconv drivers, `core.fsmonitor`) are out of its reach: the reviewer can't
 change that config.
 """
+
 import re
 
 from .commands import tokenize
 
 READ_ONLY = {
-    "diff", "log", "show", "status", "merge-base", "rev-parse", "rev-list", "ls-files", "blame",
-    "grep", "cat-file",
+    "diff",
+    "log",
+    "show",
+    "status",
+    "merge-base",
+    "rev-parse",
+    "rev-list",
+    "ls-files",
+    "blame",
+    "grep",
+    "cat-file",
 }
 _GLOBAL_FLAGS = {"--no-pager", "-P", "--no-optional-locks", "--literal-pathspecs"}
 # `HEAD@{1}`, `@{u}`, `HEAD^{tree}`: the tokenizer splits on braces, so a ref like this would read

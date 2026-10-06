@@ -1,4 +1,5 @@
 """The lane-router SessionStart hook: briefs the agent, warns about drift, never blocks (decision 40)."""
+
 import json
 
 import pytest
@@ -148,6 +149,7 @@ def test_bad_input_never_blocks(repo, stdin):
 
 
 # ---- from the first review ---------------------------------------------------------------------
+
 
 def test_fresh_branch_fast_forwarded_is_not_merged(repo):
     folder = lane_dir(repo, "core")

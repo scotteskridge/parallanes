@@ -4,6 +4,7 @@ Deny rules in `settings.json` are the primary protection (decision 15). This mod
 behind them, used by the PreToolUse hook (`check_tool_call`), and the check that pre-commit and CI
 run on changed files (`check`).
 """
+
 import fnmatch
 import os
 import re
@@ -73,7 +74,7 @@ def _inside(pattern: str, folder: str, glob: str | None = None) -> bool:
         return True
     # `rm *.log` at the root must not count as deleting `vendor/`: the glob has to match the
     # pattern's entry at that depth. A wildcard there in the pattern too: assume they can meet.
-    entry = pattern[len(prefix):].split("/", 1)[0]
+    entry = pattern[len(prefix) :].split("/", 1)[0]
     return bool(WILDCARD.search(entry)) or fnmatch.fnmatchcase(entry, glob)
 
 
@@ -83,7 +84,10 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
     removes: path is being deleted or moved away, so a protected path anywhere inside it counts too.
     """
     shown = normalize(path)
-    for patterns, what, key in ((protected.paths, "is protected", "paths"), (protected.secrets, "holds secrets", "secrets")):
+    for patterns, what, key in (
+        (protected.paths, "is protected", "paths"),
+        (protected.secrets, "holds secrets", "secrets"),
+    ):
         pattern = _secret_matching(path, patterns) if key == "secrets" else _matching(path, patterns)
         if pattern:
             return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
@@ -93,7 +97,10 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
         pattern = _matching(path, positive, removes=True, itself=False) if removes else None
         if pattern:
             # The folder itself isn't protected; what's inside it is. Say so, or the reason misleads.
-            return f"removing {shown} would delete protected files (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+            return (
+                f"removing {shown} would delete protected files "
+                f"(matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+            )
     return None
 
 
@@ -167,15 +174,18 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
     return None
 
 
-def _target_reason(protected, root: Path, cwd: Path, target: str, removes: bool = False,
-                   git_bash: bool = True, guard_kit: bool = False) -> str | None:
+def _target_reason(
+    protected, root: Path, cwd: Path, target: str, removes: bool = False, git_bash: bool = True, guard_kit: bool = False
+) -> str | None:
     rel = relative(root, cwd, target, git_bash)
     if rel is None:
         return None
     if guard_kit and _matching(rel, KIT_GUARD, removes):
-        return (f"{normalize(rel)} is (or holds) the kit's own configuration, and in bypassPermissions "
-                "mode a shell command can change it without the owner's approval. Ask the owner to "
-                "run it, or use the Edit tool for a content change: that asks first")
+        return (
+            f"{normalize(rel)} is (or holds) the kit's own configuration, and in bypassPermissions "
+            "mode a shell command can change it without the owner's approval. Ask the owner to "
+            "run it, or use the Edit tool for a content change: that asks first"
+        )
     return path_reason(protected, rel, removes)
 
 

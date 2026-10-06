@@ -3,6 +3,7 @@
 In PreToolUse only exit 2 blocks; exit 1 and timeouts let the call through. So every error path
 must exit 2, and no test here may accept any other non-zero code.
 """
+
 import json
 import os
 
@@ -10,10 +11,13 @@ import pytest
 
 from helpers import RULES_TOML, git, make_repo, run_cli, write
 
-PROTECTED_TOML = RULES_TOML + """
+PROTECTED_TOML = (
+    RULES_TOML
+    + """
 [protected]
 paths = ["vendor/**"]
 """
+)
 
 
 def pre_tool_use(cwd, tool, tool_input, mode="default"):
@@ -148,8 +152,12 @@ def test_removing_a_folder_that_holds_kit_config_is_blocked(repo, command):
 
 @pytest.mark.parametrize(
     "command, tool",
-    [("cp ../shared/LICENSE .", "Bash"), ("mv build/out/report.txt .", "Bash"), ("cp notes.md .claude/", "Bash"),
-     ("Copy-Item x .", "PowerShell")],
+    [
+        ("cp ../shared/LICENSE .", "Bash"),
+        ("mv build/out/report.txt .", "Bash"),
+        ("cp notes.md .claude/", "Bash"),
+        ("Copy-Item x .", "PowerShell"),
+    ],
 )
 def test_copies_into_the_root_or_claude_folder_are_allowed(repo, command, tool):
     # Review round 3: a write target that is a folder only gets a file inside it, not all of it.
@@ -166,8 +174,10 @@ def test_kit_config_shell_guard_can_be_switched_off(tmp_path):
     assert_allowed(bash(repo, "rm -rf .githooks", mode="bypassPermissions"))
 
 
-@pytest.mark.parametrize("command, tool", [("rm .env.example", "Bash"), ("git rm .env.example", "Bash"),
-                                           ("Remove-Item .env.example", "PowerShell")])
+@pytest.mark.parametrize(
+    "command, tool",
+    [("rm .env.example", "Bash"), ("git rm .env.example", "Bash"), ("Remove-Item .env.example", "PowerShell")],
+)
 def test_removing_the_exempt_file_is_allowed(repo, command, tool):
     # Review round 1: removal checks only look inside folders; the file itself was already decided.
     assert_allowed(bash(repo, command, tool=tool))
@@ -236,8 +246,12 @@ def test_an_internal_crash_blocks_without_a_traceback(repo):
     env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(CLI.parent), str(repo)]))
     result = subprocess.run(
         [sys.executable, str(CLI), "hook", "protected"],
-        cwd=repo, input=pre_tool_use(repo, "Bash", {"command": "ls"}),
-        capture_output=True, text=True, encoding="utf-8", env=env,
+        cwd=repo,
+        input=pre_tool_use(repo, "Bash", {"command": "ls"}),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
     )
     assert_blocked(result, "simulated bug", "Tell the user")
 
@@ -268,6 +282,7 @@ def test_removing_a_folder_above_a_protected_path_is_blocked(tmp_path):
 
 # ---- review findings ----------------------------------------------------------------------------
 
+
 def test_kit_that_cannot_import_blocks(repo):
     # e.g. Python 3.10 (no tomllib): the hook must still exit 2, not crash with exit 1.
     fake = repo / "fakes"
@@ -280,8 +295,12 @@ def test_kit_that_cannot_import_blocks(repo):
 
     result = subprocess.run(
         [sys.executable, str(CLI), "hook", "protected"],
-        cwd=repo, input=pre_tool_use(repo, "Bash", {"command": "git push --force"}),
-        capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+        cwd=repo,
+        input=pre_tool_use(repo, "Bash", {"command": "git push --force"}),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=dict(os.environ, PYTHONPATH=str(fake)),
     )
     assert_blocked(result, "simulated: no tomllib")
 
@@ -309,14 +328,22 @@ def test_wildcard_deletes_above_a_protected_path_are_blocked(tmp_path):
 
 @pytest.mark.parametrize(
     "command",
-    ["git rm -r vendor", "git rm --cached vendor/lib.py", "git mv vendor old", "git checkout -- vendor/lib.py",
-     "git restore vendor/lib.py", "git restore --source HEAD~1 vendor/lib.py"],
+    [
+        "git rm -r vendor",
+        "git rm --cached vendor/lib.py",
+        "git mv vendor old",
+        "git checkout -- vendor/lib.py",
+        "git restore vendor/lib.py",
+        "git restore --source HEAD~1 vendor/lib.py",
+    ],
 )
 def test_git_file_commands_on_protected_paths_are_blocked(repo, command):
     assert_blocked(bash(repo, command), "vendor")
 
 
-@pytest.mark.parametrize("command", ["git checkout main", "git rm -r src/old", "git restore --staged src/a.py", "git mv a b"])
+@pytest.mark.parametrize(
+    "command", ["git checkout main", "git rm -r src/old", "git restore --staged src/a.py", "git mv a b"]
+)
 def test_git_file_commands_elsewhere_are_allowed(repo, command):
     assert_allowed(bash(repo, command))
 
@@ -331,8 +358,11 @@ def test_mentioning_the_allow_variable_is_allowed(repo, command):
 
 # ---- second review ------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("command, tool", [("rm -f *.log", "Bash"), ("rm t*", "Bash"), ("Remove-Item *.tmp", "PowerShell"),
-                                            ("rm -rf src/*.pyc", "Bash")])
+
+@pytest.mark.parametrize(
+    "command, tool",
+    [("rm -f *.log", "Bash"), ("rm t*", "Bash"), ("Remove-Item *.tmp", "PowerShell"), ("rm -rf src/*.pyc", "Bash")],
+)
 def test_ordinary_wildcard_deletes_are_allowed(tmp_path, command, tool):
     repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**", "vendor/**"]\n')
     assert_allowed(bash(repo, command, tool=tool))
@@ -343,7 +373,9 @@ def test_wildcard_deletes_in_bypass_mode_without_protected_paths_are_allowed(tmp
     assert_allowed(bash(repo, "rm -f *.log", mode="bypassPermissions"))
 
 
-@pytest.mark.parametrize("command", ["rm -rf v*", "rm -r s*", "rm -rf src/v*", "rm -rf src/*/lib.py", "Remove-Item src/* -Recurse"])
+@pytest.mark.parametrize(
+    "command", ["rm -rf v*", "rm -r s*", "rm -rf src/v*", "rm -rf src/*/lib.py", "Remove-Item src/* -Recurse"]
+)
 def test_wildcards_that_reach_a_protected_path_are_blocked(tmp_path, command):
     repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["src/vendor/**", "vendor/**"]\n')
     tool = "PowerShell" if command.startswith("Remove") else "Bash"
@@ -363,8 +395,10 @@ def test_more_redirect_forms_are_caught(repo, command):
 
 @pytest.mark.parametrize(
     "command, tool",
-    [("KIT_ALLOW_PROTECTED+=1 git commit -m x", "Bash"),
-     ("New-Item -Path Env: -Name KIT_ALLOW_PROTECTED -Value 1", "PowerShell")],
+    [
+        ("KIT_ALLOW_PROTECTED+=1 git commit -m x", "Bash"),
+        ("New-Item -Path Env: -Name KIT_ALLOW_PROTECTED -Value 1", "PowerShell"),
+    ],
 )
 def test_more_ways_of_setting_the_allow_variable_are_blocked(repo, command, tool):
     assert_blocked(bash(repo, command, tool=tool))

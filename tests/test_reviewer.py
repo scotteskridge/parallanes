@@ -4,6 +4,7 @@ The agent is prose, so these tests pin what code can check: it stays read-only, 
 stable IDs, a pack checklist is picked up by being in the folder, and this repo's dogfood copies
 can't drift from the payload.
 """
+
 import re
 from pathlib import Path
 
@@ -65,11 +66,11 @@ def test_agent_is_read_only():
     assert "permissionMode" not in fields  # nothing that could loosen the caller's permissions
     # The exact block: the command under PreToolUse with the Bash matcher, not just somewhere.
     # A timeout lets the call through, so it is generous (a cold Windows Python start is slow).
-    hooks = block[block.index("hooks:"):]
+    hooks = block[block.index("hooks:") :]
     assert hooks == (
         "hooks:\n"
         "  PreToolUse:\n"
-        "    - matcher: \"Bash\"\n"
+        '    - matcher: "Bash"\n'
         "      hooks:\n"
         "        - type: command\n"
         f"          {HOOK_COMMAND}\n"
@@ -116,7 +117,13 @@ def test_project_template_numbers_its_examples_the_same_way():
 
 def test_report_shape_is_in_the_agent():
     body = AGENT.read_text(encoding="utf-8")
-    for heading in ("## Review: ", "**Verdict:** ready | fix first", "### Findings", "### Checks run", "### Outside this change"):
+    for heading in (
+        "## Review: ",
+        "**Verdict:** ready | fix first",
+        "### Findings",
+        "### Checks run",
+        "### Outside this change",
+    ):
         assert heading in body
 
 

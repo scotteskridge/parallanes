@@ -1,4 +1,5 @@
 """The lanes fixture itself: copies of the cached template must not be raced by git in the background."""
+
 import os
 import subprocess
 
@@ -12,8 +13,12 @@ def test_pushing_to_the_fixture_origin_starts_no_maintenance(tmp_path):
     repo = lanes_repo(tmp_path)
     commit(repo, "src/core/b.py", "y = 2\n")
     result = subprocess.run(
-        ["git", "push", "-q", "origin", "main"], cwd=repo, capture_output=True, text=True,
-        env=dict(os.environ, GIT_TRACE="1"), check=True,
+        ["git", "push", "-q", "origin", "main"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=dict(os.environ, GIT_TRACE="1"),
+        check=True,
     )
     assert "receive-pack" in result.stderr  # the trace covers the origin's side of the push
     assert "maintenance run" not in result.stderr

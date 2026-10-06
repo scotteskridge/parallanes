@@ -6,6 +6,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Ruff lints and formats the kit's own Python (decision 94): `ruff check` and `ruff format --check`
+  run in a CI `lint` job, with the version pinned in `pyproject.toml`'s dev extras and line length
+  120. The one-off reformat is listed in `.git-blame-ignore-revs`. Dev-only; nothing is installed.
 - Live checks for the kit's own development (`docs/live-checks.md`, decision 93): pytest tests in
   `tests/live/`, run only with `pytest --live`, through a helper that pins what each `claude -p` session
   loads and fails unless its skills, agents, plugins and hooks actually loaded, so a future `--bare`

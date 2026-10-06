@@ -4,6 +4,7 @@ Skill quality over real sessions is plan 11's evals; these tests hold what a sta
 frontmatter, the grants (decision 67), that every `kit` command and path a skill names is real, and
 that each skill starts with the lane check (decision 62).
 """
+
 import re
 import shlex
 
@@ -18,8 +19,7 @@ REPO_SKILLS = ROOT / ".claude" / "skills"
 EXPECTED = {"next", "plan-feature", "implement", "wrap-up", "design", "code-health"}
 # User-invoked only (decision 67): they write files, or (code-health) start costly subagents.
 CHANGES_THINGS = {"plan-feature", "implement", "wrap-up", "design", "code-health"}
-KNOWN_FIELDS = {"name", "description", "model", "effort", "allowed-tools", "disable-model-invocation",
-                "argument-hint"}
+KNOWN_FIELDS = {"name", "description", "model", "effort", "allowed-tools", "disable-model-invocation", "argument-hint"}
 MODELS = {"opus", "sonnet", "haiku"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
@@ -109,11 +109,14 @@ def test_skill_commands_exist(skill, call):
 
 def payload_has(rel: str) -> bool:
     rel = rel.rstrip("/")
-    return any(candidate.exists() for candidate in (
-        PAYLOAD / "kit-owned" / rel,
-        PAYLOAD / "templates" / rel,
-        PAYLOAD / "templates" / f"{rel}.tmpl",
-    ))
+    return any(
+        candidate.exists()
+        for candidate in (
+            PAYLOAD / "kit-owned" / rel,
+            PAYLOAD / "templates" / rel,
+            PAYLOAD / "templates" / f"{rel}.tmpl",
+        )
+    )
 
 
 def path_mentions():
@@ -140,8 +143,12 @@ def test_skill_step0_lane_check(path):
     assert "sh .claude/kit/kit next" in step0.group(0)
     from kitlib import next_facts  # the labels `kit next` really prints
 
-    for case in (f"`Here: {next_facts.HERE_LANE} ", f"`Here: {next_facts.HERE_MAIN}`",
-                 f"`{next_facts.HERE_OTHER_WORKTREE}`", f"`Here: {next_facts.HERE_NO_LANES}`"):
+    for case in (
+        f"`Here: {next_facts.HERE_LANE} ",
+        f"`Here: {next_facts.HERE_MAIN}`",
+        f"`{next_facts.HERE_OTHER_WORKTREE}`",
+        f"`Here: {next_facts.HERE_NO_LANES}`",
+    ):
         assert case in step0.group(0), f"step 0 must cover {case}"
 
 
@@ -150,8 +157,11 @@ def test_every_kit_call_goes_through_the_launcher(path):
     """Otherwise a call slips past test_skill_commands_exist: `python .claude/kit/cli.py`,
     `{{kit_command}}` (not rendered in kit-owned files) or a bare `kit lanes ...`."""
     text = body(path)
-    fenced_lines = [line.strip() for block in re.findall(r"^\s*```\n(.*?)^\s*```", text, re.MULTILINE | re.DOTALL)
-                    for line in block.splitlines()]
+    fenced_lines = [
+        line.strip()
+        for block in re.findall(r"^\s*```\n(.*?)^\s*```", text, re.MULTILINE | re.DOTALL)
+        for line in block.splitlines()
+    ]
     spans = re.findall(r"`([^`\n]+)`", text) + fenced_lines
     for span in spans:
         if span in ("kit next", "kit lanes start", "kit lanes finish"):
@@ -292,7 +302,7 @@ def test_code_health_branches_before_it_audits():
     text = body(SKILLS / "code-health" / "SKILL.md")
     branch = text.index("## 1. Start the task branch")
     assert branch < text.index("## 3. Audit the areas in parallel")
-    assert "lanes start health-YYYY-MM-DD-<area>" in text[branch:text.index("## 2.")]
+    assert "lanes start health-YYYY-MM-DD-<area>" in text[branch : text.index("## 2.")]
 
 
 def test_code_health_branches_like_plan_feature():

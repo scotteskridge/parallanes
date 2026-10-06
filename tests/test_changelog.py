@@ -17,7 +17,11 @@ def setup(tmp_path):
     write(repo, "docs/CHANGELOG.md", CHANGELOG)
     write(repo, "docs/changelog.d/README.md", "# How fragments work\n### Added\n- not a fragment\n")
     write(repo, "docs/changelog.d/core-export.md", "### Added\n- CSV export.\n\n### Fixed\n- Totals.\n")
-    write(repo, "docs/changelog.d/api-auth.md", "### Fixed\n- Login timeout\n  on slow networks.\n### Security\n- Tokens expire.\n")
+    write(
+        repo,
+        "docs/changelog.d/api-auth.md",
+        "### Fixed\n- Login timeout\n  on slow networks.\n### Security\n- Tokens expire.\n",
+    )
     return repo
 
 
@@ -77,7 +81,11 @@ def test_no_fragments_is_an_error(tmp_path):
 
 def test_entries_already_under_unreleased_are_refused(tmp_path):
     repo = setup(tmp_path)
-    write(repo, "docs/CHANGELOG.md", CHANGELOG.replace("## [Unreleased]\n", "## [Unreleased]\n### Fixed\n- Hand-written.\n"))
+    write(
+        repo,
+        "docs/CHANGELOG.md",
+        CHANGELOG.replace("## [Unreleased]\n", "## [Unreleased]\n### Fixed\n- Hand-written.\n"),
+    )
     result = run_cli(repo, "changelog", "build", "--version", "0.2.0")
     assert result.returncode == 2
     assert "fragment" in result.stderr

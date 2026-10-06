@@ -5,6 +5,7 @@ substitution. Anything a template asks for must be in the registry, and every re
 uses must have a value, so a typo fails at install time instead of shipping as literal braces.
 Write \\{{name}} to keep literal braces in the output.
 """
+
 import re
 
 _PLACEHOLDER = re.compile(r"(\\?)\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")

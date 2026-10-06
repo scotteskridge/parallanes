@@ -3,6 +3,7 @@
 Never a guess: a squash or rebase merge leaves nothing in local history, so PR mode asks `gh`, and
 only a PR whose head commit is the branch tip counts (a reused slug could match an old PR, §15).
 """
+
 import json
 import re
 import shutil
@@ -98,9 +99,25 @@ def pull_requests(folder: Path, branch: str, state: str, timeout: int = 30) -> t
         return [], "gh is not installed"
     try:
         result = subprocess.run(
-            [gh, "pr", "list", "--head", branch, "--state", state, "--limit", "100",
-             "--json", "number,state,headRefOid,baseRefName,url"],
-            cwd=folder, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+            [
+                gh,
+                "pr",
+                "list",
+                "--head",
+                branch,
+                "--state",
+                state,
+                "--limit",
+                "100",
+                "--json",
+                "number,state,headRefOid,baseRefName,url",
+            ],
+            cwd=folder,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as error:
         return [], f"gh: {error}"
@@ -116,9 +133,13 @@ def pull_requests(folder: Path, branch: str, state: str, timeout: int = 30) -> t
 
 
 def _valid(pr) -> bool:
-    return (isinstance(pr, dict) and isinstance(pr.get("number"), int)
-            and isinstance(pr.get("state"), str) and isinstance(pr.get("headRefOid"), str)
-            and isinstance(pr.get("baseRefName"), str))
+    return (
+        isinstance(pr, dict)
+        and isinstance(pr.get("number"), int)
+        and isinstance(pr.get("state"), str)
+        and isinstance(pr.get("headRefOid"), str)
+        and isinstance(pr.get("baseRefName"), str)
+    )
 
 
 def _first_line(text: str) -> str:

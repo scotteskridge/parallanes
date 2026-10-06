@@ -1,0 +1,5 @@
+# Mechanical reformats for `git blame` to skip (GitHub reads this file by name;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs). The SHAs survive only a
+# merge commit: a squash or rebase merge would leave them naming commits main never gets.
+# ruff format of the whole codebase (decision 94)
+2c342458aa4a6ef12baaf79a1d54de90f2b5d299

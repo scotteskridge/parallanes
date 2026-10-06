@@ -4,6 +4,7 @@ No state file: a folder is a lane when its git top level is `<main checkout>/<wo
 so nothing can go stale. Creating and removing lanes is in `lane_setup.py`, their status in `lane_status.py`,
 the task cycle in `lane_cycle.py`.
 """
+
 import os
 import subprocess
 from pathlib import Path
@@ -20,8 +21,13 @@ class Unfinished(LaneError):
 def git(folder: Path, *args: str, check: bool = True) -> str:
     try:
         result = subprocess.run(
-            ["git", *args], cwd=folder, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=60,
+            ["git", *args],
+            cwd=folder,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise LaneError(f"git {' '.join(args)}: {error}") from None
@@ -33,8 +39,9 @@ def git(folder: Path, *args: str, check: bool = True) -> str:
 def run_git(top: Path, *args: str, timeout: int = 300) -> subprocess.CompletedProcess:
     """git with its exit code, for the steps whose failure has its own message."""
     try:
-        return subprocess.run(["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=timeout)
+        return subprocess.run(
+            ["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout
+        )
     except (OSError, subprocess.SubprocessError) as error:
         raise LaneError(f"git {' '.join(args)}: {error}") from None
 
@@ -51,8 +58,9 @@ def toplevel(folder: Path) -> Path | None:
 def locate(folder: Path) -> tuple[Path | None, Path | None]:
     """(git top level of folder, main checkout); (None, None) outside a working tree. One git call
     in the common case, because the hooks run this on every session start and edit."""
-    out = git(folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir",
-              check=False).splitlines()
+    out = git(
+        folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir", check=False
+    ).splitlines()
     if not out:
         return None, None  # outside git, or a bare repository (no top level)
     if len(out) != 3:
@@ -73,7 +81,9 @@ def _main_from_linked(folder: Path, common: Path) -> Path:
     never a guess.
     """
     first = git(folder, "worktree", "list", "--porcelain", "-z").split("\0\0")[0].split("\0")
-    candidates = [Path(first[0][len("worktree "):])] if first[0].startswith("worktree ") and "bare" not in first else []
+    candidates = (
+        [Path(first[0][len("worktree ") :])] if first[0].startswith("worktree ") and "bare" not in first else []
+    )
     configured = git(folder, "config", "--file", str(common / "config"), "--get", "core.worktree", check=False).strip()
     if configured:
         candidates.append(Path(os.path.normpath(common / configured)))
@@ -158,7 +168,9 @@ def integration_tip(folder: Path, config) -> str | None:
 
 def is_ancestor(folder: Path, commit: str, of: str) -> bool:
     try:
-        result = subprocess.run(["git", "merge-base", "--is-ancestor", commit, of], cwd=folder, capture_output=True, timeout=60)
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", commit, of], cwd=folder, capture_output=True, timeout=60
+        )
     except (OSError, subprocess.SubprocessError) as error:
         raise LaneError(f"git merge-base: {error}") from None
     if result.returncode not in (0, 1):
@@ -168,7 +180,7 @@ def is_ancestor(folder: Path, commit: str, of: str) -> bool:
 
 def registered_worktrees(main: Path) -> list[Path]:
     out = git(main, "worktree", "list", "--porcelain", "-z")
-    return [Path(entry[len("worktree "):]) for entry in out.split("\0") if entry.startswith("worktree ")]
+    return [Path(entry[len("worktree ") :]) for entry in out.split("\0") if entry.startswith("worktree ")]
 
 
 def is_registered(main: Path, folder: Path) -> bool:
@@ -176,6 +188,7 @@ def is_registered(main: Path, folder: Path) -> bool:
 
 
 # ---- state of one folder ------------------------------------------------------------------------
+
 
 def branch_of(folder: Path) -> str | None:
     name = git(folder, "rev-parse", "--abbrev-ref", "HEAD").strip()

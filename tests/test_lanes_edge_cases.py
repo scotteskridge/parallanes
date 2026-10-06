@@ -1,4 +1,5 @@
 """Lane edge cases found by the second review: reruns, odd repository layouts, merge detection, messages."""
+
 import json
 import shutil
 import subprocess
@@ -31,18 +32,27 @@ def brief(folder):
 
 
 def ownership(cwd, target):
-    payload = json.dumps({"cwd": str(cwd), "hook_event_name": "PreToolUse", "tool_name": "Edit",
-                          "tool_input": {"file_path": str(target)}})
+    payload = json.dumps(
+        {
+            "cwd": str(cwd),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"file_path": str(target)},
+        }
+    )
     return run_cli(cwd, "hook", "ownership", stdin=payload)
 
 
 def ignore(repo, *patterns):
-    write(repo, ".gitignore", "\n".join([".claude/worktrees/", ".env", ".claude/settings.local.json", *patterns]) + "\n")
+    write(
+        repo, ".gitignore", "\n".join([".claude/worktrees/", ".env", ".claude/settings.local.json", *patterns]) + "\n"
+    )
     git(repo, "commit", "-q", "-am", "ignore more")
     git(repo, "push", "-q")
 
 
 # ---- create ------------------------------------------------------------------------------------
+
 
 def test_rerun_copies_include_files_a_failed_run_missed(repo, monkeypatch):
     write(repo, ".worktreeinclude", ".env\n.claude/settings.local.json\n")
@@ -85,6 +95,7 @@ def test_a_leftover_folder_fails_only_its_lane(repo):
 
 # ---- remove ------------------------------------------------------------------------------------
 
+
 def test_remove_after_create_with_an_included_folder(repo):
     ignore(repo, "secrets/")
     write(repo, ".worktreeinclude", "secrets/\n")
@@ -116,6 +127,7 @@ def test_remove_does_not_count_caches(repo):
 
 # ---- repository layouts ------------------------------------------------------------------------
 
+
 def test_separate_git_dir_named_dot_git_is_not_mistaken_for_the_main_checkout(tmp_path):
     repo = lanes_repo(tmp_path, origin=False)
     (tmp_path / "store").mkdir()
@@ -146,11 +158,23 @@ def test_broken_lane_code_does_not_break_the_protected_guard(tmp_path):
     project = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n')
 
     def run(*args, stdin=""):
-        return subprocess.run([sys.executable, str(kit / "cli.py"), *args], cwd=project, input=stdin,
-                              capture_output=True, text=True, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, str(kit / "cli.py"), *args],
+            cwd=project,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
 
-    payload = json.dumps({"cwd": str(project), "hook_event_name": "PreToolUse", "tool_name": "Write",
-                          "tool_input": {"file_path": str(project / "vendor" / "x.py")}})
+    payload = json.dumps(
+        {
+            "cwd": str(project),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {"file_path": str(project / "vendor" / "x.py")},
+        }
+    )
     assert run("hook", "protected", stdin=payload).returncode == 2
     result = run("lanes", "status")
     assert result.returncode == 2
@@ -158,6 +182,7 @@ def test_broken_lane_code_does_not_break_the_protected_guard(tmp_path):
 
 
 # ---- merge detection ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def task(repo):
@@ -201,6 +226,7 @@ def test_local_mode_does_not_mention_fetch(tmp_path):
 
 # ---- ownership messages ------------------------------------------------------------------------
 
+
 @pytest.fixture
 def lane(repo):
     assert create(repo).returncode == 0
@@ -220,6 +246,7 @@ def test_main_checkout_git_folder_has_its_own_reason(lane, repo):
 
 
 # ---- from the third review ---------------------------------------------------------------------
+
 
 def test_cache_names_inside_work_paths_still_count(repo):
     ignore(repo, "*.secret", "node_modules")

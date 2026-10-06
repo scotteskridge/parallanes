@@ -11,3 +11,5 @@ formatter from [lint-and-format-in-ci](lint-and-format-in-ci.md) should settle t
 exists so it isn't forgotten if that one stops short of formatting.
 
 **Done when:** a line length is set in `pyproject.toml` and no source or test line exceeds it.
+
+Done 2026-10-06 with lint-and-format-in-ci (decision 94): line length 120, enforced by ruff in CI.

@@ -1,4 +1,5 @@
 """`kit lanes status`: every lane at a glance, from local git data plus `gh` when it can (decision 43)."""
+
 import itertools
 import os
 import shutil
@@ -6,9 +7,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import globs, lane_merged
-from .lanes import (ahead_behind, branch_of, changes, git, integration_tip, lane_folder, registered_worktrees,
-                    main_checkout, same_path, toplevel, unpushed_count, upstream_gone)
-
+from .lanes import (
+    ahead_behind,
+    branch_of,
+    changes,
+    git,
+    integration_tip,
+    lane_folder,
+    main_checkout,
+    registered_worktrees,
+    same_path,
+    toplevel,
+    unpushed_count,
+    upstream_gone,
+)
 
 UNKNOWN = "PR: unknown"
 

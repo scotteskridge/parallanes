@@ -1,4 +1,5 @@
 """`kit next`: the facts `/next` words (decision 63): where this folder is, lanes, plans, backlog."""
+
 import pytest
 
 from helpers import git, make_repo, run_cli, write
@@ -31,11 +32,13 @@ def plan(root, name, status="Approved"):
 
 
 def item(root, slug, status="next", lane="any", size="M", title="Do a thing", extra=""):
-    return write(root, f"docs/backlog/{slug}.md", ITEM.format(status=status, lane=lane, size=size,
-                                                               title=title, extra=extra))
+    return write(
+        root, f"docs/backlog/{slug}.md", ITEM.format(status=status, lane=lane, size=size, title=title, extra=extra)
+    )
 
 
 # ---- plans -------------------------------------------------------------------------------------
+
 
 def test_plans_read_title_status_and_left_to_do(tmp_path):
     plan(tmp_path, "2026-10-05-export.md", "In progress")
@@ -85,19 +88,29 @@ def test_no_plans_folder_is_not_an_error(tmp_path):
 
 # ---- backlog -----------------------------------------------------------------------------------
 
+
 def test_backlog_reads_headers_and_titles(tmp_path):
     item(tmp_path, "export-csv", status="now", lane="core", size="S", title="Export CSV")
     found, problems = next_facts.backlog(tmp_path, ["core", "api"])
     assert problems == []
     entry = found[0]
     assert (entry.slug, entry.title, entry.status, entry.lane, entry.size, entry.blocked_by) == (
-        "export-csv", "Export CSV", "now", "core", "S", None)
+        "export-csv",
+        "Export CSV",
+        "now",
+        "core",
+        "S",
+        None,
+    )
 
 
 def test_backlog_skips_readme_template_and_done(tmp_path):
     write(tmp_path, "docs/backlog/README.md", "# Backlog\n")
-    write(tmp_path, "docs/backlog/_TEMPLATE.md", ITEM.format(status="idea", lane="any", size="M",
-                                                             title="Short imperative title", extra=""))
+    write(
+        tmp_path,
+        "docs/backlog/_TEMPLATE.md",
+        ITEM.format(status="idea", lane="any", size="M", title="Short imperative title", extra=""),
+    )
     item(tmp_path, "done/old-thing", status="now")
     item(tmp_path, "real")
     found, problems = next_facts.backlog(tmp_path, [])
@@ -124,8 +137,9 @@ def test_blocked_by_an_item_that_is_done_says_so(tmp_path):
     assert by_slug["report"].blocked_by == "export" and not by_slug["report"].blocker_done
 
 
-@pytest.mark.parametrize("blocker", ["2026-10-01-schema", "docs/plans/finished/2026-10-01-schema.md",
-                                     "docs/plans/2026-10-01-schema.md"])
+@pytest.mark.parametrize(
+    "blocker", ["2026-10-01-schema", "docs/plans/finished/2026-10-01-schema.md", "docs/plans/2026-10-01-schema.md"]
+)
 def test_blocked_by_a_finished_plan_is_done(tmp_path, blocker):
     """The backlog README allows a plan as a blocker (by name or path); it's done once finished."""
     plan(tmp_path, "finished/2026-10-01-schema.md", "Done")
@@ -165,15 +179,18 @@ def test_an_unknown_blocker_is_a_problem_and_still_blocks(tmp_path):
     assert problems == ["docs/backlog/export.md: blocked_by 'shcema' names no backlog item or plan"]
 
 
-@pytest.mark.parametrize("text, reason", [
-    ("# No header\n", "no header"),
-    ("---\nstatus: now\nlane: any\n# never closed\n", "no header"),
-    ("---\nstatus: soon\nlane: any\nsize: M\n---\n# T\n", "status"),
-    ("---\nstatus: now\nlane: any\nsize: XL\n---\n# T\n", "size"),
-    ("---\nstatus: now\nsize: M\n---\n# T\n", "lane"),
-    ("---\nstatus: now\nlane: web\nsize: M\n---\n# T\n", "lane"),
-    ("---\nstatus: now\nlane: any\nsize: M\nowner: sam\n---\n# T\n", "owner"),
-])
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        ("# No header\n", "no header"),
+        ("---\nstatus: now\nlane: any\n# never closed\n", "no header"),
+        ("---\nstatus: soon\nlane: any\nsize: M\n---\n# T\n", "status"),
+        ("---\nstatus: now\nlane: any\nsize: XL\n---\n# T\n", "size"),
+        ("---\nstatus: now\nsize: M\n---\n# T\n", "lane"),
+        ("---\nstatus: now\nlane: web\nsize: M\n---\n# T\n", "lane"),
+        ("---\nstatus: now\nlane: any\nsize: M\nowner: sam\n---\n# T\n", "owner"),
+    ],
+)
 def test_a_malformed_backlog_item_is_reported_not_hidden(tmp_path, text, reason):
     write(tmp_path, "docs/backlog/broken thing.md", text)
     item(tmp_path, "fine")
@@ -186,12 +203,13 @@ def test_a_malformed_backlog_item_is_reported_not_hidden(tmp_path, text, reason)
 def test_backlog_header_tolerates_a_bom_and_crlf(tmp_path):
     path = tmp_path / "docs" / "backlog" / "win.md"
     path.parent.mkdir(parents=True)
-    path.write_bytes("﻿---\r\nstatus: now\r\nlane: any\r\nsize: S\r\n---\r\n# Windows\r\n".encode("utf-8"))
+    path.write_bytes("﻿---\r\nstatus: now\r\nlane: any\r\nsize: S\r\n---\r\n# Windows\r\n".encode())
     found, problems = next_facts.backlog(tmp_path, [])
     assert problems == [] and found[0].title == "Windows"
 
 
 # ---- the whole answer --------------------------------------------------------------------------
+
 
 def test_next_in_a_project_without_lanes(tmp_path):
     repo = make_repo(tmp_path)

@@ -1,14 +1,17 @@
 """`[[lanes]]` and the lane keys of `[project]` are validated strictly (decision 42)."""
+
 import pytest
 
 from helpers import RULES_TOML, make_repo
 from kitlib.config import ConfigError, load
 
-LANES_TOML = RULES_TOML.replace(
-    'integration_branch = "main"',
-    'integration_branch = "main"\nmerge_mode = "local"\nworktree_root = "../{project}-lanes"\n'
-    'ownership = "off"\nshared_paths = ["docs/plans/**"]',
-) + """
+LANES_TOML = (
+    RULES_TOML.replace(
+        'integration_branch = "main"',
+        'integration_branch = "main"\nmerge_mode = "local"\nworktree_root = "../{project}-lanes"\n'
+        'ownership = "off"\nshared_paths = ["docs/plans/**"]',
+    )
+    + """
 [[lanes]]
 name = "core"
 scope = "Domain logic"
@@ -19,6 +22,7 @@ resources = { dev_port = 8001, editor = "a", headless = true }
 name = "api-2"
 owns = ["src/api/**"]
 """
+)
 
 
 def test_lanes_load(tmp_path):
@@ -40,9 +44,18 @@ def test_lane_defaults(tmp_path):
     assert config.lanes == []
     settings = config.lane_settings
     assert (settings.integration_branch, settings.merge_mode, settings.worktree_root, settings.ownership) == (
-        "main", "pr", ".claude/worktrees", "ask")
-    assert settings.shared_paths == ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md",
-                                     "docs/health/**"]
+        "main",
+        "pr",
+        ".claude/worktrees",
+        "ask",
+    )
+    assert settings.shared_paths == [
+        "docs/changelog.d/**",
+        "docs/backlog/**",
+        "docs/plans/**",
+        "docs/design/decisions-log.md",
+        "docs/health/**",
+    ]
 
 
 def config_error(tmp_path, text):
@@ -68,7 +81,7 @@ def config_error(tmp_path, text):
         ('[[lanes]]\nname = "a"\nowns = ["a/**"]\nscope = 3\n', "'scope'"),
         ('[[lanes]]\nname = "a"\nowns = ["a/**"]\nresources = { x = [1] }\n', "'resources'"),
         ('[[lanes]]\nname = "a"\nowns = ["a/**"]\nresources = 5\n', "'resources'"),
-        ('lanes = 3\n', "lanes"),
+        ("lanes = 3\n", "lanes"),
     ],
 )
 def test_lane_errors_name_the_key(tmp_path, lanes, expected):
@@ -100,5 +113,7 @@ def test_windows_device_names_are_rejected(tmp_path, name):
 
 
 def test_unknown_worktree_root_placeholder_is_rejected(tmp_path):
-    text = RULES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{name}-lanes"')
+    text = RULES_TOML.replace(
+        'integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{name}-lanes"'
+    )
     assert "{name}" in config_error(tmp_path, text)

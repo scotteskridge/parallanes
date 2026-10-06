@@ -3,6 +3,7 @@
 Each command runs only in a lane folder and acts on that lane's worktree. It returns short lines an
 agent can quote; a refusal is a LaneError whose message says why and what to do next.
 """
+
 import os
 import re
 import subprocess
@@ -10,19 +11,26 @@ import sys
 from pathlib import Path
 
 from kitlib import lane_merged, lane_pr, lanes
-from kitlib.lanes import LaneError, Unfinished  # noqa: F401 - lane_cli catches lane_cycle.Unfinished
+from kitlib.lanes import LaneError, Unfinished
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")  # the lane-name pattern, at most 50 characters
-IN_PROGRESS = {"rebase-merge": "rebase", "rebase-apply": "rebase", "MERGE_HEAD": "merge",
-               "CHERRY_PICK_HEAD": "cherry-pick"}
+IN_PROGRESS = {
+    "rebase-merge": "rebase",
+    "rebase-apply": "rebase",
+    "MERGE_HEAD": "merge",
+    "CHERRY_PICK_HEAD": "cherry-pick",
+}
 
 
 # ---- the three commands --------------------------------------------------------------------------
 
+
 def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
     lane, top, _ = _here(folder, config)
     if not SLUG.match(task):
-        raise LaneError(f"task {task!r}: use lowercase letters, digits and hyphens, at most 50 characters (e.g. fix-login)")
+        raise LaneError(
+            f"task {task!r}: use lowercase letters, digits and hyphens, at most 50 characters (e.g. fix-login)"
+        )
     _nothing_in_progress(top)
     note = _clean(top)
     new = f"{lane.name}/{task}"
@@ -47,9 +55,12 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
             if not abandon:
                 raise LaneError(
                     f"this lane has commits on no branch (HEAD {here[:12]}) that a new task would leave behind. "
-                    f"Keep them with `git branch {lane.name}/<name>`, or drop them on purpose: kit lanes start {task} --abandon"
+                    f"Keep them with `git branch {lane.name}/<name>`, "
+                    f"or drop them on purpose: kit lanes start {task} --abandon"
                 )
-            lines.append(f"Abandoned commits on no branch at {here}. To get them back: git branch {lane.name}/recovered {here}")
+            lines.append(
+                f"Abandoned commits on no branch at {here}. To get them back: git branch {lane.name}/recovered {here}"
+            )
     else:
         done, why = lane_merged.merged(top, config, current, tip)
         if not done and not abandon:
@@ -57,13 +68,19 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
         sha = _rev(top, "HEAD")
         _git(top, "switch", "-q", "--detach", tip)
         _git(top, "branch", "-q", "-D", current)  # proved merged above, or abandoned on request
-        lines.append(f"Deleted {current}: {why}." if done
-                     else f"Abandoned {current} at {sha}. To get it back: git branch {current} {sha}")
+        lines.append(
+            f"Deleted {current}: {why}."
+            if done
+            else f"Abandoned {current} at {sha}. To get it back: git branch {current} {sha}"
+        )
     # --no-track: otherwise git makes origin/<integration> the upstream and "pushed?" checks lie (decision 47).
     _git(top, "switch", "-q", "--no-track", "-c", new, tip)
     lines.append(f"On {new}, from {tip} ({_rev(top, 'HEAD')[:12]}).")
-    leftovers = [name for name in _git(top, "for-each-ref", "--format=%(refname:short)", f"refs/heads/{lane.name}/").split()
-                 if name != new]
+    leftovers = [
+        name
+        for name in _git(top, "for-each-ref", "--format=%(refname:short)", f"refs/heads/{lane.name}/").split()
+        if name != new
+    ]
     if leftovers:
         lines.append(f"Other {lane.name}/ branches, left alone: {', '.join(leftovers)}")
     return lines + note
@@ -84,7 +101,9 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
     _say(_clean(top))  # untracked files stay out of what lands; say so before the tests add more
     command = config.project.get("test_command", "").strip()
     if not command:
-        raise LaneError("no test_command in .claude/kit.toml: finish runs the tests before anything lands, so set it first")
+        raise LaneError(
+            "no test_command in .claude/kit.toml: finish runs the tests before anything lands, so set it first"
+        )
     body, body_text = None, None
     if body_file == "-":
         # Read now, before the tests run: /wrap-up passes the body on stdin so it needs no file,
@@ -93,7 +112,9 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
         try:
             body_text = sys.stdin.buffer.read().decode("utf-8-sig").replace("\r\n", "\n")
         except UnicodeDecodeError as error:
-            raise LaneError(f"--body-file -: the PR body on stdin isn't UTF-8 ({error.reason} at byte {error.start})") from None
+            raise LaneError(
+                f"--body-file -: the PR body on stdin isn't UTF-8 ({error.reason} at byte {error.start})"
+            ) from None
         if not body_text.strip():
             raise LaneError("--body-file -: no PR body on stdin")
     elif body_file:
@@ -114,6 +135,7 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
 
 
 # ---- steps ---------------------------------------------------------------------------------------
+
 
 def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:
     """Sync, then test exactly the commit that will be pushed or fast-forwarded. Returns the tip's
@@ -138,6 +160,7 @@ def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:
             "nothing was pushed or merged. Look at what it did, then run `kit lanes finish` again."
         )
     return tip_sha
+
 
 def _bring_in(top: Path, branch: str, tip: str) -> list[str]:
     """Rebase a branch that was never pushed; merge one that was, so nothing under review is rewritten."""
@@ -195,10 +218,13 @@ def _land_locally(top: Path, main: Path, config, branch: str, tip_sha: str, comm
     # -D, not -d: -d judges against the branch's upstream (a backup push), but the push above
     # just put this exact commit into the integration branch.
     _git(top, "branch", "-q", "-D", branch)
-    return [f"{integration} fast-forwarded to {sha[:12]}; {branch} deleted. Between tasks: next, kit lanes start <task>."]
+    return [
+        f"{integration} fast-forwarded to {sha[:12]}; {branch} deleted. Between tasks: next, kit lanes start <task>."
+    ]
 
 
 # ---- checks and git helpers ----------------------------------------------------------------------
+
 
 def _here(folder: Path, config):
     lane, top, main = lanes.find_current(Path(folder), config)
@@ -211,12 +237,15 @@ def _here(folder: Path, config):
 
 
 def _nothing_in_progress(top: Path) -> None:
-    paths = _git(top, "rev-parse", "--path-format=absolute", *[arg for name in IN_PROGRESS for arg in ("--git-path", name)])
-    for name, path in zip(IN_PROGRESS, paths.splitlines()):
+    paths = _git(
+        top, "rev-parse", "--path-format=absolute", *[arg for name in IN_PROGRESS for arg in ("--git-path", name)]
+    )
+    for name, path in zip(IN_PROGRESS, paths.splitlines(), strict=True):
         if Path(path).exists():
             kind = IN_PROGRESS[name]
             raise LaneError(
-                f"a {kind} is in progress here: finish it (`git {kind} --continue`) or undo it (`git {kind} --abort`) first"
+                f"a {kind} is in progress here: "
+                f"finish it (`git {kind} --continue`) or undo it (`git {kind} --abort`) first"
             )
 
 
@@ -234,8 +263,10 @@ def _clean(top: Path) -> list[str]:
         return []
     shown = ", ".join(untracked[:5]) + (f" and {len(untracked) - 5} more" if len(untracked) > 5 else "")
     # The tests can see these files but they won't land: a forgotten `git add` must not look fine.
-    return [f"Note: untracked, so the tests see them but they won't land: {shown}. "
-            "Commit any that belong to the task (git add <file>); put generated ones in .gitignore."]
+    return [
+        f"Note: untracked, so the tests see them but they won't land: {shown}. "
+        "Commit any that belong to the task (git add <file>); put generated ones in .gitignore."
+    ]
 
 
 def _task_branch(top: Path, lane) -> str:
@@ -248,7 +279,9 @@ def _task_branch(top: Path, lane) -> str:
 
 def _check_task_branch(branch: str, lane) -> None:
     if not branch.startswith(lane.name + "/"):
-        raise LaneError(f"{branch!r} isn't a {lane.name}/<task> branch, so the kit leaves it alone: switch away from it first")
+        raise LaneError(
+            f"{branch!r} isn't a {lane.name}/<task> branch, so the kit leaves it alone: switch away from it first"
+        )
 
 
 def _nobody_holds(main: Path, integration: str) -> None:
@@ -257,7 +290,7 @@ def _nobody_holds(main: Path, integration: str) -> None:
     for entry in entries:
         fields = entry.strip("\0").split("\0")
         if f"branch refs/heads/{integration}" in fields and fields[0].startswith("worktree "):
-            folder = fields[0][len("worktree "):]
+            folder = fields[0][len("worktree ") :]
             if not Path(folder).is_dir():
                 raise LaneError(
                     f"local mode: git still records {folder} (now gone) as having {integration} checked out. "
@@ -279,7 +312,9 @@ def _fetch_tip(top: Path, config) -> str:
             raise LaneError(f"can't fetch origin, so the integration tip would be stale: {fetched.stderr.strip()}")
     tip = lanes.integration_tip(top, config)
     if tip is None:
-        raise LaneError(f"integration branch {config.lane_settings.integration_branch!r} not found (locally or on origin)")
+        raise LaneError(
+            f"integration branch {config.lane_settings.integration_branch!r} not found (locally or on origin)"
+        )
     return tip
 
 

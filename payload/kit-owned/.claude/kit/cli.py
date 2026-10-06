@@ -7,6 +7,7 @@ Code's protocol instead: 0 nothing to report, 2 findings for Claude to fix, 1 a 
 is shown but never blocks the edit (decision 9). The protected hook is the exception: it fails
 closed, so every error is an exit 2 (decision 33).
 """
+
 from __future__ import annotations  # so this file still loads on an old Python and can say so
 
 import argparse
@@ -112,14 +113,20 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
     remove = lane_commands.add_parser("remove", help="remove a lane's worktree (refuses uncommitted changes)")
     remove.add_argument("name", metavar="lane")
-    remove.add_argument("--force", action="store_true", help="also delete ignored files that hold work (.env, local settings)")
+    remove.add_argument(
+        "--force", action="store_true", help="also delete ignored files that hold work (.env, local settings)"
+    )
     start = lane_commands.add_parser("start", help="new task branch <lane>/<task>, once the previous one is merged")
     start.add_argument("task", help="short name: lowercase letters, digits, hyphens")
     start.add_argument("--abandon", action="store_true", help="drop an unmerged previous task branch on purpose")
     lane_commands.add_parser("sync", help="bring the integration branch in (rebase if unpushed, merge if pushed)")
-    finish = lane_commands.add_parser("finish", help="sync, run the tests, then open a PR (or fast-forward in local mode)")
+    finish = lane_commands.add_parser(
+        "finish", help="sync, run the tests, then open a PR (or fast-forward in local mode)"
+    )
     finish.add_argument("--title", help="PR title (default: the first commit's subject)")
-    finish.add_argument("--body-file", help="file holding the PR body, or - to read it from stdin (default: the commit list)")
+    finish.add_argument(
+        "--body-file", help="file holding the PR body, or - to read it from stdin (default: the commit list)"
+    )
     lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
     upcoming = commands.add_parser("next", help="what's next: this folder, lanes, open plans, backlog (read-only)")
@@ -143,6 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 # ---- kit check -------------------------------------------------------------------------------
+
 
 def run_check(args) -> int:
     names = list(CHECKS) if args.name == "all" else [args.name]
@@ -189,7 +197,7 @@ def check_protected(root: Path, config, args) -> list:
 def explicit_paths(root: Path, names) -> list[str]:
     # `vendor\a.py` means the same file on every platform, as in kit.toml globs.
     paths = [relative_to_root(root, Path(normalize(name))) for name in names]
-    for name, path in zip(names, paths):
+    for name, path in zip(names, paths, strict=True):
         if not (root / path).is_file():
             raise UsageError(f"{name}: not a file")  # a typo must not pass as "clean"
     return paths
@@ -232,11 +240,13 @@ def relative_to_root(root: Path, path: Path) -> str:
 
 # ---- kit hook ----------------------------------------------------------------------------------
 
+
 def run_hook(args) -> int:
     return hooks.run(args.name)
 
 
 # ---- kit lanes ---------------------------------------------------------------------------------
+
 
 def run_lanes(args) -> int:
     try:
@@ -249,6 +259,7 @@ def run_lanes(args) -> int:
 
 
 # ---- kit next ----------------------------------------------------------------------------------
+
 
 def run_next(args) -> int:
     try:
@@ -270,6 +281,7 @@ def run_next(args) -> int:
 
 # ---- kit settings ------------------------------------------------------------------------------
 
+
 def run_settings_sync(args) -> int:
     try:
         root = find_root(Path.cwd())
@@ -289,6 +301,7 @@ def run_settings_sync(args) -> int:
 
 
 # ---- kit changelog -------------------------------------------------------------------------------
+
 
 def run_changelog_build(args) -> int:
     root = find_root(Path.cwd())

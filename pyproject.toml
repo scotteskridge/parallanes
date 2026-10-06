@@ -8,7 +8,22 @@ requires-python = ">=3.11"
 authors = [{ name = "Scott Eskridge" }]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-xdist>=3"]
+# ruff is pinned exactly: its formatting changes between versions, and CI must agree with a local run.
+dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
+
+# Dev-only (decision 94): lints and formats the kit's own code; nothing here is installed.
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# Where the kit's own modules and test helpers live, so imports of them sort apart from pytest;
+# found by folder, so a new helper needs no list update.
+src = ["tests", "tests/live", "payload/kit-owned/.claude/kit"]
+
+[tool.ruff.lint]
+# BLE: a broad except needs an explicit `# noqa: BLE001`, which by convention says why (AGENTS.md:
+# never swallow an exception);
+# RUF100: a noqa that no longer suppresses anything is an error, so the reasons stay true.
+select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF100"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

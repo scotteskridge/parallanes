@@ -1,4 +1,5 @@
 """Throwaway projects with lanes: a main checkout (path with spaces) and a bare `origin`."""
+
 import json
 import os
 import shutil
@@ -7,7 +8,9 @@ from pathlib import Path
 
 from helpers import RULES_TOML, cache_root, git, make_repo, write
 
-LANES_TOML = RULES_TOML + """
+LANES_TOML = (
+    RULES_TOML
+    + """
 [[lanes]]
 name = "core"
 scope = "Domain logic and its tests"
@@ -19,6 +22,7 @@ name = "api"
 scope = "HTTP layer"
 owns = ["src/api/**"]
 """
+)
 
 
 _TEMPLATES: dict = {}  # (config, origin, ignore) -> built repo, under helpers.cache_root()
@@ -170,19 +174,23 @@ def cycle_repo(base: Path, mode: str = "pr") -> tuple[Path, Path]:
     """(main checkout, core lane folder) for the task cycle.
 
     test_command is a stand-in that logs the HEAD it ran on to <base>/test-runs.log and fails while
-    <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local mode the main checkout is detached, as decision 38 asks.
+    <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local
+    mode the main checkout is detached, as decision 38 asks.
     """
     # One shared script, so the committed config (and so the cached repo) is the same for every test;
     # the script finds this test's folder through KIT_TEST_CONTROL (conftest clears it after each test).
     os.environ["KIT_TEST_CONTROL"] = str(base)
     command = f'"{Path(sys.executable).as_posix()}" "{_fake_tests_script().as_posix()}"'
-    config = LANES_TOML.replace('test_command = "python -m pytest -q"', f"test_command = '{command}'\nmerge_mode = \"{mode}\"")
+    config = LANES_TOML.replace(
+        'test_command = "python -m pytest -q"', f"test_command = '{command}'\nmerge_mode = \"{mode}\""
+    )
     repo = lanes_repo(base, config=config)
     if mode == "local":
         git(repo, "switch", "-q", "--detach", "main")
     # In-process: the lane is setup here, not what these tests are about (saves a Python start).
     from kitlib import lane_setup
     from kitlib.config import load
+
     lane_setup.create(repo, load(repo), ["core"])
     return repo, lane_dir(repo, "core")
 

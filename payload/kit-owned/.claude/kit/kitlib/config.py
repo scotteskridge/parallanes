@@ -3,6 +3,7 @@
 Validation is strict (decision 24): an unknown key or a wrong type is an error naming the key, so a
 typo can't silently switch a rule off.
 """
+
 import re
 import subprocess
 import tomllib
@@ -40,8 +41,13 @@ DEFAULT_COMMANDS = [
 # Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).
 DEFAULT_SECRETS = [".env", ".env.*", "!.env.example"]
 # Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
-DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
-                        "docs/design/decisions-log.md", "docs/health/**"]
+DEFAULT_SHARED_PATHS = [
+    "docs/changelog.d/**",
+    "docs/backlog/**",
+    "docs/plans/**",
+    "docs/design/decisions-log.md",
+    "docs/health/**",
+]
 _RULE_KEYS = {
     "id": (str, True),
     "pattern": (str, True),
@@ -89,6 +95,7 @@ class Lane:
 @dataclass(frozen=True)
 class LaneSettings:
     """The `[project]` keys lanes use, with their defaults filled in."""
+
     integration_branch: str = "main"
     merge_mode: str = "pr"
     worktree_root: str = ".claude/worktrees"
@@ -115,7 +122,10 @@ def find_root(start: Path) -> Path:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            cwd=start, capture_output=True, text=True, timeout=10,
+            cwd=start,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0 and result.stdout.strip():
             return Path(result.stdout.strip())
@@ -180,7 +190,9 @@ def _lane_settings(project: dict) -> LaneSettings:
     _globs(project, "shared_paths", where)
     unknown = set(re.findall(r"\{[^}]*\}", project.get("worktree_root", ""))) - {"{project}"}
     if unknown:
-        _fail(f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists")
+        _fail(
+            f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists"
+        )
     defaults = LaneSettings()
     return LaneSettings(
         integration_branch=project.get("integration_branch", defaults.integration_branch),
@@ -275,18 +287,24 @@ def _exemption(key: str, name: str, bare_before: list, where: str) -> None:
     leave the owner believing a file is readable, or the hook and the deny rules disagreeing."""
     pattern = f"!{name}"
     if key != "secrets":
-        _fail(f"{where}: {key!r}: {pattern!r}: exemptions are allowed only in 'secrets'; "
-              "remove the path from 'paths' instead")
+        _fail(
+            f"{where}: {key!r}: {pattern!r}: exemptions are allowed only in 'secrets'; "
+            "remove the path from 'paths' instead"
+        )
     if not name.strip():
         _fail(f"{where}: 'secrets': {pattern!r} names no file")
     if not globs.is_bare(name):
-        _fail(f"{where}: 'secrets': {pattern!r} must be a bare file name: Claude Code can't carve an "
-              "exemption out of a rule with a folder in it")
+        _fail(
+            f"{where}: 'secrets': {pattern!r} must be a bare file name: Claude Code can't carve an "
+            "exemption out of a rule with a folder in it"
+        )
     # A wildcard exemption may cancel part of any earlier name; a plain one must match one of them.
     if not any(globs.WILDCARD.search(name) or globs.matches(name, earlier) for earlier in bare_before):
-        _fail(f"{where}: 'secrets': {pattern!r} has nothing before it to carve out of; list it after "
-              "a bare file name it matches, such as '.env.*' (a name with a folder or a trailing / "
-              "can't be carved)")
+        _fail(
+            f"{where}: 'secrets': {pattern!r} has nothing before it to carve out of; list it after "
+            "a bare file name it matches, such as '.env.*' (a name with a folder or a trailing / "
+            "can't be carved)"
+        )
 
 
 def _strings(table: dict, key: str, where: str) -> list:

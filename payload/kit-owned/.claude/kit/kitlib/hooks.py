@@ -8,6 +8,7 @@ Each hook has its own failure policy, because each guards something different:
 - reviewer-bash (PreToolUse, in the reviewer agent's frontmatter) fails closed: it keeps a promise
   that the reviewer is read-only (57).
 """
+
 import json
 import os
 import sys
@@ -165,11 +166,15 @@ def ownership(payload: dict) -> int:
     reason = lane_hooks.ownership_reason(payload)
     if reason is None:
         return HOOK_OK
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
-            "permissionDecisionReason": reason,
-        }
-    }))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "ask",
+                    "permissionDecisionReason": reason,
+                }
+            }
+        )
+    )
     return HOOK_OK

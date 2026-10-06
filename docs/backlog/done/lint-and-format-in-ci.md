@@ -12,3 +12,5 @@ it is cheap. Dev-only tooling, so the stdlib-only rule for installed files is un
 **Done when:** `ruff check` and `ruff format --check` run in CI on every push and PR and pass; the
 rule set and line length live in `pyproject.toml`; AGENTS.md says how to run them; ROADMAP §14
 moves linting from Later to done. Also clears [wrap-long-lines](wrap-long-lines.md).
+
+Done 2026-10-06: decision 94. Ruff at line length 120 in a CI `lint` job; the reformat is listed in `.git-blame-ignore-revs`.

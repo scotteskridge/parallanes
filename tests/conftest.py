@@ -1,4 +1,5 @@
 """Make the shipped kit code importable: tests run against payload/, the code that gets installed."""
+
 import os
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ KIT_CODE = ROOT / "payload" / "kit-owned" / ".claude" / "kit"
 
 if str(KIT_CODE) not in sys.path:
     sys.path.insert(0, str(KIT_CODE))
+
 
 # git runs `git maintenance run` on its own after fetches and pushes. In throwaway test repos that
 # is pure cost (twice per `lanes finish`), so every git process the tests start skips it.
@@ -23,11 +25,15 @@ def _clear_test_control():
 
 
 _count = int(os.environ.get("GIT_CONFIG_COUNT", "0"))  # appended: keep a developer's own entries (safe.directory)
-os.environ.update({
-    f"GIT_CONFIG_KEY_{_count}": "maintenance.auto", f"GIT_CONFIG_VALUE_{_count}": "false",
-    f"GIT_CONFIG_KEY_{_count + 1}": "gc.auto", f"GIT_CONFIG_VALUE_{_count + 1}": "0",
-    "GIT_CONFIG_COUNT": str(_count + 2),
-})
+os.environ.update(
+    {
+        f"GIT_CONFIG_KEY_{_count}": "maintenance.auto",
+        f"GIT_CONFIG_VALUE_{_count}": "false",
+        f"GIT_CONFIG_KEY_{_count + 1}": "gc.auto",
+        f"GIT_CONFIG_VALUE_{_count + 1}": "0",
+        "GIT_CONFIG_COUNT": str(_count + 2),
+    }
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
