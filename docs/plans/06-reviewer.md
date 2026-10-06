@@ -139,4 +139,35 @@ against the project's own rules and the plan, using numbered checks from three c
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **A launcher for the hook** (decision 57): the frontmatter hook runs `sh
+  "$CLAUDE_PROJECT_DIR/.claude/kit/hook" reviewer-bash`. `.claude/kit/hook` takes Python from
+  `.claude/kit/python-path` (as the pre-commit hook does), because a kit-owned file can't hold a
+  machine's interpreter path, and turns any failure into exit 2. This repo's copy of the agent
+  points at `payload/kit-owned/.claude/kit/hook`, with a gitignored `python-path` beside it.
+- **The guard is stricter than "read-only git"** in two ways: it refuses `$`, backticks, `<` and `>`
+  anywhere (so `cd "..." && git diff` and `$(git merge-base ...)` are blocked; the agent is told to
+  use `git diff <base>...HEAD`), and it refuses `--output`, `--ext-diff` and `git grep -O`, which
+  write files or run programs from otherwise read-only commands.
+- **This repo's own `.claude/review/project.md`** (P1–P5: stdlib only, Windows first, hook failure
+  policy, never overwrite, the trail) so the dogfood reviewer checks what matters here.
+
+**Live check** (Windows, Claude Code 2.1.284, headless `claude -p`, a throwaway project laid out
+as the kit installs it, in a path with a space; script and outputs kept in the session scratchpad):
+- *Review:* on a branch with five planted defects, the reviewer found all five with the right
+  check IDs (U3 deleted test, U4 swallowed exception, U8 needless factory, U7 duplicated logic, and
+  DM1 from a stand-in pack checklist it found by reading the folder), used the report shape, and
+  also flagged the new checklist file itself for the owner (U10). The repo's status and HEAD were
+  unchanged afterwards.
+- *Guard:* asked to run `git checkout -b probe`, the reviewer refused on its instructions alone, so a
+  probe agent with the reviewer's exact frontmatter and neutral instructions tested the hook.
+  **First finding:** in an untrusted folder Claude Code skips an agent's frontmatter hooks; the
+  debug log says so, the agent still runs, and `git checkout -b probe` went through. After the owner
+  accepted the trust dialog, the hook blocked `git checkout -b probe`, `git stash list`, a redirect
+  and a `cd ... && ...; echo $?` with exit 2, allowed `git diff main...HEAD --stat`, and nothing in
+  the repo changed. Recorded in ARCHITECTURE §15 for plans 08 and 11.
+- *Discovery:* with the payload's copy temporarily renamed, only this repo's own `reviewer` was
+  listed: Claude Code doesn't discover `payload/kit-owned/.claude/agents/`, so the two copies don't
+  clash.
+- *Not shown live:* macOS and Linux, Windows without Git Bash (`sh` missing: the guard fails open,
+  §15), and `/wrap-up` calling the reviewer (plan 07).

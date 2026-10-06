@@ -72,6 +72,9 @@ discussed along the way.
 - Read the reviewer's report before the diff: it points at the risky parts. Each finding cites a
   check (`U4`, `P2`) from `.claude/review/`; a finding marked *needs the owner* is a design
   question for you.
+- The reviewer can't edit files or run anything but read-only git: a hook in its definition blocks
+  the rest. Claude Code skips that hook in a folder it doesn't trust, so open Claude Code in this
+  project once and accept the trust dialog.
 - A mistake the reviewer should have caught: add a check to `.claude/review/project.md` (the next
   free `P` number; never reuse a retired one).
 - Ask the agent to explain any change you don't understand before merging it.
