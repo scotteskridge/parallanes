@@ -42,3 +42,14 @@ def _fixture_cache(tmp_path_factory):
     yield
     helpers.CACHE.clear()
     lane_helpers._TEMPLATES.clear()
+
+
+def pytest_collection_modifyitems(config, items):
+    """Live checks run real Claude Code sessions: they cost money and need a login, so they run only
+    when asked for with `-m live` (docs/live-checks.md). Never in CI, and not in `-m "not slow"`."""
+    if "live" in (config.getoption("markexpr") or ""):
+        return
+    skip = pytest.mark.skip(reason="live check: run with -m live")
+    for item in items:
+        if "live" in item.keywords:
+            item.add_marker(skip)

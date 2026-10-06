@@ -37,6 +37,8 @@ Aim for one screen. More than ~8 steps: split the plan.
 ## Done when
 - [ ] Tests above pass locally and in CI (Windows + Ubuntu)
 - [ ] Reviewer report attached to the PR; every 🔴 fixed
+- [ ] Runtime behaviour (hooks, skills, agents): a live check in `tests/live/` that asserts what
+      it loaded ([live-checks.md](../live-checks.md)), run with `-m live`
 - [ ] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation

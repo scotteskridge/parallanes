@@ -3,6 +3,26 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Live checks say what they load
+
+93. **Live checks are pytest tests under `tests/live/`, marked `live` and run only with `-m live`;
+    each goes through `tests/live/claude_run.py`, which pins and asserts what the session loads.**
+    Settled on Claude's recommendation (backlog `live-checks-pin-what-loads`):
+    - Never in CI or the normal test commands: they cost money and need the owner's login.
+    - Every run passes `--setting-sources project,local` (the owner's `~/.claude` stays out), an
+      explicit `--permission-mode` and `--model` (`haiku` by default), and `--max-budget-usd`
+      (1 USD by default).
+    - It asserts skills, agents and plugins from `system/init` and hooks from `hook_started`
+      events (`--include-hook-events`): checked live with Claude Code 2.1.291, `system/init` lists
+      skills and agents by name but has no `hooks` field. *Why:* `--bare` will become the `-p`
+      default with no opt-out flag, and would make a check pass while testing nothing.
+    - Each check reuses a fixed folder under the temp folder (`kit-live/<check>`), so the owner
+      accepts a trust dialog once; the helper only reads `~/.claude.json` to check trust, never
+      writes it.
+
+    Decision 92's ask-rule check is the first one. Its first run under the helper failed on a
+    broken scratch project (no Edit call, so the canary hook never fired), which is the point.
+
 ## 2026-10-06: Permission decisions, checked against the docs
 
 92. **The hook's bypass-mode block for kit config covers shell commands only; secrets
