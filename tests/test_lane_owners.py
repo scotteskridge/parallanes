@@ -228,4 +228,4 @@ def test_the_overlap_list_stays_quick_on_a_big_repository():
     notes, _ = lane_owners.overlaps(config(*lanes, wide, shared=["docs/**"]), files)
     elapsed = time.perf_counter() - start
     assert sum(int(note.split(": ")[1].split(" ")[0]) for note in notes) == len(files)
-    assert elapsed < 5  # about 1.5 s on a Windows laptop; the margin is for slow CI runners
+    assert elapsed < 5  # about 2 s on a Windows laptop; the margin is for slow CI runners

@@ -13,7 +13,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     - *Most specific,* compared in order: more wildcard-free segments; then rooted at the project
       top over matching at any depth; then more literal characters; then fewer `**` (inside a
       segment too); then fewer other wildcards. A heuristic: an odd case it ranks wrongly is
-      settled by rewording a pattern, and a tie is reported, never decided silently.
+      settled by rewording a pattern, and a tie is reported, never decided silently. Known weak
+      spot (review round 3): `?` and `[...]` add no literal characters, so `src/[ab]*.py` loses
+      to `src/*.py` and `src/?.py` ties with it; lanes split by folder or suffix never meet it.
       Patterns are compared written out in full: globs anchors a pattern
       only when a slash comes before its end, so `conftest.py` is `**/conftest.py` and `build/`
       is `**/build/**`, while `/main.py` and `src/**` start at the root.

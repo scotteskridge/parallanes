@@ -113,9 +113,9 @@ another remote, counts as unpushed, and `sync` would rebase it.
   `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
   the boundary check refuses them. More specific means more literal folder and file names, then a
   pattern rooted at the project top over one matching at any depth (`conftest.py`, `build/`),
-  then more literal characters (`*.md` over `**`), then fewer wildcards. Order in `kit.toml` doesn't matter. The same pattern in two lanes doesn't
-  load; two patterns equally specific for a file leave it with no owner until you make one more
-  specific. `lanes create` and `lanes status` list both cases. A folder both lanes should change
+  then more literal characters (`*.md` over `**`), then fewer wildcards. Order in `kit.toml`
+  doesn't matter. The same pattern in two lanes doesn't load; two patterns equally specific for a
+  file leave it with no owner until you make one more specific. `lanes create` and `lanes status` list both cases. A folder both lanes should change
   belongs in `shared_paths`.
 - **No shared append-only files.** Changelog entries are fragments; backlog items are one file
   each. That removes the most common merge conflict.
