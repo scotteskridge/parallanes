@@ -6,6 +6,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `/design` and `/code-health` (plan 07b), kit-owned. `/design` settles one design question from one
+  section of the design docs and, on the owner's OK, records it in `DESIGN.md` and the decisions log.
+  `/code-health` audits the whole codebase by area with parallel read-only subagents, writes a dated
+  report to `docs/health/`, and turns the findings the owner picks into backlog items. `/onboard`
+  moves out of 07b and stays in v0.2 (decisions 77, 85). `docs/health/**` is shared by every lane by default.
 - The task-loop skills (plan 07), kit-owned: `/next` (what to work on, from `kit next`), `/plan-feature`
   (task branch and a plan, then stop for approval), `/implement` (test-first, stops on anything the
   plan doesn't settle) and `/wrap-up` (tests, the reviewer, changelog fragment and plan notes, rule

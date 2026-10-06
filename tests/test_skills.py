@@ -15,8 +15,9 @@ PAYLOAD = ROOT / "payload"
 SKILLS = PAYLOAD / "kit-owned" / ".claude" / "skills"
 REPO_SKILLS = ROOT / ".claude" / "skills"
 
-EXPECTED = {"next", "plan-feature", "implement", "wrap-up"}
-CHANGES_THINGS = {"plan-feature", "implement", "wrap-up"}  # user-invoked only (decision 67)
+EXPECTED = {"next", "plan-feature", "implement", "wrap-up", "design", "code-health"}
+# User-invoked only (decision 67): they write files, or (code-health) start costly subagents.
+CHANGES_THINGS = {"plan-feature", "implement", "wrap-up", "design", "code-health"}
 KNOWN_FIELDS = {"name", "description", "model", "effort", "allowed-tools", "disable-model-invocation",
                 "argument-hint"}
 MODELS = {"opus", "sonnet", "haiku"}
@@ -199,7 +200,7 @@ def test_wrap_up_waits_for_the_reviewer():
     assert "in the foreground" in body(SKILLS / "wrap-up" / "SKILL.md")
 
 
-@pytest.mark.parametrize("skill", ["plan-feature", "implement", "wrap-up"])
+@pytest.mark.parametrize("skill", ["plan-feature", "implement", "wrap-up", "design", "code-health"])
 def test_skills_that_write_files_say_edit_or_write(skill):
     """Live run: agents changed files with heredocs, sed and `python -`, which the ownership hook
     (Edit|Write|MultiEdit|NotebookEdit) never sees."""
@@ -220,3 +221,100 @@ def test_implement_lists_every_default_shared_path():
     text = body(SKILLS / "implement" / "SKILL.md")
     for shared in DEFAULT_SHARED_PATHS:
         assert f"`{shared.removesuffix('**')}`" in text, f"/implement doesn't name {shared} as shared"
+
+
+# ---- plan 07b: /design and /code-health --------------------------------------------------------
+
+REPORT_TEMPLATE = SKILLS / "code-health" / "report-template.md"
+
+
+def section(skill: str, heading: str) -> str:
+    """The text of one `## N. <heading>` section, found by name so renumbering doesn't break tests."""
+    return body(SKILLS / skill / "SKILL.md").split(f". {heading}\n", 1)[1].split("\n## ", 1)[0]
+
+
+def test_code_health_report_template():
+    """Decisions 69, 87: the template sits in the skill's own folder and fixes the finding shape."""
+    text = REPORT_TEMPLATE.read_text(encoding="utf-8")
+    for part in ("\U0001f534", "\U0001f7e0", "\U0001f7e1", "| Check |", "`path:line`"):
+        assert part in text, f"report template lacks {part!r}"
+    assert "report-template.md" in body(SKILLS / "code-health" / "SKILL.md")
+    assert b"\r\n" not in REPORT_TEMPLATE.read_bytes()
+
+
+def test_code_health_says_what_it_adds():
+    """Decision 86: not a diff review; the description steers Claude away from it for one."""
+    description = frontmatter(SKILLS / "code-health" / "SKILL.md")["description"]
+    for phrase in ("whole codebase", "dated report", "backlog"):
+        assert phrase in description, f"description lacks {phrase!r}"
+    assert "/code-review" in description
+
+
+def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    assert "in parallel" in text and "`sonnet`" in text  # decision 87
+    assert "in the foreground" in text  # wait for every area before writing the report
+    # Decision 88 (review rounds 1-2): the report is named per lane and area, so two lanes' runs on
+    # one day can't collide; the branch leaves the lane out (its `<lane>/` prefix has it already).
+    assert "docs/health/YYYY-MM-DD-<lane>-<area>.md" in text and "health-YYYY-MM-DD-<area>" in text
+    assert "`all`" in text and "slug" in text  # a folder like `src/payments` isn't a valid task name
+
+
+def test_code_health_asks_to_write_only_when_it_can():
+    """Review round 2: the audit-only paths must not reach the question about writing."""
+    assert "audit-only" in section("code-health", "Report to the owner")
+
+
+def test_code_health_area_agents_are_read_only():
+    """Review round 1: "changes no code" can't rest on prompt text alone for agents that can edit."""
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    assert "`subagent_type: Explore`" in text
+    assert "never run the tests, coverage" in text
+
+
+def test_code_health_without_lanes_audits_the_source():
+    """Review round 1: every install ships rules files for docs and tests, so falling back to their
+    `paths:` would audit those and skip the source."""
+    areas = section("code-health", "Choose the areas")
+    assert "top-level folders" in areas and "Not checked" in areas
+    assert "only to split" in areas
+
+
+def test_code_health_stops_before_the_audit_when_it_could_not_write():
+    """Review round 1: a folder that can't start a task, or the main checkout, would lose the findings."""
+    step0 = body(SKILLS / "code-health" / "SKILL.md").split("## 0.", 1)[1].split("## 1.", 1)[0]
+    assert "show the findings and stop" in step0
+
+
+def test_code_health_branches_before_it_audits():
+    """Review round 2, option A: the audit reads exactly the code the report lands on, and a
+    refused `lanes start` (unmerged previous work) stops it before any subagent runs."""
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    branch = text.index("## 1. Start the task branch")
+    assert branch < text.index("## 3. Audit the areas in parallel")
+    assert "lanes start health-YYYY-MM-DD-<area>" in text[branch:text.index("## 2.")]
+
+
+def test_code_health_branches_like_plan_feature():
+    text = " ".join(body(SKILLS / "code-health" / "SKILL.md").split())  # phrases may wrap
+    assert "`Here: not a lane` (no lanes)" in text
+    assert "--no-track -c" in text and "origin/<integration branch>" in text  # pr mode, as /plan-feature
+    assert "then tell the owner to run `/wrap-up`" in text  # it can't invoke /wrap-up itself
+
+
+def test_design_follows_the_rules_file():
+    """`.claude/rules/design-docs.md` says how a point is settled; /design does exactly that."""
+    text = body(SKILLS / "design" / "SKILL.md")
+    assert "changes no branches" in text  # decision 89
+    assert "never read it whole" in text
+    step4 = text.split("## 4.", 1)[1]
+    # The order the rules file sets: show the exact DESIGN.md edit, apply on OK, then the log entry.
+    exact, log = step4.index("**exact** `DESIGN.md` edit"), step4.index("`docs/design/decisions-log.md`")
+    assert exact < step4.index("Apply") < log
+
+
+def test_design_offers_a_light_way_to_start_a_task():
+    """Without lanes, the same branch commands as /plan-feature step 3 (not a stale local base)."""
+    text = " ".join(body(SKILLS / "design" / "SKILL.md").split())
+    assert "--no-track -c <task> origin/<integration branch>" in text
+    assert "from the main checkout, move to a lane" in text.lower()

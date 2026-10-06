@@ -14,7 +14,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 05 | [Lane task cycle](05-lane-task-cycle.md) | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Done |
 | 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Done |
 | 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
-| 07b | Skills: design, health, onboarding | `/design`, `/code-health` (dated reports), `/onboard` (decisions 61, 68, 69) | v0.2 |
+| 07b | [Skills: design and code health](07b-design-health.md) | `/design`, `/code-health` (dated report, findings become backlog items) (decisions 61, 69, 85–91) | Done |
 | 08 | Installer | One `kit init` (behind `install.ps1` / `install.sh`) that copies the kit in: prerequisites, interpreter detection, dry run, manifest, no overwrites (decision 78) | Not started |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
@@ -27,7 +27,8 @@ Build only what Claude Code doesn't already do: lanes with an enforced task cycl
 aren't plans are backlog items in [../backlog/](../backlog/); one that needs a plan gets a plan file
 like any other.
 
-1. ~~Plan 07: the task-loop skills~~ (done)
+1. ~~Plan 07: the task-loop skills~~ (done); plan 07b (`/design`, `/code-health`) was built
+   alongside, ahead of the v0.2 it was first set for
 2. Small fixes, each under an hour: `lane-settings-cross-platform`, `revisit-permission-decisions`,
    `live-checks-pin-what-loads`, `lint-and-format-in-ci`, `agents-md-venv-test-command`
 3. The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim
@@ -37,7 +38,7 @@ like any other.
 6. Plan 09: the CI template
 7. Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)
 
-**v0.2:** the plugin (`ship-kit-as-plugin`), plan 07b, plan 10, plan 11, per-lane ports
+**v0.2:** the plugin (`ship-kit-as-plugin`), `/onboard`, plan 10, plan 11, per-lane ports
 (`lane-resources-env`, `lane-session-identity`), and the backlog items marked `later`.
 
 Process (decision 79): at most three open questions per plan, each with Claude's recommended

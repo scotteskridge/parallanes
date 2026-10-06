@@ -28,8 +28,8 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** `/plan-feature`: interviews you, writes a plan file with steps, tests and a done-when checklist
 - **MVP** `/implement`: builds one approved plan, test-first
 - **MVP** `/wrap-up`: run tests, call the reviewer, update the changelog and build state, draft the commit message
-- **v0.2** `/code-health`: periodic audit for duplication, hidden errors and drift, written as a dated report
-- **v0.2** `/design`: design discussion that reads one design-doc section and logs the decision
+- **MVP** `/code-health`: periodic audit for duplication, hidden errors and drift, written as a dated report
+- **MVP** `/design`: design discussion that reads one design-doc section and logs the decision
 - **MVP** `/next`: lane-aware "what's next" (ready / waiting on you / blocked)
 - **v0.2** `/onboard`: after install, Claude reads the repo and proposes stack facts, test command, rules files and lanes for approval
 - **Later** `/refactor`, `/sync-state` (keep status docs true), `/workflow` (maintain the kit itself)

@@ -3,6 +3,57 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Plan 07b questions
+
+91. **`/code-health` starts its task branch before the audit.** *The owner's call at review round 2:*
+    a lane that is behind would otherwise audit old code and file its report, with `path:line`s
+    that may have moved, on the newer integration tip; and a `lanes start` that refuses (unmerged
+    work) now stops it before any subagent runs. Cost: an empty branch when the owner keeps
+    nothing, which the next `lanes start` removes. A read-only `auditor` agent instead of
+    `Explore` waits in the backlog (`auditor-agent`).
+
+90. **07b runs a lighter process:** at most five open questions, one review round (another only for
+    a 🔴), one headless live run per skill. *Why:* two small skills don't need plan 07's weight;
+    a trial of backlog `lighten-plan-process`.
+
+89. **`/design` edits `DESIGN.md` where it is and changes no branches.** In a lane the ownership hook
+    asks once per edit, since `DESIGN.md` isn't shared; on the integration branch, or a lane
+    between tasks, the skill stops and says to start a task first. Without a `DESIGN.md` the
+    decision goes only in the decisions log, and the file is created only when the owner asks. *Why:* a design change is rare and the
+    owner is present for it; one prompt is the right friction.
+
+88. **`/code-health`'s report and the backlog items the owner picks are committed on their own task
+    branch, and `docs/health/**` is a default shared path.** The report is
+    `YYYY-MM-DD-<lane>-<area>.md` (`<area>` a slug of the narrowed area, or `all`; no lane part
+    without lanes), the branch `health-YYYY-MM-DD-<area>` (a lane's branch has its prefix already),
+    `-2` if taken (review rounds 1-2: two lanes on one day would otherwise collide). *Why:* a new file per run doesn't conflict (decision 13), and the
+    report goes through the same loop as any change.
+
+87. **`/code-health` audits by area with parallel subagents** (`Explore`: it can't Edit or Write,
+    but has Bash, so each is told never to run anything that writes): areas from the lanes' `owns`, else the top-level source folders (`.claude/rules/` paths
+    only split a big folder: review round 1 found every install's rules cover docs and tests, not
+    source); uncovered source is listed as not checked; at most six; the skill on `opus`, the
+    area audits on `sonnet`; findings in one shape (severity, check ID, `path:line`,
+    why). *Why:* areas keep each audit small and parallel; Sonnet keeps a full audit affordable.
+
+86. **`/code-health` is the whole-codebase audit, not a diff review:** Claude Code's `/code-review`,
+    `/simplify` and `/security-review` cover the current change. It judges against the project's own
+    rules, writes a dated report, and turns chosen findings into backlog items; its description
+    says so. *Why:* the kit must add something over the built-ins (backlog
+    `readme-builtins-comparison`).
+
+## 2026-10-06: Plan 07b scope
+
+85. **`/onboard` moves from plan 07b to plan 08; 07b is `/design` and `/code-health`.** *Why:*
+    whether the kit ships as a plugin (backlog `ship-kit-as-plugin`) decides what `/onboard` is: a
+    plugin can't ship deny rules, `CLAUDE.md` or project-owned files, so on that route `/onboard`
+    becomes the project setup step. Its lane proposals also wait on `lane-overlap-check` and
+    `lane-resources-env`, and it should use `lane-dependency-hint`'s lockfile table
+    (`docs/survey-lanekeeper.md`). Decision 68 moves with it. 07b also tries a lighter process
+    (backlog `lighten-plan-process`).
+    *Since reconciled with decisions 77–78 on merging main:* for v0.1, plan 08 is the copy
+    installer and `/onboard` stays in v0.2, where its plugin-or-installer question is settled.
+
 ## 2026-10-06: Windows CI speed
 
 83. **CI jobs time out after 10 minutes, and Windows CI leaves Defender on.** *Measured in
