@@ -127,11 +127,32 @@ def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
         ("Set-Content .claude/settings.json '{}'", "PowerShell"),
     ],
 )
-def test_shell_writes_to_kit_config_are_blocked_in_bypass_mode(repo, command, tool):
-    # Review round 1: the ask rules are Edit rules; the docs don't say they cover `rm` or PowerShell
-    # cmdlets, so in bypass mode the hook still stops shell writes to the kit's config (decision 92).
-    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "bypassPermissions")
-    assert_allowed(bash(repo, command, mode="acceptEdits", tool=tool))
+@pytest.mark.parametrize("mode", ["bypassPermissions", "acceptEdits", "auto", "dontAsk"])
+def test_shell_writes_to_kit_config_are_blocked_where_nobody_is_asked(repo, command, tool, mode):
+    # Review rounds 1-2: the ask rules are Edit rules; the docs don't say they cover `rm` or
+    # PowerShell cmdlets, and these modes can run a shell command without asking (decision 92).
+    assert_blocked(bash(repo, command, mode=mode, tool=tool), "kit's own configuration")
+
+
+@pytest.mark.parametrize("mode", ["default", "plan"])
+@pytest.mark.parametrize("command", ["rm -rf .githooks", "echo x >> .claude/kit.toml"])
+def test_shell_writes_to_kit_config_are_left_to_the_prompt_where_the_owner_is_asked(repo, command, mode):
+    assert_allowed(bash(repo, command, mode=mode))
+
+
+@pytest.mark.parametrize(
+    "command, tool",
+    [("cp new.json .claude/", "Bash"), ("Copy-Item x.toml -Destination .claude", "PowerShell"),
+     ("rm -rf .claude", "Bash"), ("rm -rf .", "Bash")],
+)
+def test_shell_writes_into_or_over_the_kit_config_folder_are_blocked(repo, command, tool):
+    # Review round 2: a copy into `.claude/` can replace settings.json or kit.toml.
+    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "kit's own configuration")
+
+
+def test_the_block_says_how_to_change_kit_config(repo):
+    result = bash(repo, "rm -rf .githooks", mode="bypassPermissions")
+    assert_blocked(result, "Ask the owner")
 
 
 def test_kit_config_shell_guard_can_be_switched_off(tmp_path):

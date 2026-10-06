@@ -265,6 +265,25 @@ def test_an_owners_rule_after_an_exemption_stays_after_it(tmp_path):
     assert run_cli(repo, "check", "settings").returncode == 0
 
 
+def test_sync_restores_order_for_two_exemptions_reordered_by_hand(tmp_path):
+    # Review round 2: names that belong after an exemption had been put before the names it cancels.
+    toml = RULES_TOML + '\n[protected]\ncommands = []\nsecrets = ["*.key", "!a.key", "b.key", "!c.key"]\n'
+    repo = make_repo(tmp_path, config=toml, settings=False)
+    sync(repo)
+    settings = read_settings(repo)
+    settings["permissions"]["deny"] = ["Read(b.key)", "Read(*.key)", "Read(!c.key)", "Read(!a.key)"] + [
+        rule for rule in settings["permissions"]["deny"] if rule.startswith("Edit(")]
+    write(repo, ".claude/settings.json", json.dumps(settings))
+    assert run_cli(repo, "check", "settings").returncode == 1
+    assert "moved" in sync(repo).stdout
+    reads = [rule for rule in read_settings(repo)["permissions"]["deny"] if rule.startswith("Read(")]
+    assert reads == ["Read(*.key)", "Read(!a.key)", "Read(b.key)", "Read(!c.key)"], reads
+    assert run_cli(repo, "check", "settings").returncode == 0
+    before = (repo / ".claude" / "settings.json").read_bytes()
+    sync(repo)
+    assert (repo / ".claude" / "settings.json").read_bytes() == before
+
+
 def test_check_settings_flags_an_exemption_that_carves_nothing(tmp_path):
     repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
     sync(repo)

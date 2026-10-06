@@ -38,15 +38,17 @@ switch all of this off. So edits to them get an **ask** rule: Claude must get yo
 time. Claude Code never auto-approves an ask rule, in any mode, `acceptEdits` and
 `bypassPermissions` included; in a non-interactive run (`claude -p`), where nobody can answer, the
 edit is refused. Ask rules are written for Claude's file tools, and Claude Code doesn't say they
-cover `rm` or PowerShell cmdlets, so in `bypassPermissions` mode the hook also blocks shell
-commands that write to or delete these files. `guard_kit = false` in `[protected]` turns both off.
+cover `rm` or PowerShell cmdlets, so in the modes that can run a shell command without asking
+(`acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`) the hook also blocks shell commands that
+write to, copy into or delete these files. In `default` and `plan` mode you see the command first. `guard_kit = false` in `[protected]` turns both off.
 
 ## Secrets
 
 `[protected].secrets` lists files Claude may neither read nor edit. The default is `.env` and every
 `.env.*`, except `.env.example`, which projects commit: a name starting with `!` is an exemption.
 Exemptions follow Claude Code's rules, so `{{kit_command}}` refuses one that would do nothing: it
-must be a bare file name (no folder, no trailing `/`), listed after a bare file name it matches,
+must be a bare file name (no folder, no trailing `/`), listed after a bare file name it matches (a wildcard exemption needs only some bare name before
+it),
 and only in `secrets`; a name listed again after it denies the file again. In `settings.json` an
 exemption also cancels your own bare-name deny rules listed before it; to deny such a file anyway,
 add your rule after the exemption. `{{kit_command}} settings sync` keeps the kit's rules in this

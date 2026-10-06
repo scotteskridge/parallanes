@@ -241,9 +241,9 @@ def _protected(table) -> Protected:
         bare_before, seen = [], set()
         for value in _strings(table, key, where):
             # A repeat would be dropped from the deny rules, while the hook would count it again.
-            if key == "secrets" and value in seen:
+            if key == "secrets" and globs.normalize(value) in seen:
                 _fail(f"{where}: 'secrets': {value!r} is listed twice")
-            seen.add(value)
+            seen.add(globs.normalize(value))
             if value.startswith("!"):
                 _exemption(key, value[1:], bare_before, where)
                 value = value[1:]

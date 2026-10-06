@@ -5,8 +5,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-06: Permission decisions, checked against the docs
 
-92. **The hook's bypass-mode block for kit config covers shell commands only; secrets exemptions are
-    bare `!` names.**
+92. **The hook's kit-config block covers shell commands only, in every mode that runs them
+    unasked; secrets exemptions are bare `!` names.**
     Replaces decision 30's bypass block and decision 31's list, as decision 82 planned. Settled on
     Claude's recommendation (backlog `revisit-permission-decisions`):
     - *Live check,* Claude Code 2.1.291, Windows, `claude -p` in a scratch project with an ask rule
@@ -16,11 +16,14 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       ask rules are never auto-approved; headless, nobody can answer, so the call is refused.
     - *Review round 1 (🔴):* the old block also stopped shell writes to kit config (`rm -rf
       .githooks`, `Set-Content .claude/settings.json`), and the ask rules are `Edit` rules the docs
-      don't say cover those; the live check used the Edit tool only. So in bypass mode the hook
-      still blocks shell write and remove targets in kit config, and leaves file tools to the ask
-      rules.
+      don't say cover those; the live check used the Edit tool only. So the hook still blocks
+      shell write and remove targets in kit config, and leaves file tools to the ask rules.
+      *Round 2:* `acceptEdits`, `auto` and `dontAsk` can run such commands unasked too, so the
+      block applies there as well (not in `default` or `plan`, where the owner sees the command),
+      and a copy into `.claude/` counts as a write to the files it holds.
     - An exemption is allowed only in `secrets`, only as a bare file name (no folder, no trailing
-      `/`), only after a bare name it matches, and a secret may not be listed twice; anything else
+      `/`), only after a bare name it matches (a wildcard exemption: after any bare name), and a secret
+      may not be listed twice, `./` ignored; anything else
       is a config error. *Why:* Claude Code carves a `!` rule only out of unanchored rules listed
       before it, and the kit anchors every rule with a folder or a trailing `/`, so any other
       exemption would silently do nothing. The hook and `kit check protected` apply the same rule,

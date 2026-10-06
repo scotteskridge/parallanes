@@ -164,6 +164,8 @@ guard_kit = false
         ('secrets = [".config/", "!creds.example"]', "nothing before it"),
         ('secrets = [".env", "!foo.example"]', "nothing before it"),
         ('secrets = [".env.*", "!.env.example", ".env.*"]', "twice"),
+        # Review round 2: the deny rules drop `./`, so a repeat with it would vanish there too.
+        ('secrets = [".env.*", "!.env.example", "./.env.*"]', "twice"),
         ('guard_kit = "no"', "guard_kit"),
     ],
 )

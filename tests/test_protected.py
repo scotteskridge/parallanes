@@ -49,6 +49,8 @@ def test_kit_config_is_left_to_the_ask_rules(path):
         # An exemption only cancels bare names, as in Claude Code: anchored rules can't be carved.
         (["config/.env*", "!.env.example"], "config/.env.example", True),
         (["config/.env*", ".env.*", "!.env.example"], ".env.example", False),
+        # Review round 2: a trailing slash anchors the rule in settings.json, so it can't be carved.
+        (["*.example", "keys/", "!x.example"], "keys/x.example", True),
     ],
 )
 def test_secret_exemptions_cancel_earlier_bare_names(secrets, path, secret):
