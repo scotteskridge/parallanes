@@ -90,10 +90,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 - Permission defaults follow Claude Code's current docs (decisions 82, 92). Secrets default to
   `.env` and every `.env.*` except `.env.example`, through a `!` exemption that the deny rules, the
-  hook and the pre-commit check all honour. `kit settings sync` keeps exemptions after the rules
-  they cancel, and `kit check settings` reports one that isn't. The hook no longer blocks kit-config
-  edits in `bypassPermissions` mode: a live check showed the ask rules are never auto-approved
-  there or in `acceptEdits`. `protected-paths.md` names the Windows options for a real boundary
+  hook and the pre-commit check all honour; an exemption Claude Code would ignore is a config
+  error. `kit settings sync` keeps exemptions in `kit.toml`'s order, and `kit check settings`
+  reports one out of order. The hook no longer blocks file-tool edits to kit config in
+  `bypassPermissions` mode: a live check showed the ask rules are never auto-approved there or in
+  `acceptEdits`. It still blocks shell writes to kit config in bypass mode. `protected-paths.md` names the Windows options for a real boundary
   (WSL2, a container, a VM).
 - Lane instructions checked live on Linux (WSL2) and Windows (decision 84): no bug. A lane's own
   `settings.local.json` works on both. Claude Code 2.1.291 already keeps the main checkout's

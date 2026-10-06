@@ -216,7 +216,7 @@ def test_record_forgets_a_stale_rule_even_when_settings_need_no_change(tmp_path)
 EXEMPT_TOML = RULES_TOML + '\n[protected]\ncommands = []\n'
 
 
-def test_sync_moves_an_exemption_listed_before_the_rule_it_cancels(tmp_path):
+def test_sync_puts_new_names_before_an_exemption_already_there(tmp_path):
     # An exemption already there (the owner's, or from an older sync) would carve nothing out of a
     # rule appended after it, and .env.example would silently become unreadable.
     repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
@@ -226,7 +226,7 @@ def test_sync_moves_an_exemption_listed_before_the_rule_it_cancels(tmp_path):
     deny = read_settings(repo)["permissions"]["deny"]
     assert deny.index("Read(!.env.example)") > deny.index("Read(.env.*)"), deny
     assert deny.count("Read(!.env.example)") == 1 and "Edit(/owner/**)" in deny
-    assert "moved" in result.stdout
+    assert "moved" not in result.stdout, result.stdout
     assert run_cli(repo, "check", "settings").returncode == 0
     before = (repo / ".claude" / "settings.json").read_bytes()
     sync(repo)
@@ -242,6 +242,29 @@ def test_a_fresh_sync_with_the_default_commands_moves_nothing(tmp_path):
     assert deny.index("Read(!.env.example)") < deny.index("Bash(git push --force *)")
 
 
+def test_a_name_listed_after_an_exemption_stays_after_it(tmp_path):
+    # Review round 1: `.env.example` listed again after the exemption is a secret again. Moving the
+    # exemption past it would let Claude read the file while the hook still blocks it.
+    toml = RULES_TOML + '\n[protected]\ncommands = []\nsecrets = [".env.*", "!.env.example", ".env.example", "*.pem"]\n'
+    repo = make_repo(tmp_path, config=toml, settings=False)
+    result = sync(repo)
+    assert "moved" not in result.stdout, result.stdout
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(.env.*)") < deny.index("Read(!.env.example)") < deny.index("Read(.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
+
+
+def test_an_owners_rule_after_an_exemption_stays_after_it(tmp_path):
+    # Review round 1: the owner denies the file again after the exemption, on purpose.
+    repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
+    owner = {"permissions": {"deny": ["Read(!.env.example)", "Read(.env.example)"]}}
+    write(repo, ".claude/settings.json", json.dumps(owner))
+    sync(repo)
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Read(.env.*)") < deny.index("Read(!.env.example)") < deny.index("Read(.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
+
+
 def test_check_settings_flags_an_exemption_that_carves_nothing(tmp_path):
     repo = make_repo(tmp_path, config=EXEMPT_TOML, settings=False)
     sync(repo)
@@ -253,6 +276,11 @@ def test_check_settings_flags_an_exemption_that_carves_nothing(tmp_path):
     result = run_cli(repo, "check", "settings")
     assert result.returncode == 1
     assert "Edit(!.env.example)" in result.stdout and "settings sync" in result.stdout
+    # Sync puts it right after the names it cancels, not at the end, and says so.
+    assert "moved" in sync(repo).stdout
+    deny = read_settings(repo)["permissions"]["deny"]
+    assert deny.index("Edit(.env.*)") + 1 == deny.index("Edit(!.env.example)"), deny
+    assert run_cli(repo, "check", "settings").returncode == 0
 
 
 def test_record_only_change_leaves_settings_bytes_alone(tmp_path):

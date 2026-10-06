@@ -119,6 +119,13 @@ def test_protected_defaults_apply_without_the_table(tmp_path):
     assert DEFAULT_SECRETS == [".env", ".env.*", "!.env.example"]
 
 
+@pytest.mark.parametrize("secrets", ['["./.env.*", "!.env.example"]', '["*.example", "!.env.example"]'])
+def test_exemptions_after_a_name_they_can_cancel_load(tmp_path, secrets):
+    # `./` is dropped like everywhere else; a glob cancels any name it matches.
+    text = f"{RULES_TOML}\n[protected]\nsecrets = {secrets}\n"
+    assert load(make_repo(tmp_path, config=text)).protected.secrets[-1] == "!.env.example"
+
+
 def test_protected_table_loads(tmp_path):
     text = RULES_TOML + '''
 [protected]
@@ -153,6 +160,10 @@ guard_kit = false
         ('secrets = ["!.env.example", ".env.*"]', "nothing before it"),
         ('secrets = ["config/*", "!.env.example"]', "nothing before it"),
         ('paths = ["vendor/**", "!vendor/keep.py"]', "only in 'secrets'"),
+        # Review round 1: a trailing slash makes an anchored rule, which `!` can't reach.
+        ('secrets = [".config/", "!creds.example"]', "nothing before it"),
+        ('secrets = [".env", "!foo.example"]', "nothing before it"),
+        ('secrets = [".env.*", "!.env.example", ".env.*"]', "twice"),
         ('guard_kit = "no"', "guard_kit"),
     ],
 )

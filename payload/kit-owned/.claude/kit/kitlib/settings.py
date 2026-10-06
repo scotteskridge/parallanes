@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .findings import Finding
-from .globs import normalize
+from .globs import is_bare, normalize
 from .protected import KIT_GUARD
 
 SETTINGS_REL = Path(".claude") / "settings.json"
@@ -44,7 +44,7 @@ def _anchored(pattern: str) -> str:
 def _secret(pattern: str) -> str:
     """Bare names stay bare (Claude Code matches them at any depth, decision 31); others anchor."""
     pattern = normalize(pattern)
-    return pattern if "/" not in pattern.rstrip("/") and not pattern.endswith("/") else _anchored(pattern)
+    return pattern if is_bare(pattern) else _anchored(pattern)
 
 
 def expected_rules(protected) -> dict:
@@ -63,19 +63,64 @@ def _unique(items) -> list:
     return list(dict.fromkeys(items))
 
 
+def _is_exemption(rule: str) -> bool:
+    return "(!" in rule
+
+
+def _around(exemption: str, expected: list) -> tuple[list, list]:
+    """The kit's rules of the same tool listed before and after an exemption in [protected].secrets.
+
+    Claude Code carves an exemption only out of the rules listed before it in the same list, and
+    a `Read(!x)` only out of `Read` rules (decision 92). The order in kit.toml is the meaning: a
+    name listed after the exemption denies the file again, so it must stay after it.
+    """
+    tool = exemption.partition("(")[0] + "("
+    index = expected.index(exemption)
+    same = [(i, rule) for i, rule in enumerate(expected) if rule.startswith(tool) and not _is_exemption(rule)]
+    return [rule for i, rule in same if i < index], [rule for i, rule in same if i > index]
+
+
 def _misplaced(rules: list, expected: list) -> list:
-    """The kit's `!` exemptions listed before a kit rule they should carve from. Claude Code only
-    carves an exemption out of the rules listed before it in the same list (decision 92), so these
-    cancel nothing. A `Read(!x)` carves only from `Read` rules, so only those count."""
+    """The kit's exemptions whose position in rules doesn't keep kit.toml's order."""
     misplaced = []
     for rule in expected:
-        tool, _, pattern = rule.partition("(")
-        if not pattern.startswith("!") or rule not in rules:
+        if not _is_exemption(rule) or rule not in rules:
             continue
-        positives = [other for other in expected if other.startswith(tool + "(") and "(!" not in other]
-        if any(other in rules and rules.index(other) > rules.index(rule) for other in positives):
+        before, after = _around(rule, expected)
+        at = rules.index(rule)
+        if any(other in rules and rules.index(other) > at for other in before) or \
+                any(other in rules and rules.index(other) < at for other in after):
             misplaced.append(rule)
     return misplaced
+
+
+def _place(kept: list, added: list, expected: list) -> tuple[list, list]:
+    """kept plus added, in an order with kit.toml's meaning, and the exemptions that had to move.
+
+    A new name goes in front of an exemption already there that should cancel it, so an owner's
+    rule after the exemption stays after it; anything else is appended. An exemption still out of
+    order (rules reordered by hand) moves to just after the names it cancels, and names that should
+    follow it move to just after it. Only positions change, never the rules.
+    """
+    rules = list(kept)
+    for rule in added:
+        targets = [other for other in rules if _is_exemption(other) and other in expected
+                   and rule in _around(other, expected)[0]]
+        if targets and not _is_exemption(rule):
+            rules.insert(min(rules.index(other) for other in targets), rule)
+        else:
+            rules.append(rule)
+    moved = _misplaced(rules, expected)
+    for exemption in moved:
+        before, after = _around(exemption, expected)
+        rules.remove(exemption)
+        at = max((rules.index(other) + 1 for other in before if other in rules), default=0)
+        rules.insert(at, exemption)
+        for other in reversed(after):  # each goes right after it, so the last one first
+            if other in rules and rules.index(other) < rules.index(exemption):
+                rules.remove(other)
+                rules.insert(rules.index(exemption) + 1, other)
+    return rules, moved
 
 
 def read_json(path: Path, what: str) -> dict:
@@ -155,10 +200,7 @@ def plan_sync(root: Path, config) -> Sync:
         added = [rule for rule in expected[name] if rule not in kept]
         result.removed[name] = [rule for rule in current[name] if rule in stale]
         result.added[name] = added
-        rules = kept + added
-        # Exemptions go last, keeping their order: owner rules move too, but only in position.
-        result.moved[name] = _misplaced(rules, expected[name])
-        rules = [rule for rule in rules if rule not in result.moved[name]] + result.moved[name]
+        rules, result.moved[name] = _place(kept, added, expected[name])
         if rules or name in permissions:
             permissions[name] = rules
         # Only rules this kit wrote: a rule the owner already had stays theirs (decision 29).
@@ -188,7 +230,7 @@ def write_json(path: Path, data: dict, style: Style) -> None:
 
 def describe(sync: Sync) -> str:
     lines = []
-    for verb, changes in (("added", sync.added), ("removed", sync.removed), ("moved to the end", sync.moved)):
+    for verb, changes in (("added", sync.added), ("removed", sync.removed), ("moved", sync.moved)):
         for name in LISTS:
             lines += [f"  {SETTINGS_REL.as_posix()}: {verb} {name}: {rule}" for rule in changes.get(name, [])]
     if sync.record_changed and not sync.settings_changed:
@@ -214,6 +256,7 @@ def check(root: Path, config) -> list[Finding]:
                 message = f"{name} rule {rule} is no longer in [protected]; run `kit settings sync`"
                 findings.append(Finding(path=where, line=0, check=CHECK, message=message))
         for rule in _misplaced(current[name], expected[name]):
-            message = f"{name} rule {rule} comes before a rule it should carve from, so it cancels nothing; run `kit settings sync`"
+            message = (f"{name} rule {rule} is out of order with the rules [protected].secrets puts around it, "
+                       "so it cancels the wrong ones; run `kit settings sync`")
             findings.append(Finding(path=where, line=0, check=CHECK, message=message))
     return findings

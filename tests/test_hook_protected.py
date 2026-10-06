@@ -119,6 +119,33 @@ def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
     assert_allowed(edit(repo, rel, mode=mode))
 
 
+@pytest.mark.parametrize(
+    "command, tool",
+    [
+        ("echo 'guard_kit = false' >> .claude/kit.toml", "Bash"),
+        ("rm -rf .githooks", "Bash"),
+        ("Set-Content .claude/settings.json '{}'", "PowerShell"),
+    ],
+)
+def test_shell_writes_to_kit_config_are_blocked_in_bypass_mode(repo, command, tool):
+    # Review round 1: the ask rules are Edit rules; the docs don't say they cover `rm` or PowerShell
+    # cmdlets, so in bypass mode the hook still stops shell writes to the kit's config (decision 92).
+    assert_blocked(bash(repo, command, mode="bypassPermissions", tool=tool), "bypassPermissions")
+    assert_allowed(bash(repo, command, mode="acceptEdits", tool=tool))
+
+
+def test_kit_config_shell_guard_can_be_switched_off(tmp_path):
+    repo = make_repo(tmp_path, config=PROTECTED_TOML + "guard_kit = false\n")
+    assert_allowed(bash(repo, "rm -rf .githooks", mode="bypassPermissions"))
+
+
+@pytest.mark.parametrize("command, tool", [("rm .env.example", "Bash"), ("git rm .env.example", "Bash"),
+                                           ("Remove-Item .env.example", "PowerShell")])
+def test_removing_the_exempt_file_is_allowed(repo, command, tool):
+    # Review round 1: removal checks only look inside folders; the file itself was already decided.
+    assert_allowed(bash(repo, command, tool=tool))
+
+
 def test_the_example_env_file_is_exempt_from_the_default_secrets(repo):
     assert_allowed(edit(repo, ".env.example"))
     assert_blocked(edit(repo, ".env.production"), "secrets")

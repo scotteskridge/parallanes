@@ -5,7 +5,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-06: Permission decisions, checked against the docs
 
-92. **The hook's bypass-mode block for kit config is gone; secrets exemptions are bare `!` names.**
+92. **The hook's bypass-mode block for kit config covers shell commands only; secrets exemptions are
+    bare `!` names.**
     Replaces decision 30's bypass block and decision 31's list, as decision 82 planned. Settled on
     Claude's recommendation (backlog `revisit-permission-decisions`):
     - *Live check,* Claude Code 2.1.291, Windows, `claude -p` in a scratch project with an ask rule
@@ -13,15 +14,22 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       in `acceptEdits` the asked edit was refused (listed in the run's `permission_denials`) and the
       free one went through. A control run in bypass mode without the ask rule changed the file. So
       ask rules are never auto-approved; headless, nobody can answer, so the call is refused.
-    - An exemption is allowed only in `secrets`, only as a bare file name, and only after a bare
-      name it can cancel; anything else is a config error. *Why:* Claude Code carves a `!` rule
-      only out of unanchored rules listed before it, and the kit anchors every rule with a folder
-      in it, so any other exemption would silently do nothing. The hook and `kit check protected`
-      apply the same rule, so they agree with the deny rules.
-    - `kit settings sync` moves a kit exemption that sits before a rule it should carve from (also
-      an owner's copy: only its position changes), and `kit check settings` reports one. Every path
-      rule it writes is `Read(...)` or `Edit(...)`, the only kinds Claude Code consults; a test
-      holds it there.
+    - *Review round 1 (🔴):* the old block also stopped shell writes to kit config (`rm -rf
+      .githooks`, `Set-Content .claude/settings.json`), and the ask rules are `Edit` rules the docs
+      don't say cover those; the live check used the Edit tool only. So in bypass mode the hook
+      still blocks shell write and remove targets in kit config, and leaves file tools to the ask
+      rules.
+    - An exemption is allowed only in `secrets`, only as a bare file name (no folder, no trailing
+      `/`), only after a bare name it matches, and a secret may not be listed twice; anything else
+      is a config error. *Why:* Claude Code carves a `!` rule only out of unanchored rules listed
+      before it, and the kit anchors every rule with a folder or a trailing `/`, so any other
+      exemption would silently do nothing. The hook and `kit check protected` apply the same rule,
+      so they agree with the deny rules.
+    - `kit settings sync` keeps `kit.toml`'s order around each exemption: a new name goes in front
+      of an exemption already there, a name listed after it stays after it, and rules reordered by
+      hand are put back (also an owner's copy: only positions change). `kit check settings` reports
+      an exemption out of order. Every path rule it writes is `Read(...)` or `Edit(...)`, the only
+      kinds Claude Code consults; a test holds it there.
     - The hook's overlap with the deny rules stays, labelled a drift guard: it covers a stale
       `settings.json` and PowerShell cmdlets, which the docs don't say deny rules cover.
 

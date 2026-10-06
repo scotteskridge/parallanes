@@ -240,15 +240,17 @@ guard_kit = true
   directory: the worktree in a lane), `Read(...)` and `Edit(...)` per secret, `Bash(<cmd> *)` and
   `PowerShell(<cmd> *)` per command; plus **ask** rules for the kit's own config when `guard_kit`,
   which prompt in every mode, `bypassPermissions` included [30, 92]. A secret written `!name`
-  becomes an exemption rule, kept after the bare names it cancels: Claude Code carves a `!` rule
-  only out of the unanchored rules listed before it [82, 92]. It records what it wrote in
+  becomes an exemption rule, kept in `kit.toml`'s order around the bare names it cancels: Claude
+  Code carves a `!` rule only out of the unanchored rules listed before it [82, 92]. It records what it wrote in
   `.claude/kit/generated-rules.json` and never touches other rules, moving only a misplaced
   exemption [29]. `kit check settings` (part of `check all`) reports missing, stale and misplaced
   rules. Every path rule is `Read(...)` or `Edit(...)`: Claude Code consults no other.
 - **Backstop:** `kit hook protected`, a PreToolUse hook on Bash, PowerShell and the file tools. It
   matches commands with flags in any order, past `git -C`, wrappers and flag clusters [28]; checks
   file-tool paths; checks the targets of common file commands and PowerShell cmdlets, best effort
-  (`kitlib/file_commands.py`) [27]; and blocks the agent switching the local checks off [34].
+  (`kitlib/file_commands.py`) [27]; in `bypassPermissions`, blocks shell writes to the kit's
+  config, which its `Edit` ask rules aren't documented to cover [92]; and blocks the agent
+  switching the local checks off [34].
   Where it overlaps the deny rules (file tools, recognized shell file commands) it is a **drift
   guard**: it still protects when `settings.json` is stale, and covers PowerShell cmdlets, which
   the docs don't say deny rules cover [92]. **Fails closed:** in PreToolUse only exit 2
@@ -373,7 +375,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | ~~PR-mode merge detection~~ Answered in plan 05 (decision 46): `lanes start` counts only a merged PR whose head commit is the branch tip; open, closed or no PR refuses, `--abandon` drops the branch on purpose | — |
 | ~~Claude Code's auto memory across worktrees~~ Verified live on Windows (plan 04): a lane uses the main checkout's memory folder, so every lane shares one memory. Documented in `parallel-lanes.md`; lane-aware memory is on the roadmap as Later | — |
 | Live-verify what plan 03's live run didn't cover: deny rules written by `kit settings sync`, the Edit/MultiEdit/NotebookEdit tools, fail-closed with a broken config, macOS/Linux. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode); the ask rules in `acceptEdits` and `bypassPermissions` were checked live (decision 92) | plan 08 |
-| ~~Do ask rules still prompt in `acceptEdits` mode?~~ Answered (decision 92): ask rules are never auto-approved, in `acceptEdits` or `bypassPermissions`; the hook's extra bypass-mode block is gone | — |
+| ~~Do ask rules still prompt in `acceptEdits` mode?~~ Answered (decision 92): ask rules are never auto-approved, in `acceptEdits` or `bypassPermissions`; the hook's bypass-mode block now covers shell commands only. Not live-checked: whether `Edit` ask rules cover `rm`, redirections or PowerShell cmdlets | — |
 | Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
 | Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows); plan 07 drove `lanes start`/`finish` through the skills in headless sessions (local mode, and PR mode against a local origin with a stand-in `gh`). Not yet shown live: the skills opening a real GitHub PR, a project without lanes, a sync conflict during `/wrap-up`, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 11 |

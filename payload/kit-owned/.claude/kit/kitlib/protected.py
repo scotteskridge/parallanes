@@ -11,13 +11,15 @@ from pathlib import Path
 
 from . import commands, file_commands
 from .findings import Finding
-from .globs import matches, normalize
+from .globs import WILDCARD, is_bare, matches, normalize
 
 CHECK = "protected"
 ALLOW_VARIABLE = "KIT_ALLOW_PROTECTED"
 
 # The kit's own configuration: whoever can edit these can switch the protection off. Ask rules
-# guard them (decision 30); they prompt in every mode, bypassPermissions included (decision 92).
+# guard them (decision 30) and prompt in every mode, bypassPermissions included; but they are Edit
+# rules, not documented to cover `rm` or PowerShell cmdlets, so in bypass mode the hook still
+# blocks shell writes to these (decision 92).
 KIT_GUARD = [".claude/settings.json", ".claude/kit.toml", ".claude/kit/**", ".githooks/**"]
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -26,12 +28,12 @@ SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
 
 # Windows file names ignore case: `VENDOR\a.py` is the file `vendor/**` protects.
 CASE_INSENSITIVE = os.name == "nt"
-_WILDCARD = re.compile(r"[*?\[]")
 
 
-def _matching(path: str, patterns, removes: bool = False) -> str | None:
+def _matching(path: str, patterns, removes: bool = False, itself: bool = True) -> str | None:
     """The first pattern path falls under, also when path is a folder holding matching files:
-    `Remove-Item vendor` deletes everything `vendor/**` protects, `rm -rf src` deletes `src/vendor/`."""
+    `Remove-Item vendor` deletes everything `vendor/**` protects, `rm -rf src` deletes `src/vendor/`.
+    itself=False skips path's own match and asks only about what the folder holds."""
     path = normalize(path).rstrip("/")
     path = "" if path == "." else path
     if CASE_INSENSITIVE:
@@ -40,7 +42,7 @@ def _matching(path: str, patterns, removes: bool = False) -> str | None:
         original = pattern
         if CASE_INSENSITIVE:
             pattern = pattern.lower()
-        if path and (matches(path, pattern) or matches(path + "/__kit_probe__", pattern)):
+        if path and ((itself and matches(path, pattern)) or matches(path + "/__kit_probe__", pattern)):
             return original
         if removes and _inside(pattern, *_split_at_wildcard(path)):
             return original
@@ -51,7 +53,7 @@ def _split_at_wildcard(path: str) -> tuple[str, str | None]:
     """(folder before the first wildcard part, that part): `src/v*` is ("src", "v*"), `*` is ("", "*")."""
     parts = path.split("/") if path else []
     for index, part in enumerate(parts):
-        if _WILDCARD.search(part):
+        if WILDCARD.search(part):
             return "/".join(parts[:index]), part
     return path, None
 
@@ -63,7 +65,7 @@ def _inside(pattern: str, folder: str, glob: str | None = None) -> bool:
     pattern = normalize(pattern).lstrip("/")
     if "/" not in pattern.rstrip("/"):
         return False
-    fixed = _WILDCARD.split(pattern, maxsplit=1)[0]
+    fixed = WILDCARD.split(pattern, maxsplit=1)[0]
     prefix = folder + "/" if folder else ""
     if not fixed or not fixed.startswith(prefix):
         return False
@@ -72,7 +74,7 @@ def _inside(pattern: str, folder: str, glob: str | None = None) -> bool:
     # `rm *.log` at the root must not count as deleting `vendor/`: the glob has to match the
     # pattern's entry at that depth. A wildcard there in the pattern too: assume they can meet.
     entry = pattern[len(prefix):].split("/", 1)[0]
-    return bool(_WILDCARD.search(entry)) or fnmatch.fnmatchcase(entry, glob)
+    return bool(WILDCARD.search(entry)) or fnmatch.fnmatchcase(entry, glob)
 
 
 def path_reason(protected, path: str, removes: bool = False) -> str | None:
@@ -85,9 +87,10 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
         pattern = _secret_matching(path, patterns) if key == "secrets" else _matching(path, patterns)
         if pattern:
             return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
-        # Exemptions are bare names, which say nothing about a folder, so they play no part here.
+        # Only what a folder holds: path itself was decided above, exemptions included (review
+        # round 1: `rm .env.example` was blocked while editing it was allowed).
         positive = [pattern for pattern in patterns if not pattern.startswith("!")]
-        pattern = _matching(path, positive, removes=True) if removes else None
+        pattern = _matching(path, positive, removes=True, itself=False) if removes else None
         if pattern:
             # The folder itself isn't protected; what's inside it is. Say so, or the reason misleads.
             return f"removing {shown} would delete protected files (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
@@ -107,10 +110,10 @@ def _secret_matching(path: str, patterns) -> str | None:
             if bare and _matching(path, [pattern[1:]]):
                 bare = None
         elif _matching(path, [pattern]):
-            if "/" in normalize(pattern).rstrip("/"):
-                anchored = anchored or pattern
-            else:
+            if is_bare(pattern):
                 bare = pattern
+            else:
+                anchored = anchored or pattern
     return anchored or bare
 
 
@@ -135,6 +138,7 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
     tool_input = payload.get("tool_input") or {}
     cwd = Path(payload.get("cwd") or root)
     protected = config.protected
+    guard_kit = protected.guard_kit and payload.get("permission_mode") == "bypassPermissions"
 
     if tool in FILE_TOOLS:
         file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
@@ -153,20 +157,25 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
         return f"`{offending}` matches the protected command {pattern!r} ([protected].commands, .claude/kit.toml)"
     git_bash = shell == "bash"
     for target in file_commands.write_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, git_bash=git_bash)
+        reason = _target_reason(protected, root, cwd, target, git_bash=git_bash, guard_kit=guard_kit)
         if reason:
             return reason
     for target in file_commands.removed_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, removes=True, git_bash=git_bash)
+        reason = _target_reason(protected, root, cwd, target, removes=True, git_bash=git_bash, guard_kit=guard_kit)
         if reason:
             return reason
     return None
 
 
 def _target_reason(protected, root: Path, cwd: Path, target: str, removes: bool = False,
-                   git_bash: bool = True) -> str | None:
+                   git_bash: bool = True, guard_kit: bool = False) -> str | None:
     rel = relative(root, cwd, target, git_bash)
-    return None if rel is None else path_reason(protected, rel, removes)
+    if rel is None:
+        return None
+    if guard_kit and _matching(rel, KIT_GUARD, removes):
+        return (f"{normalize(rel)} is the kit's own configuration; in bypassPermissions mode a shell "
+                "command can't ask for the owner's approval to change it. Use the Edit tool, which asks")
+    return path_reason(protected, rel, removes)
 
 
 def native_path(target: str, windows: bool | None = None, git_bash: bool = True) -> str:

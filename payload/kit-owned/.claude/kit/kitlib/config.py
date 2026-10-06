@@ -238,13 +238,17 @@ def _protected(table) -> Protected:
     _check_table(table, where)
     _check_keys(table, _PROTECTED_KEYS, where)
     for key in ("paths", "secrets"):
-        bare_before = False
+        bare_before, seen = [], set()
         for value in _strings(table, key, where):
+            # A repeat would be dropped from the deny rules, while the hook would count it again.
+            if key == "secrets" and value in seen:
+                _fail(f"{where}: 'secrets': {value!r} is listed twice")
+            seen.add(value)
             if value.startswith("!"):
                 _exemption(key, value[1:], bare_before, where)
                 value = value[1:]
-            elif "/" not in value.replace("\\", "/").rstrip("/"):
-                bare_before = True
+            elif globs.is_bare(value):
+                bare_before.append(value)
             # Patterns are project-relative: the same text becomes a root-anchored deny rule.
             if value.startswith(("//", "~")) or ".." in value.replace("\\", "/").split("/"):
                 _fail(f"{where}: {key!r}: {value!r} must be a path inside the project")
@@ -266,7 +270,7 @@ def _protected(table) -> Protected:
     )
 
 
-def _exemption(key: str, name: str, bare_before: bool, where: str) -> None:
+def _exemption(key: str, name: str, bare_before: list, where: str) -> None:
     """A `!` exemption must be one Claude Code would honour (decision 92); one it ignores would
     leave the owner believing a file is readable, or the hook and the deny rules disagreeing."""
     pattern = f"!{name}"
@@ -275,12 +279,14 @@ def _exemption(key: str, name: str, bare_before: bool, where: str) -> None:
               "remove the path from 'paths' instead")
     if not name.strip():
         _fail(f"{where}: 'secrets': {pattern!r} names no file")
-    if "/" in name.replace("\\", "/"):
+    if not globs.is_bare(name):
         _fail(f"{where}: 'secrets': {pattern!r} must be a bare file name: Claude Code can't carve an "
               "exemption out of a rule with a folder in it")
-    if not bare_before:
+    # A wildcard exemption may cancel part of any earlier name; a plain one must match one of them.
+    if not any(globs.WILDCARD.search(name) or globs.matches(name, earlier) for earlier in bare_before):
         _fail(f"{where}: 'secrets': {pattern!r} has nothing before it to carve out of; list it after "
-              "a bare file name such as '.env.*'")
+              "a bare file name it matches, such as '.env.*' (a name with a folder or a trailing / "
+              "can't be carved)")
 
 
 def _strings(table: dict, key: str, where: str) -> list:
