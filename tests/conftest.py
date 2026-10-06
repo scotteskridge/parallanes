@@ -14,6 +14,7 @@ if str(KIT_CODE) not in sys.path:
 # git runs `git maintenance run` on its own after fetches and pushes. In throwaway test repos that
 # is pure cost (twice per `lanes finish`), so every git process the tests start skips it.
 # os.environ, not a fixture: the kit's subprocesses and the env dicts tests build both inherit it.
+# Not the receive-pack of a local push, which git starts without these: see lane_helpers' origin.
 @pytest.fixture(autouse=True)
 def _clear_test_control():
     """cycle_repo points the stand-in test command at its test's folder; never let it leak on."""

@@ -60,6 +60,12 @@ def _build_lanes_repo(base: Path, config: str, origin: bool, ignore: bool) -> Pa
     if origin:
         remote = base / "origin repo.git"
         git(base, "init", "-q", "--bare", "-b", "main", str(remote))
+        # A local push runs receive-pack here with conftest's GIT_CONFIG_* entries unset (git keeps
+        # a client's config from leaking into the remote), and receive-pack then starts a detached
+        # `git maintenance run`. On the template that races the copy in lanes_repo (shutil.Error on
+        # objects/maintenance.lock), so the origin turns it off in its own config; copies keep it.
+        git(remote, "config", "receive.autogc", "false")
+        git(remote, "config", "maintenance.auto", "false")
         git(repo, "remote", "add", "origin", str(remote))
         git(repo, "push", "-q", "-u", "origin", "main")
     return repo
