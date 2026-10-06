@@ -137,8 +137,30 @@ def test_skill_step0_lane_check(path):
     step0 = re.search(r"^## 0\. .*?(?=^## 1\. )", text, re.MULTILINE | re.DOTALL)
     assert step0, "step 0 is the lane check"
     assert "sh .claude/kit/kit next" in step0.group(0)
-    for case in ("lane", "main checkout", "not a lane"):
-        assert case in step0.group(0), f"step 0 must cover '{case}'"
+    for case in ("`Here: lane", "`Here: main checkout`", "`a worktree that isn't a lane`", "`Here: not a lane`"):
+        assert case in step0.group(0), f"step 0 must cover {case}"
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_every_kit_call_goes_through_the_launcher(path):
+    """Otherwise a call slips past test_skill_commands_exist: `python .claude/kit/cli.py`,
+    `{{kit_command}}` (not rendered in kit-owned files) or a bare `kit lanes ...`."""
+    text = body(path)
+    spans = re.findall(r"`([^`\n]+)`", text) + re.findall(r"^\s*(sh .*|kit .*|python .*)$", text, re.MULTILINE)
+    for span in spans:
+        if span in ("kit next", "kit lanes start", "kit lanes finish"):
+            continue  # the command's name in prose, not a call
+        if ".claude/kit/" in span or span.startswith(("kit ", "python ")) or "{{" in span:
+            assert span.startswith("sh .claude/kit/kit "), f"/{path.parent.name}: `{span}` doesn't use the launcher"
+
+
+@pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
+def test_skill_prose_lines_fit(path):
+    fenced = False
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        fenced ^= line.strip().startswith("```")
+        if not fenced and not line.startswith(("description:", "allowed-tools:")):
+            assert len(line) <= 100, f"line {number} is {len(line)} characters"
 
 
 def test_wrap_up_hands_the_pr_body_to_lanes_finish():

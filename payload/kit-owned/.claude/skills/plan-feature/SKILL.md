@@ -15,12 +15,12 @@ the owner approves.
 Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: the plan's task branch comes from `lanes start` (step 3). Keep the plan
   inside this lane's scope and owned paths (the session-start hook listed them).
-- `Here: main checkout`: the project has lanes but this isn't one. Stop and say which lane the
-  work belongs in, and that it is planned from that lane's folder.
+- `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this isn't
+  one. Stop and say which lane the work belongs in, and that it is planned from that lane's folder.
 - `Here: not a lane`: the project has no lanes; the task branch comes from git (step 3).
-Stop if this folder has uncommitted changes, or a task branch with work that isn't merged:
-finish that first (`/wrap-up`). Read `integration_branch` and `merge_mode` from
-`.claude/kit.toml` (defaults `main` and `pr`).
+Stop if this folder has changed files (`N changed`; untracked files alone don't count), or a task
+branch with work that isn't merged: finish that first (`/wrap-up`). Read `integration_branch` and
+`merge_mode` from `.claude/kit.toml` (defaults `main` and `pr`).
 
 ## 1. Understand
 - If the argument is a backlog slug, read `docs/backlog/<slug>.md`; it is the request.

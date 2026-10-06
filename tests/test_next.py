@@ -163,7 +163,7 @@ def test_next_in_a_project_without_lanes(tmp_path):
     result = run_cli(repo, "next", "--offline")
     assert result.returncode == 0, result.stderr
     out = result.stdout
-    assert "Here: not a lane" in out and "1 uncommitted" in out
+    assert "Here: not a lane" in out and "1 changed" in out
     assert "Lanes: none configured" in out
     assert "Draft · docs/plans/2026-10-05-export.md · Export CSV" in out
     assert "now · export-csv · Export CSV · lane any · size M" in out
@@ -218,6 +218,44 @@ def test_next_in_the_main_checkout_of_a_lanes_project(tmp_path):
     result = run_cli(repo, "next", "--offline")
     assert result.returncode == 0, result.stderr
     assert "Here: main checkout · main" in result.stdout
+
+
+@pytest.mark.slow
+def test_a_worktree_that_is_not_a_lane_is_not_called_the_main_checkout(tmp_path):
+    """Review finding: `git worktree add` or a Claude Code --worktree session isn't the main checkout."""
+    repo = lanes_repo(tmp_path, config=LANES_TOML)
+    other = tmp_path / "scratch tree"
+    git(repo, "worktree", "add", "-q", "--detach", str(other))
+    result = run_cli(other, "next", "--offline")
+    assert result.returncode == 0, result.stderr
+    assert "Here: a worktree that isn't a lane" in result.stdout
+
+
+@pytest.mark.parametrize("folder", ["plans", "backlog"])
+def test_a_file_that_is_not_utf8_is_a_problem_not_a_crash(tmp_path, folder):
+    """Review finding: Notepad's ANSI encoding would otherwise stop every skill at step 0."""
+    path = tmp_path / "docs" / folder / "café.md"
+    path.parent.mkdir(parents=True)
+    path.write_bytes("---\nstatus: now\nlane: any\nsize: S\n---\n# Café\n**Status:** Draft\n".encode("cp1252"))
+    item(tmp_path, "fine")
+    found, problems = (next_facts.plans(tmp_path) if folder == "plans" else next_facts.backlog(tmp_path, []))
+    assert len(problems) == 1 and "can't read" in problems[0] and "café.md" in problems[0]
+
+
+def test_untracked_files_are_counted_apart_from_changes(tmp_path):
+    """Decision 52: only tracked changes are unfinished work; a test report isn't."""
+    repo = make_repo(tmp_path)
+    write(repo, "src/x.py", "x = 1\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "init")
+    write(repo, "junit.xml", "<testsuite/>\n")
+    result = run_cli(repo, "next", "--offline")
+    assert result.returncode == 0, result.stderr
+    here = result.stdout.splitlines()[0]
+    assert "1 untracked" in here and "changed" not in here
+    write(repo, "src/x.py", "x = 2\n")
+    here = run_cli(repo, "next", "--offline").stdout.splitlines()[0]
+    assert "1 changed · 1 untracked" in here
 
 
 def test_lane_names_come_from_the_config(tmp_path):

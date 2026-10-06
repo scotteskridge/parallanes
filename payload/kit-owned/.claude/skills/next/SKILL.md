@@ -3,7 +3,7 @@ name: next
 description: "Say what to work on next in this folder: unfinished work, plans waiting on the owner, open pull requests, other lanes, and the next ready backlog item. Read-only; ends with one recommended prompt. Use for /next, \"what's next\", \"where are we\", \"what should I work on\"."
 model: sonnet
 effort: low
-allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Bash(gh pr list *) Bash(gh pr view *) Bash(gh pr checks *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Bash(gh pr list *) Bash(gh pr checks *) Read Grep Glob
 ---
 What to work on next. $ARGUMENTS
 
@@ -15,13 +15,13 @@ Run `sh .claude/kit/kit next` (add `--offline` if `gh` is missing or slow). Its 
 where this folder is:
 - `Here: lane <name>`: answer for this lane. Backlog items count when their lane is this lane or
   `any`; other lanes get one line at the end.
-- `Here: main checkout`: the project has lanes but this folder isn't one. Answer for the whole
-  project, and say that task work happens in a lane folder (`.claude/worktrees/<lane>/`).
+- `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this folder
+  isn't one. Answer for the whole project, and say that task work happens in a lane folder.
 - `Here: not a lane`: the project has no lanes; answer for the whole project.
 If the command fails, show its message and stop: the facts below can't be trusted without it.
 
 ## 1. Gather
-- The rest of `kit next`: lanes (branch, ahead/behind, uncommitted, PR), plans by status, backlog
+- The rest of `kit next`: lanes (branch, ahead/behind, changed files, PR), plans by status, backlog
   items by status, and **Problems** (files it couldn't read).
 - Not in a lane, and the project opens pull requests: `gh pr list --state open --json
   number,title,headRefName,url`, then `gh pr checks <n>` for each. A non-zero exit from
@@ -33,8 +33,8 @@ If the command fails, show its message and stop: the facts below can't be truste
 1. **A plan with status Draft:** waiting on the owner's approval of the plan and its open questions.
 2. **A plan In progress or Approved:** building is under way. If its *Left to do* says `/wrap-up`,
    the next step is `/wrap-up`; otherwise `/implement <plan path>` in a fresh session.
-3. **Unfinished work without a pull request:** uncommitted changes, or a task branch ahead of the
-   integration branch with no PR. The next step is `/wrap-up`.
+3. **Unfinished work without a pull request:** changed files (untracked ones alone don't count), or
+   a task branch ahead of the integration branch with no PR. The next step is `/wrap-up`.
 4. **An open pull request** for this lane (or, outside a lane, any): waiting on the owner's review.
    In a lane, the next task can't start until it is merged (`lanes start` checks).
 5. **The first ready backlog item:** status `now`, then `next`; not blocked, or blocked by an item
@@ -46,7 +46,7 @@ dependencies that aren't written down.
 
 ## 3. Answer in about 15 lines, exactly this shape
 ```
-**Where you are:** <lane or folder> · <branch> · <clean | N uncommitted> · <N ahead / N behind>
+**Where you are:** <lane or folder> · <branch> · <clean | N changed · N untracked> · <in a lane: N ahead / N behind>
 **Waiting on you:** <draft plans to approve / PRs to review (CI result)> or "nothing"
 **Ready next:** <the step from section 2: one line on what it is>
 **Blocked:** <items and what they wait on> or "nothing"

@@ -4,15 +4,15 @@ description: "Finish the current task: run the tests, get the reviewer's report 
 model: sonnet
 disable-model-invocation: true
 argument-hint: "[docs/plans/<plan>.md]"
-allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Bash(gh pr view *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Read Grep Glob
 ---
 Wrap up the current task. $ARGUMENTS
 
 ## 0. Lane check
 Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: step 6 finishes with `lanes finish`.
-- `Here: main checkout`: the project has lanes but this isn't one. Stop: wrap up from the lane
-  folder the task's branch is in.
+- `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this isn't
+  one. Stop: wrap up from the lane folder the task's branch is in.
 - `Here: not a lane`: the project has no lanes; step 6 uses git and `gh` directly.
 Stop if the current branch is the integration branch. The plan is the one named, or the one
 `kit next` lists as In progress; a small task may have none.
@@ -48,7 +48,7 @@ each such thing propose **one** of these, with the exact lines:
 - a `.claude/rules/` line, when the author should know it while writing (scoped with `paths:`);
 - a check in `.claude/review/project.md` (the next free `P` number), when review should catch it;
 - a rule-check pattern in `.claude/kit.toml`, when it's a literal that must never appear.
-Write it only on a yes, in its own commit after the task's.
+Write nothing yet: approved rules are written and committed in step 6, after the task's commit.
 
 ## 5. Propose
 Show: the files changed, the test result lines, the reviewer's verdict and what was fixed, and a
@@ -56,6 +56,8 @@ commit message that says *why*. Ask: "Commit and open the pull request?" Wait fo
 
 ## 6. Finish, on the owner's yes
 1. Stage the task's files by name and commit. Untracked files you didn't create: ask first.
+   Then write the rules the owner approved in step 4 and commit them on their own ("Add a rule:
+   <what>"), so the task's commit holds only the task. `lanes finish` needs a clean folder.
 2. The PR body: the plan link, a short summary, the test result lines, the reviewer's report, and
    a table of findings and their fixes. Pass it on stdin (`--body-file -`), never as a file: a
    file outside the lane's paths makes the ownership hook ask.

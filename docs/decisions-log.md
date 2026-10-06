@@ -5,6 +5,10 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-05: Plan 07 questions
 
+72. **`docs/design/decisions-log.md` is a default shared path.** *Found in the live run:* the skills
+    add decisions there from a lane (ARCHITECTURE §8 allows one entry per task), and the ownership
+    hook asked because only `docs/changelog.d/`, `docs/backlog/` and `docs/plans/` were shared.
+
 71. **Skills run the kit as `sh .claude/kit/kit <command>`,** a kit-owned launcher beside the hook
     launcher that takes Python from `.claude/kit/python-path` and passes exit codes through. *Settled
     during the build, for the owner to confirm:* a kit-owned skill can hold neither the rendered
@@ -36,10 +40,6 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     every write there asks (the kit's own ask rule on `.claude/kit/**`, and the ownership hook for
     any path outside the lane), so a file would prompt on every wrap-up. Stdin needs no file and
     no gitignore entry.
-
-72. **`docs/design/decisions-log.md` is a default shared path.** *Found in the live run:* the skills
-    add decisions there from a lane (ARCHITECTURE §8 allows one entry per task), and the ownership
-    hook asked because only `docs/changelog.d/`, `docs/backlog/` and `docs/plans/` were shared.
 
 66. **Repeated corrections become one proposed rule, never an unasked one.** `/wrap-up` looks back over
     its session and asks the owner; for each repeat it proposes one of a `.claude/rules/` line (know it

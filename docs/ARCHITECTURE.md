@@ -275,8 +275,8 @@ guard_kit = true
 | `/design` (07b) | opus | Read one design-doc section → discuss → log the decision | — |
 | `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `kit next` [63] |
 
-Every skill's step 0 is the lane check: `kit next`'s first line says lane, main checkout (lanes exist,
-this isn't one) or not a lane, and the skill handles each [62]. Skills run the kit as
+Every skill's step 0 is the lane check: `kit next`'s first line says lane, main checkout (or another
+worktree that isn't a lane) or not a lane (no lanes), and the skill handles each [62]. Skills run the kit as
 `sh .claude/kit/kit <command>`, a launcher that takes Python from `python-path`, because a
 kit-owned file can't hold `{{kit_command}}` or an interpreter path [71]. Skills with side effects
 set `disable-model-invocation: true`, and `allowed-tools` pre-approves only read-only commands, so

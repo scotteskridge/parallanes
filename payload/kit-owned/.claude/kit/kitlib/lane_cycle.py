@@ -90,7 +90,10 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
         # Read now, before the tests run: /wrap-up passes the body on stdin so it needs no file,
         # and a file outside the lane's paths would make the ownership hook ask (plan 07).
         # LF only: a PowerShell or Windows text pipe sends CRLF.
-        body_text = sys.stdin.buffer.read().decode("utf-8-sig").replace("\r\n", "\n")
+        try:
+            body_text = sys.stdin.buffer.read().decode("utf-8-sig").replace("\r\n", "\n")
+        except UnicodeDecodeError as error:
+            raise LaneError(f"--body-file -: the PR body on stdin isn't UTF-8 ({error.reason} at byte {error.start})") from None
         if not body_text.strip():
             raise LaneError("--body-file -: no PR body on stdin")
     elif body_file:

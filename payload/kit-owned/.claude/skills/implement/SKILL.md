@@ -12,9 +12,9 @@ Build this plan: $ARGUMENTS
 Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: stay inside this lane's owned paths (the session-start hook listed them;
   an edit outside them asks first). Shared docs (`docs/plans/`, `docs/backlog/`,
-  `docs/changelog.d/`) are fine.
-- `Here: main checkout`: the project has lanes but this isn't one. Stop: build from the lane folder
-  the plan's branch belongs to.
+  `docs/changelog.d/`, `docs/design/decisions-log.md`) are fine.
+- `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this isn't
+  one. Stop: build from the lane folder the plan's branch belongs to.
 - `Here: not a lane`: the project has no lanes; work on the plan's branch here.
 The current branch must be the one on the plan's **Branch / PR** line. If it isn't, stop and say
 so; never build on the integration branch.

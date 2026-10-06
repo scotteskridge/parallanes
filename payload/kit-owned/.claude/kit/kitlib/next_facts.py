@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import lane_status
-from .lanes import branch_of, dirty_count, find_current, run_git
+from .lanes import branch_of, find_current, git, run_git, same_path
 
 PLANS_REL = Path("docs") / "plans"
 BACKLOG_REL = Path("docs") / "backlog"
@@ -52,8 +52,15 @@ def _docs(folder: Path) -> list[Path]:
     )
 
 
-def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+def _read(path: Path, rel: str, problems: list) -> str | None:
+    """The file's text, or None with a problem: one unreadable file mustn't stop every skill's step 0."""
+    try:
+        return path.read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    except UnicodeDecodeError as error:
+        problems.append(f"{rel}: can't read (not UTF-8: {error.reason} at byte {error.start})")
+    except OSError as error:
+        problems.append(f"{rel}: can't read ({error.strerror or error})")
+    return None
 
 
 def _rel(root: Path, path: Path) -> str:
@@ -70,7 +77,9 @@ def plans(root: Path) -> tuple[list, list]:
     found, problems = [], []
     for path in _docs(Path(root) / PLANS_REL):
         rel = _rel(root, path)
-        text = _read(path)
+        text = _read(path, rel, problems)
+        if text is None:
+            continue
         match = STATUS_LINE.search(text)
         if not match:
             problems.append(f"{rel}: no **Status:** line")
@@ -122,7 +131,9 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
     found, problems = [], []
     for path in _docs(folder):
         rel = _rel(root, path)
-        text = _read(path)
+        text = _read(path, rel, problems)
+        if text is None:
+            continue
         fields = _header(text)
         if fields is None:
             problems.append(f"{rel}: no header (a --- block with status, lane, size)")
@@ -136,6 +147,13 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
                           blocked_by, blocked_by in done))
     found.sort(key=lambda item: (ITEM_STATUSES.index(item.status), item.slug))
     return found, problems
+
+
+def _changes(folder: Path) -> tuple[int, int]:
+    """(tracked changes, untracked files): only the first is unfinished work (decision 52)."""
+    lines = git(folder, "status", "--porcelain").splitlines()
+    untracked = sum(line.startswith("??") for line in lines)
+    return len(lines) - untracked, untracked
 
 
 def has_commits(folder: Path) -> bool:
@@ -157,9 +175,21 @@ def facts(start: Path, root: Path, config, offline: bool = False) -> Facts:
     folder = top or Path(root)
     # A brand-new project has no HEAD yet: say so rather than failing on rev-parse.
     branch = (branch_of(folder) or "detached") if has_commits(folder) else "no commits yet"
-    dirty = dirty_count(folder)
-    where = f"lane {lane.name}" if lane else ("main checkout" if config.lanes and top else "not a lane")
-    here = " · ".join([f"Here: {where}", branch, f"{dirty} uncommitted" if dirty else "clean"])
+    if lane:
+        where = f"lane {lane.name}"
+    elif config.lanes and top and same_path(top, main):
+        where = "main checkout"
+    elif config.lanes and top:
+        where = "a worktree that isn't a lane"  # `git worktree add`, or a Claude Code --worktree session
+    else:
+        where = "not a lane"
+    changed, untracked = _changes(folder)
+    state = []
+    if changed:
+        state.append(f"{changed} changed")
+    if untracked:
+        state.append(f"{untracked} untracked")
+    here = " · ".join([f"Here: {where}", branch, *(state or ["clean"])])
     lanes_text = None
     if config.lanes:
         lanes_text = lane_status.format_status(lane_status.status(Path(start), config, offline))

@@ -177,3 +177,17 @@ scratchpad). Permission prompts were stood in for by `--allowedTools` for kit, g
 - *Not shown live:* a real GitHub PR, macOS/Linux, the owner clicking real permission prompts, a
   sync conflict during `/wrap-up`, a project without lanes, and the reviewer's guard (the scratch
   folders weren't trusted, so its frontmatter hook was skipped, as recorded in plan 06).
+
+**Reviews.** By this repo's own `reviewer`. Every fix has a test, and the new tests failed on the old
+code except one that pins behaviour already right (a stdin body in local mode).
+- *Round 1* (1 🔴, 4 🟠, 7 🟡): a backlog or plan file that isn't UTF-8 crashed `kit next`, which
+  every skill's step 0 runs (🔴; now listed under Problems); untracked files counted as unfinished
+  work, against decision 52 (now `N changed · N untracked`, and the skills stop on changed files
+  only); a worktree that isn't a lane was called the main checkout; a non-UTF-8 stdin body crashed
+  `lanes finish` with exit 1 (now refused, exit 2); `/wrap-up` said to commit a rule before the
+  task's commit existed (now in step 6, after it); `/implement` left the decisions log out of its
+  shared docs; an unused `gh pr view` grant; tests that could miss a kit call made without the
+  launcher, or an unchecked step-0 case (now checked, plus a line-length check). **For the owner:**
+  what `blocked_by` may name (an item slug, or also a plan, as the backlog README says) and
+  whether an unknown blocker is a problem; and confirming decisions 65, 71 and 72, made or changed
+  during the build.

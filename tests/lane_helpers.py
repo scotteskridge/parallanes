@@ -104,7 +104,7 @@ with open(here / "gh-calls.jsonl", "a", encoding="utf-8") as log:
     log.write(json.dumps(args) + "\\n")
 if "--body-file" in args and args[args.index("--body-file") + 1] == "-":
     (here / "gh-stdin.txt").write_bytes(sys.stdin.buffer.read())  # as sent, like gh reads it
-spec =json.loads((here / "gh-spec.json").read_text(encoding="utf-8"))
+spec = json.loads((here / "gh-spec.json").read_text(encoding="utf-8"))
 if args[:2] == ["pr", "list"]:
     state = args[args.index("--state") + 1] if "--state" in args else "open"
     prs = [pr for pr in spec["prs"] if state == "all" or pr["state"].lower() == state]
