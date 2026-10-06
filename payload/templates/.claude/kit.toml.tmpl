@@ -41,6 +41,13 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
                                     # "!name" exempts a bare file name listed after the names it cancels
 # guard_kit = true                  # edits to the kit's own config need your approval (false: off)
 
+# The kit's hooks in .claude/settings.json. Re-running the installer puts back one you deleted;
+# switch one off here instead, then re-run it. The protected hook is the backstop behind the rules
+# above and has no switch; the ownership hook's is `ownership = "off"` in [project].
+# [hooks]
+# rules_check = true                # check the [[checks.rules]] patterns after every agent edit
+# lane_router = true                # tell the agent its lane at session start
+
 # Lanes: several agent sessions at once, each in its own git worktree with its own paths.
 # Guide: docs/ai/parallel-lanes.md. Create the folders with `{{kit_command}} lanes create`, check them
 # with `{{kit_command}} lanes status`. Uncomment and adapt; add one [[lanes]] table per lane.

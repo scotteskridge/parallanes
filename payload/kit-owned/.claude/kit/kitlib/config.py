@@ -14,7 +14,7 @@ from . import commands, globs, lane_owners
 
 CONFIG_REL = Path(".claude") / "kit.toml"
 
-_TOP_LEVEL = {"project", "checks", "lanes", "protected"}
+_TOP_LEVEL = {"project", "checks", "lanes", "protected", "hooks"}
 _PROJECT_KEYS = {
     "name": str,
     "description": str,
@@ -27,6 +27,14 @@ _PROJECT_KEYS = {
 }
 _CHECKS_KEYS = {"rules": list}
 _PROTECTED_KEYS = {"paths": list, "commands": list, "secrets": list, "guard_kit": bool}
+# Hooks the owner may switch off (decision 102), by key and hook name. Not `protected`: it is the
+# backstop behind the deny rules. Not `ownership`: [project] ownership = "off" already switches it off.
+_HOOK_SWITCHES = {"rules_check": "rules-check", "lane_router": "lane-router"}
+_HOOK_REDIRECTS = {
+    "protected": "'protected' can't be switched off: it is the backstop behind the deny rules; "
+    "narrow what it guards in [protected] instead",
+    "ownership": 'switch the ownership hook off with [project] ownership = "off"',
+}
 
 # Used when [protected] leaves a key out, so a project that never wrote the table is still guarded.
 # `git clean -f` rather than `-fdx`: every flag in a pattern must be present, and `-fd` destroys too.
@@ -85,6 +93,13 @@ class Protected:
 
 
 @dataclass(frozen=True)
+class Hooks:
+    """The installer leaves a switched-off hook out of settings.json; the hook itself doesn't read this."""
+
+    switched_off: frozenset = frozenset()
+
+
+@dataclass(frozen=True)
 class Lane:
     name: str
     owns: list
@@ -111,6 +126,7 @@ class Config:
     protected: Protected = field(default_factory=Protected)
     lanes: list = field(default_factory=list)
     lane_settings: LaneSettings = field(default_factory=LaneSettings)
+    hooks: Hooks = field(default_factory=Hooks)
 
 
 def find_root(start: Path) -> Path:
@@ -203,7 +219,18 @@ def parse(text: str, where: str = CONFIG_REL.as_posix()) -> Config:
         protected=_protected(raw.get("protected", {})),
         lanes=_lanes(raw.get("lanes", []), lane_settings),
         lane_settings=lane_settings,
+        hooks=_hooks(raw.get("hooks", {})),
     )
+
+
+def _hooks(table) -> Hooks:
+    where = "[hooks]"
+    _check_table(table, where)
+    for key in table:
+        if key in _HOOK_REDIRECTS:
+            _fail(f"{where}: {_HOOK_REDIRECTS[key]}")
+    _check_keys(table, dict.fromkeys(_HOOK_SWITCHES, bool), where)
+    return Hooks(switched_off=frozenset(name for key, name in _HOOK_SWITCHES.items() if not table.get(key, True)))
 
 
 _CHOICES = {"merge_mode": ("pr", "local"), "ownership": ("ask", "off")}

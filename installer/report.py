@@ -33,6 +33,22 @@ def plan(files: file_plan.FilePlan, settings: dict, extra: dict, precommit: str)
             f"  settings .claude/settings.json  (+{settings['rules']} permission rules, "
             f"+{settings['added_hooks']} hooks; your entries are kept)"
         )
+    for name in settings["readded_hooks"]:
+        how = (
+            "it is the security backstop and can't be switched off"
+            if name == "protected"
+            else "to keep it out, set it false under [hooks] in .claude/kit.toml"
+        )
+        print(f"  note     the {name} hook isn't in .claude/settings.json and is added; {how}")
+    for name in settings["removed_hooks"]:
+        print(
+            f"  note     the {name} hook is switched off in .claude/kit.toml and is removed from .claude/settings.json"
+        )
+    for name in settings["still_running"]:
+        print(
+            f"  note     the {name} hook is switched off in .claude/kit.toml but .claude/settings.json still "
+            "runs your copy of it; remove that yourself"
+        )
     if settings["writes_record"]:
         print("  write    .claude/kit/generated-rules.json  (the rules the kit wrote)")
     for rel in extra:

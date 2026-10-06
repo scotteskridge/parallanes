@@ -6,6 +6,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `[hooks]` in `.claude/kit.toml` (decision 102): `rules_check = false` or `lane_router = false`
+  keeps that hook out of `.claude/settings.json` on the next installer run. The protected hook has
+  no switch; ownership's is `[project] ownership = "off"`. A re-run that puts back a kit hook the
+  owner deleted, or finds a switched-off hook still running in the owner's edited copy, says so.
 - The installer (plan 08): `install.ps1` / `install.sh` find a Python 3.11+ that really runs
   (the Windows Store alias doesn't) and run `kit_setup.py [--target DIR] [--dry-run] [--yes]`. It
   asks five values with detected defaults and whether to turn on the pre-commit check (decision

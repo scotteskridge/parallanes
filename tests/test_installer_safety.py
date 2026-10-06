@@ -69,6 +69,19 @@ def test_a_broken_manifest_stops_with_nothing_written(tmp_path, manifest):
     assert tree(repo) == before
 
 
+@pytest.mark.parametrize("hooks", ["[]", '{"PreToolUse": ["x"]}', '{"PreToolUse": "x"}'])
+def test_malformed_hooks_in_settings_stop_with_nothing_written(tmp_path, hooks):
+    """Review round 2 of decision 102: the hook notes read settings.json before merge checked it."""
+    repo = new_repo(tmp_path)
+    setup(repo)
+    (repo / ".claude" / "settings.json").write_text(f'{{"hooks": {hooks}}}\n', encoding="utf-8")
+    before = tree(repo)
+    result = setup(repo, check=False)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert "settings.json" in result.stderr and "Traceback" not in result.stderr
+    assert tree(repo) == before
+
+
 def test_an_owners_gitattributes_keeps_its_rules(tmp_path):
     """Later lines win in .gitattributes: the kit must not add `* text=auto eol=lf` after the owner's."""
     repo = new_repo(tmp_path)

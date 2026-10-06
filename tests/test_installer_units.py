@@ -178,6 +178,91 @@ def test_a_malformed_hook_record_is_an_error(recorded):
         settings_hooks.merge({}, recorded)
 
 
+# ---- switching hooks off ([hooks] in kit.toml) --------------------------------------------------
+
+
+def _names(settings):
+    return sorted(
+        group["hooks"][0]["command"].rsplit(" ", 1)[-1] for groups in settings["hooks"].values() for group in groups
+    )
+
+
+def test_a_switched_off_hook_is_not_added():
+    settings = {}
+    record = settings_hooks.merge(settings, [], off={"rules-check", "lane-router"})
+    assert _names(settings) == ["ownership", "protected"]
+    assert "PostToolUse" not in settings["hooks"] and "SessionStart" not in settings["hooks"]
+    assert len(record) == 2
+
+
+def test_switching_a_hook_off_removes_the_kits_copy_and_on_again_restores_it():
+    settings = {}
+    record = settings_hooks.merge(settings, [])
+    record = settings_hooks.merge(settings, record, off={"rules-check"})
+    assert _names(settings) == ["lane-router", "ownership", "protected"]
+    assert not any("rules-check" in json.dumps(entry) for entry in record)
+    settings_hooks.merge(settings, record)
+    assert _names(settings) == ["lane-router", "ownership", "protected", "rules-check"]
+
+
+def test_a_switched_off_hook_the_owner_edited_is_kept_and_reported():
+    """An edited copy is the owner's now: leave it, but say it still runs."""
+    settings = {}
+    record = json.loads(json.dumps(settings_hooks.merge(settings, [])))
+    settings["hooks"]["PostToolUse"][0]["hooks"][0]["timeout"] = 90
+    settings_hooks.merge(settings, record, off={"rules-check"})
+    assert "rules-check" in _names(settings)
+    assert settings_hooks.still_running(settings, {"rules-check"}) == ["rules-check"]
+    assert settings_hooks.still_running(settings, set()) == []
+
+
+def test_the_protected_hook_cant_be_switched_off():
+    with pytest.raises(ValueError):
+        settings_hooks.merge({}, [], off={"protected"})
+
+
+def test_a_deleted_kit_hook_is_reported_when_it_comes_back():
+    settings = {}
+    settings_hooks.merge(settings, [])
+    del settings["hooks"]["PreToolUse"][0]  # the protected hook
+    assert settings_hooks.missing(settings) == ["protected"]
+    # A deleted hook that is switched off doesn't come back, so it isn't reported.
+    settings = {}
+    settings_hooks.merge(settings, [])
+    del settings["hooks"]["PostToolUse"]
+    assert settings_hooks.missing(settings, off={"rules-check"}) == []
+    assert settings_hooks.missing(settings) == ["rules-check"]
+
+
+def test_a_hook_comes_back_said_aloud_even_when_it_was_never_recorded():
+    """Review round 1: an owner-edited copy left unrecorded (off, then on), then deleted, still counts."""
+    settings = {}
+    record = json.loads(json.dumps(settings_hooks.merge(settings, [])))
+    settings["hooks"]["PostToolUse"][0]["hooks"][0]["timeout"] = 90
+    record = settings_hooks.merge(settings, record, off={"rules-check"})
+    record = settings_hooks.merge(settings, record)  # on again: the edited copy stays the owner's
+    del settings["hooks"]["PostToolUse"]
+    assert settings_hooks.missing(settings) == ["rules-check"]
+
+
+def test_a_kit_command_under_another_event_doesnt_count_as_present():
+    """merge looks per event, so the report must too, or a second copy is added unannounced."""
+    settings = {}
+    settings_hooks.merge(settings, [])
+    group = settings["hooks"]["PreToolUse"].pop(0)
+    settings["hooks"]["PostToolUse"].append(group)
+    assert settings_hooks.missing(settings) == ["protected"]
+
+
+def test_every_switch_in_kit_toml_names_a_hook_the_kit_wires():
+    """A typo in either list would make a switch silently do nothing."""
+    from kitlib import config
+
+    wired = {name for _, _, name in settings_hooks.WIRING}
+    assert set(config._HOOK_SWITCHES.values()) <= wired - {settings_hooks.ALWAYS_ON}
+    assert set(config._HOOK_REDIRECTS) | set(config._HOOK_SWITCHES.values()) == wired  # each one has a key or a pointer
+
+
 # ---- review round 3 ---------------------------------------------------------------------------
 
 
