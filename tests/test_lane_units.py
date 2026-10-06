@@ -19,10 +19,11 @@ def config(mode="pr"):
     return SimpleNamespace(lane_settings=SimpleNamespace(merge_mode=mode, integration_branch="main"))
 
 
-# ---- lane_cycle._clean: one `git status --porcelain -z` ------------------------------------------
+# ---- lane_cycle._clean and lanes.changes: one `git status --porcelain -z` ----------------------
 
 def clean(monkeypatch, status_output):
-    monkeypatch.setattr(lane_cycle, "_git", lambda top, *args, **kwargs: status_output)
+    # The parser is lanes.changes, shared with `kit next`; it reads git through lanes.git.
+    monkeypatch.setattr(lanes, "git", lambda top, *args, **kwargs: status_output)
     return lane_cycle._clean(Path("."))
 
 
@@ -135,12 +136,12 @@ def test_shares_work_ignores_a_pr_already_in_the_tip(monkeypatch):
 
 def test_status_text(tmp_path):
     lane = lane_status.LaneStatus("core", tmp_path / ".claude/worktrees/core", "ok", branch="core/x",
-                                  ahead=2, behind=1, dirty=1, gone=True, pr="PR #4 MERGED")
+                                  ahead=2, behind=1, changed=1, untracked=2, gone=True, pr="PR #4 MERGED")
     text = lane_status.format_status(lane_status.Status(tmp_path, None, "origin/main", lanes=[
         lane, lane_status.LaneStatus("api", tmp_path / ".claude/worktrees/api", "not created")],
         warnings=["careful"], notes=["overlap"]))
     assert "detached HEAD" in text and "! careful" in text and "Note: overlap" in text
-    assert "core .claude/worktrees/core · core/x · 2 ahead, 1 behind origin/main · 1 uncommitted" in text
+    assert "core .claude/worktrees/core · core/x · 2 ahead, 1 behind origin/main · 1 changed · 2 untracked" in text
     assert "pushed branch gone from origin · PR #4 MERGED" in text
     assert "api .claude/worktrees/api · not created (kit lanes create api)" in text
 

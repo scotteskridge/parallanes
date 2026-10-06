@@ -8,7 +8,9 @@ from kitlib import lane_merged, lanes
 from kitlib.lanes import Unfinished
 
 
-def open_pr(top: Path, integration: str, branch: str, tip: str, title: str | None, body: str | None) -> list[str]:
+def open_pr(top: Path, integration: str, branch: str, tip: str, title: str | None, body: str | None,
+            body_text: str | None = None) -> list[str]:
+    """body: a file for gh's --body-file; body_text: the body itself (from `--body-file -`), sent on stdin."""
     pushed = lanes.run_git(top, "push", "-q", "-u", "origin", branch)  # never --force (decision 48)
     if pushed.returncode != 0:
         raise Unfinished(f"the tests passed, but git push failed: {pushed.stderr.strip()}")
@@ -24,17 +26,22 @@ def open_pr(top: Path, integration: str, branch: str, tip: str, title: str | Non
     subjects = lanes.git(top, "log", "--reverse", "--format=%s", f"{tip}..HEAD").splitlines()
     args = [shutil.which("gh") or "gh", "pr", "create", "--base", integration, "--head", branch,
             "--title", title or subjects[0]]
-    if body:
+    if body_text is not None:
+        args += ["--body-file", "-"]
+    elif body:
         args += ["--body-file", body]
     else:
         args += ["--body", "Commits:\n" + "\n".join(f"- {s}" for s in subjects) + "\n\nOpened by `kit lanes finish`."]
     try:
-        created = subprocess.run(args, cwd=top, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+        # Bytes, not text mode: on Windows a text pipe would turn the body's \n into \r\n.
+        created = subprocess.run(args, cwd=top, input=(body_text or "").encode("utf-8"), capture_output=True,
+                                 timeout=60)
     except (OSError, subprocess.SubprocessError) as error:
         raise Unfinished(f"{branch} is pushed, but gh pr create couldn't run ({error}); {by_hand}") from None
+    out, err = (stream.decode("utf-8", errors="replace").strip() for stream in (created.stdout, created.stderr))
     if created.returncode != 0:
-        raise Unfinished(f"{branch} is pushed, but gh pr create failed ({created.stderr.strip()[:300]}); {by_hand}")
-    return lines + [f"Opened {created.stdout.strip()}"]
+        raise Unfinished(f"{branch} is pushed, but gh pr create failed ({err[:300]}); {by_hand}")
+    return lines + [f"Opened {out}"]
 
 
 def compare_url(remote: str, base: str, head: str) -> str | None:

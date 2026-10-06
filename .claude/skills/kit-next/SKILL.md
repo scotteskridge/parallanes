@@ -1,6 +1,6 @@
 ---
-name: next
-description: "Say where the kit's build stands and what to do next: branch and unfinished work, open PRs and CI, plans waiting on the owner, the next plan to start, and docs that disagree. Read-only; ends with one recommended prompt. Use for /next, \"what's next\", \"where are we\"."
+name: kit-next
+description: "Say where the kit's build stands and what to do next: branch and unfinished work, open PRs and CI, plans waiting on the owner, the next plan to start, and docs that disagree. Read-only; ends with one recommended prompt. Use for /kit-next, \"what's next\", \"where are we\"."
 model: sonnet
 effort: low
 allowed-tools: Bash(git status *) Bash(git branch -vv) Bash(git rev-list --left-right --count main...HEAD) Bash(gh pr list *) Bash(gh pr checks *) Read Grep Glob
@@ -9,7 +9,9 @@ What's next for the kit build. $ARGUMENTS
 
 **Read-only.** Change no files, branches or PRs, and don't start any work: report, then recommend
 one prompt for the owner to send. Run commands from the repo root. (This is the repo's own dev tool
-and the prototype for the installable `/next` in plan 07.)
+and the prototype for the installable `/next` in plan 07; named `kit-next` so it never shares a
+name with the payload's skills, which Claude Code also loads here once a payload file is read.
+Never run a payload skill in this repo.)
 
 ## 1. Gather
 - `git status --short --branch`: current branch and uncommitted files.
@@ -18,9 +20,9 @@ and the prototype for the installable `/next` in plan 07.)
 - `gh pr list --state open --json number,title,headRefName,url`, then `gh pr checks <n>` for each.
   `gh pr checks` exits non-zero when checks are failing or pending: that's a result to report, not
   an error. Only if `gh pr list` itself fails, say "PR status unavailable (gh)" and carry on.
-- `Read` `docs/plans/README.md` (short): the `| NN |` rows give number, title, status. Rows for
+- `Read` `docs/plans/README.md` (short): the `| NN |` rows give number (a split plan adds a letter: `07b`), title, status. Rows for
   plans not drafted yet have no link; that's expected.
-- `Grep` `^\*\*Status:\*\*` in `docs/plans/[0-9][0-9]-*.md`: each plan file's own status.
+- `Grep` `^\*\*Status:\*\*` in `docs/plans/[0-9][0-9]*-*.md`: each plan file's own status.
 - Only when step 2 lands on a plan (states 3–5): find its open questions with `Grep -i` for
   `^\|.*\bplans? ([0-9]{2}, )*NN\b` (NN = its number, e.g. `03`) in `docs/ARCHITECTURE.md`; those
   are the §15 table rows it owns. Also read its file's *Open questions* and `**Builds on:**` lines

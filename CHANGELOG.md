@@ -6,6 +6,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The task-loop skills (plan 07), kit-owned: `/next` (what to work on, from `kit next`), `/plan-feature`
+  (task branch and a plan, then stop for approval), `/implement` (test-first, stops on anything the
+  plan doesn't settle) and `/wrap-up` (tests, the reviewer, changelog fragment and plan notes, rule
+  proposals for repeated corrections, then commit and `lanes finish` on the owner's yes). Each starts
+  with a lane check and also works in projects without lanes; only read-only commands are
+  pre-approved. Tests check that every `kit` command and path a skill names exists.
+- `kit next`: this folder's lane, every lane, open plans by status and backlog items by header, with
+  unreadable files listed as problems. `sh .claude/kit/kit`, a launcher skills use to run the kit.
+- `lanes finish --body-file -` reads the PR body from stdin, so `/wrap-up` needs no file.
 - A backlog for the kit itself (`docs/backlog/`, the format the kit installs), seeded with eight
   items from a code review: lint, format, type hints and type checking, coverage, the test command in
   `AGENTS.md`, decision-number comments, and the weight of the plan process. Five more from a
@@ -70,5 +79,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   (read-only; prototype for plan 07's installable `/next`).
 
 ### Changed
+- `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
+  `.claude/kit/python-path` through `.worktreeinclude`. This repo's own `/next` is now `/kit-next`.
+- `lanes status` and the lane router's warning count changed and untracked files apart ("N changed ·
+  N untracked" instead of "N uncommitted"): only changed tracked files are unfinished work.
+- A backlog item's `blocked_by` may name a plan (done once it is in `docs/plans/finished/`); a
+  blocker that names nothing, or the item itself, is reported by `kit next`.
 - The kit's name is `worklanes` (decision 73): `claude-` plugin names are reserved, and
   `laneguard` read too much like the existing `lanekeeper`.

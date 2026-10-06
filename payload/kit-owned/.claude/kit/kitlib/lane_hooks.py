@@ -75,9 +75,14 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
                 f".claude/kit.toml differs from {tip}'s copy: lane definitions may have changed. "
                 "This session uses this folder's copy; the next task starts from the new one."
             )
-    dirty = lanes.dirty_count(root)
-    if dirty:
-        warnings.append(f"{dirty} uncommitted change(s), maybe from an earlier session: look at them before new work.")
+    changed, untracked = lanes.changes(root)
+    if changed:
+        warnings.append(f"{changed} uncommitted change(s) to tracked files, maybe from an earlier session: "
+                        "look at them before new work.")
+    if untracked:
+        # Not unfinished work (decision 52): test runners leave reports. Only the task's own files land.
+        warnings.append(f"{len(untracked)} untracked file(s): commit the ones that belong to your task; "
+                        "the rest won't land.")
     return warnings
 
 

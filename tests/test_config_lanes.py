@@ -41,7 +41,7 @@ def test_lane_defaults(tmp_path):
     settings = config.lane_settings
     assert (settings.integration_branch, settings.merge_mode, settings.worktree_root, settings.ownership) == (
         "main", "pr", ".claude/worktrees", "ask")
-    assert settings.shared_paths == ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
+    assert settings.shared_paths == ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
 
 
 def config_error(tmp_path, text):

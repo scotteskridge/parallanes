@@ -90,7 +90,16 @@ def test_fresh_branch_is_not_reported_as_merged(repo):
 def test_uncommitted_changes(repo):
     folder = lane_dir(repo, "core")
     write(folder, "src/core/a.py", "x = 9\n")
-    assert "1 uncommitted change(s)" in brief(folder)
+    assert "1 uncommitted change(s) to tracked files" in brief(folder)
+
+
+def test_untracked_files_are_not_called_uncommitted_changes(repo):
+    """Decision 52: a test report left behind isn't unfinished work."""
+    folder = lane_dir(repo, "core")
+    write(folder, "junit.xml", "<testsuite/>\n")
+    text = brief(folder)
+    assert "uncommitted" not in text
+    assert "1 untracked file(s)" in text
 
 
 def test_kit_toml_differs_from_the_integration_branch(repo):

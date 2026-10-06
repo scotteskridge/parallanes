@@ -187,8 +187,22 @@ def ahead_behind(folder: Path, tip: str) -> tuple[int, int]:
     return int(out[0]), int(out[1])
 
 
-def dirty_count(folder: Path) -> int:
-    return len(git(folder, "status", "--porcelain").splitlines())
+def changes(folder: Path) -> tuple[int, list[str]]:
+    """(tracked changes, untracked paths): only tracked changes are unfinished work (decision 52).
+
+    One `git status` (each git call costs ~35 ms on Windows). -z: names as they are, not git's
+    quoted octal form; a rename's second entry is its old name, with no status prefix.
+    """
+    entries = iter(git(folder, "status", "--porcelain", "-z", "--untracked-files=normal").split("\0"))
+    tracked, untracked = 0, []
+    for entry in entries:
+        if entry.startswith("?? "):
+            untracked.append(entry[3:])
+        elif entry:
+            tracked += 1
+            if entry[0] in "RC" or entry[1] in "RC":  # staged, or in the worktree (`add -N` then rename)
+                next(entries, None)
+    return tracked, untracked
 
 
 def unpushed_count(folder: Path) -> int | None:

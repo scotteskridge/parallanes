@@ -13,7 +13,8 @@ Design they build on: `../ARCHITECTURE.md`.
 | 04 | [Lanes core](04-lanes-core.md) | `[[lanes]]` in `.claude/kit.toml`, `lanes create`, `lanes status`, lane-router hook with drift checks, ownership check | Done |
 | 05 | [Lane task cycle](05-lane-task-cycle.md) | `lanes start`, `lanes finish`, `lanes sync`; PR mode and local mode | Done |
 | 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Done |
-| 07 | Skills | `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections), `/code-health`, `/design`, `/next` for installed projects (lane- and backlog-aware, grown from this repo's own `/next` prototype, decision 26), `/onboard` and their templates | Not started |
+| 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
+| 07b | Skills: design, health, onboarding | `/design`, `/code-health` (dated reports), `/onboard` (decisions 61, 68, 69) | Not started |
 | 08 | Installer | `install.ps1` / `install.sh` → `kit_setup.py`: prerequisites, interpreter detection, dry run, manifest, no overwrites | Not started |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | Not started |

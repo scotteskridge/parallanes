@@ -1,7 +1,10 @@
 """`kit lanes finish`: sync, run the tests, then open a PR or fast-forward (decisions 49, 50)."""
+import subprocess
+import sys
+
 import pytest
 
-from helpers import git, run_cli, write
+from helpers import CLI, git, run_cli, write
 from lane_helpers import commit, cycle_repo, gh_calls, no_gh_env, recorded_test_runs, scripted_gh
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
@@ -59,6 +62,28 @@ def test_title_and_body_file_are_passed_on(pr_lane, tmp_path):
     call = next(call for call in gh_calls(gh) if call[:2] == ["pr", "create"])
     assert call[call.index("--title") + 1] == "Fix login"
     assert call[call.index("--body-file") + 1] == str(body)
+
+
+def test_body_from_stdin_reaches_gh(pr_lane, tmp_path):
+    """`--body-file -`: /wrap-up passes the body on stdin, so it needs no file in the lane (a file
+    outside the lane's paths asks the owner first). Found in plan 07's live run."""
+    _, lane = pr_lane
+    gh = tmp_path / "gh"
+    body = "Plan: docs/plans/x.md\n\n## Review\nready ✅\n"
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin=body, env=scripted_gh(gh))
+    assert result.returncode == 0, result.stderr
+    call = next(call for call in gh_calls(gh) if call[:2] == ["pr", "create"])
+    assert call[call.index("--body-file") + 1] == "-"
+    assert (gh / "gh-stdin.txt").read_bytes() == body.encode("utf-8")  # exact bytes: no carriage returns added on Windows
+
+
+def test_empty_stdin_body_is_refused_before_anything_happens(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin="", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "stdin" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+    assert remote_branch(repo, "core/task") == []
 
 
 def test_missing_body_file_is_refused_before_anything_happens(pr_lane, tmp_path):
@@ -167,6 +192,25 @@ def test_local_mode_fast_forwards_then_leaves_the_lane_between_tasks(local_lane,
     assert rev(lane) == work
     assert not git(lane, "branch", "--list", "core/task").strip()
     assert remote_branch(repo, "main") != [work]  # no network in local mode
+
+
+def test_local_mode_accepts_a_stdin_body_and_lands(local_lane, tmp_path):
+    """/wrap-up always passes the body; local mode reads it (with a BOM here) and doesn't need it."""
+    repo, lane, work = local_lane
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin="\ufeffPlan: x\n", env=no_gh_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert rev(repo, "main") == work
+
+
+def test_a_stdin_body_that_is_not_utf8_is_refused_before_anything_happens(local_lane, tmp_path):
+    repo, lane, work = local_lane
+    before = rev(repo, "main")
+    result = subprocess.run([sys.executable, str(CLI), "lanes", "finish", "--body-file", "-"], cwd=lane,
+                            input="Café\n".encode("cp1252"), capture_output=True, env=no_gh_env(tmp_path))
+    assert result.returncode == 2, result.stderr
+    assert b"UTF-8" in result.stderr and b"Traceback" not in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+    assert rev(repo, "main") == before
 
 
 def test_local_mode_refuses_while_the_main_checkout_holds_main(local_lane, tmp_path):

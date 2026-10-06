@@ -7,12 +7,12 @@ STATUSES = {"Draft", "Approved", "In progress", "Done"}
 
 
 def plan_files():
-    return sorted(p for p in PLANS.glob("[0-9][0-9]-*.md"))
+    return sorted(p for p in PLANS.glob("[0-9][0-9]*-*.md"))
 
 
 def test_every_linked_plan_in_the_index_exists():
     index = (PLANS / "README.md").read_text(encoding="utf-8")
-    links = re.findall(r"\]\(([0-9][0-9]-[^)]+\.md)\)", index)
+    links = re.findall(r"\]\(([0-9][0-9][a-z]?-[^)]+\.md)\)", index)
     assert links, "the index links no plans"
     for link in links:
         assert (PLANS / link).is_file(), f"index links missing plan {link}"

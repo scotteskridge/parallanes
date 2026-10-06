@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import globs, lane_merged
-from .lanes import (ahead_behind, branch_of, dirty_count, git, integration_tip, lane_folder, registered_worktrees,
+from .lanes import (ahead_behind, branch_of, changes, git, integration_tip, lane_folder, registered_worktrees,
                     main_checkout, same_path, toplevel, unpushed_count, upstream_gone)
 
 
@@ -21,7 +21,8 @@ class LaneStatus:
     branch: str | None = None  # None: detached
     ahead: int = 0
     behind: int = 0
-    dirty: int = 0
+    changed: int = 0  # tracked files: unfinished work
+    untracked: int = 0  # not unfinished work: test reports and the like (decision 52)
     unpushed: int | None = None  # None: no upstream
     gone: bool = False  # pushed once, but the remote branch is gone
     pr: str = UNKNOWN
@@ -60,7 +61,8 @@ def status(start: Path, config, offline: bool = False) -> Status:
         if not folder.is_dir():
             result.lanes.append(LaneStatus(lane.name, folder, "missing"))
             continue
-        entry = LaneStatus(lane.name, folder, "ok", branch=branch_of(folder), dirty=dirty_count(folder))
+        changed, untracked = changes(folder)
+        entry = LaneStatus(lane.name, folder, "ok", branch=branch_of(folder), changed=changed, untracked=len(untracked))
         entry.here = top is not None and same_path(top, folder)
         if tip:
             entry.ahead, entry.behind = ahead_behind(folder, tip)
@@ -143,8 +145,10 @@ def format_status(result: Status) -> str:
         parts.append(lane.branch if lane.branch else "detached (between tasks)")
         if result.tip:
             parts.append(f"{lane.ahead} ahead, {lane.behind} behind {result.tip}")
-        if lane.dirty:
-            parts.append(f"{lane.dirty} uncommitted")
+        if lane.changed:
+            parts.append(f"{lane.changed} changed")
+        if lane.untracked:
+            parts.append(f"{lane.untracked} untracked")
         if lane.branch:
             if lane.gone:
                 parts.append("pushed branch gone from origin")
