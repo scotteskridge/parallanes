@@ -3,6 +3,17 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-05: Product name
+
+73. **The kit's name is `worklanes`** (plugin name, and the name the README and launch use).
+    *Why:* `claude plugin validate` reserves names starting with `claude-`, so
+    `claude-code-lanes-starter` can't be the plugin name, and a published plugin name can't change.
+    `worklanes` was free on PyPI, npm and GitHub (2026-10-05) and says what the kit does. `laneguard`
+    was the other finalist, but it means nearly the same as `lanekeeper`, an existing tool for the
+    same problem ([kish21/parallel-agents](https://github.com/kish21/parallel-agents)), so the two
+    would be confused. Renaming the repo, the `kit` CLI command and the docs is left to plan 08/12
+    (backlog `plugin-name`).
+
 ## 2026-10-05: Plan 06 questions
 
 54. **Review checklists live in `.claude/review/`**: `universal.md` (kit-owned), `project.md`

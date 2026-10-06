@@ -3,13 +3,16 @@ status: next
 lane: any
 size: S
 ---
-# Pick a plugin name Claude Code accepts
+# Adopt the name `worklanes` everywhere
 
-`claude plugin validate` rejects plugin names starting with `claude-` as reserved, and warns on
-`claude` as a whole word anywhere ([plugins-reference](https://code.claude.com/docs/en/plugins-reference.md#name)).
-So `claude-code-lanes-starter` can't be the plugin name, and every component is namespaced under
-the name (`<name>:reviewer`), so it shows up in daily use. Settle it before plan 08 and plan 12's
-launch, since the repo name, README and decisions should agree.
+Decision 73 picked `worklanes`: `claude-` plugin names are reserved by `claude plugin validate`
+([plugins-reference](https://code.claude.com/docs/en/plugins-reference.md#name)), and a published
+plugin name can't change. Every component is namespaced under it (`worklanes:reviewer`), so it
+shows up in daily use. Still open for the owner: whether the `kit` CLI command becomes `worklanes`
+too (one name is easier to find; `kit` is short to type), and when to rename the GitHub repo
+(GitHub redirects the old URL).
 
-**Done when:** the owner has picked a name that passes `claude plugin validate --strict` with no
-warning, and it's recorded in the decisions log (renaming the repo is a separate call).
+**Done when:** a stub plugin named `worklanes` passes `claude plugin validate --strict` with no
+warning; the repo, README, `pyproject.toml` and docs use the name; the CLI question is decided
+and logged; and the name is checked again on PyPI, npm and GitHub (and a quick trademark search)
+just before launch.

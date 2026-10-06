@@ -11,7 +11,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `AGENTS.md`, decision-number comments, and the weight of the plan process. Five more from a
   comparison with Claude Code's built-in features: shipping the kit-owned parts as a plugin, a
   plugin name that passes validation, lanes with `claude --worktree`, a two-lane trial on a real
-  non-Unity project, and a README table of what the kit adds.
+  non-Unity project, and a README table of what the kit adds. Six more from studying lanekeeper,
+  a tool for the same problem: a lane-boundary check where work lands, modes for shared paths, a
+  rule for overlapping lanes, ports in each lane's environment, a fix hint when a boundary stops
+  something, and `doctor` plus uninstall.
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
   slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,
@@ -61,3 +64,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   now reviews its own plans with copies of the reviewer that a test keeps equal to the payload.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).
+
+### Changed
+- The kit's name is `worklanes` (decision 73): `claude-` plugin names are reserved, and
+  `laneguard` read too much like the existing `lanekeeper`.
