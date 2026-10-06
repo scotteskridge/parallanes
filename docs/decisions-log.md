@@ -51,6 +51,57 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     `lane-resources-env`, and it should use `lane-dependency-hint`'s lockfile table
     (`docs/survey-lanekeeper.md`). Decision 68 moves with it. 07b also tries a lighter process
     (backlog `lighten-plan-process`).
+    *Since reconciled with decisions 77–78 on merging main:* for v0.1, plan 08 is the copy
+    installer and `/onboard` stays in v0.2, where its plugin-or-installer question is settled.
+
+## 2026-10-05: The v0.1 plan
+
+The owner asked for guidance on how the kit should be built. These were Claude's recommendations,
+and the owner accepted them. Research behind them: `docs/survey-claude-code.md`, `docs/survey-lanekeeper.md`.
+
+82. **Permission defaults follow the current docs.** The secrets default becomes `.env.*` with a
+    `!.env.example` exemption: a deny rule that starts with `!` is a gitignore negation, and the wider
+    pattern also catches `.env.production` and the like. This replaces decision 31's list.
+    Decision 30's extra hook block in `bypassPermissions` is removed after one live check, because
+    the docs say ask rules prompt in every mode, bypass included. Both are done in the v0.1 fix
+    batch (backlog `revisit-permission-decisions`).
+
+81. **The repo and the CLI are renamed to `worklanes` together, at launch (plan 12).** *Why:* one
+    rename instead of churn while plans are open. Until then the CLI stays `kit`.
+
+80. **Evals move to v0.2: about five small `claude -p` scenarios.** v0.1 proves usefulness with a
+    real two-lane trial instead (backlog `prove-it-on-a-real-project`), which also replaces plan 11's
+    example project. *Why:* a trial with real tasks is cheaper and says more about usefulness;
+    evals then guard against regressions. `claude plugin eval` can't load a project's `.claude/` or
+    `CLAUDE.md`, so plan 11 keeps its own harness and borrows plugin eval's design (repeat runs, a
+    baseline, a cost cap).
+
+79. **Lighter process.** At most three open questions per plan. Claude brings each one with a
+    recommended answer, and the owner approves or pushes back. Small plans get one review round
+    unless it finds a 🔴. *Why:* 74 decisions for about 3,500 lines of code is too much ceremony,
+    and it slows delivery (backlog `lighten-plan-process`).
+
+78. **v0.1 installs by copying files (plan 08, one `kit init`); the plugin comes in v0.2.** Keep
+    kit-owned files in a layout that can become a plugin's. *Why:* two plugin limits would break
+    features that work today. A plugin agent's `hooks` frontmatter is ignored, so the reviewer
+    would lose its read-only guard. A plugin's `bin/` is only on the PATH of Claude's Bash tool, so
+    pre-commit, CI and people's own terminals couldn't run the checks. Copying files works now and
+    is tested; the plugin brings updates and a one-line install once the kit is proven.
+
+77. **v0.1 is a small kit that works, then it grows.** Build only what Claude Code doesn't already
+    do: lanes with an enforced task cycle. The order:
+    1. plan 07 (done);
+    2. a batch of small fixes: lane settings on macOS/Linux, the permission decisions, live checks
+       that say what they load, lint and format in CI, the test command in `AGENTS.md`;
+    3. the lane-boundary check, with a rule for files two lanes claim;
+    4. the installer (plan 08);
+    5. a two-lane trial on a small web project;
+    6. the CI template (plan 09);
+    7. launch (plan 12).
+
+    v0.2 holds the rest: the plugin, plan 07b, the Unity pack, evals, per-lane ports, and most of
+    the backlog. *Why:* the project had grown past what one owner can steer, and nothing is proven
+    useful until someone other than its author can install it and run two lanes.
 
 ## 2026-10-05: Plan 07 questions
 

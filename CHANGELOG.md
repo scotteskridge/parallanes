@@ -10,7 +10,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   section of the design docs and, on the owner's OK, records it in `DESIGN.md` and the decisions log.
   `/code-health` audits the whole codebase by area with parallel read-only subagents, writes a dated
   report to `docs/health/`, and turns the findings the owner picks into backlog items. `/onboard`
-  moves to plan 08 (decision 85). `docs/health/**` is shared by every lane by default.
+  moves out of 07b and stays in v0.2 (decisions 77, 85). `docs/health/**` is shared by every lane by default.
 - The task-loop skills (plan 07), kit-owned: `/next` (what to work on, from `kit next`), `/plan-feature`
   (task branch and a plan, then stop for approval), `/implement` (test-first, stops on anything the
   plan doesn't settle) and `/wrap-up` (tests, the reviewer, changelog fragment and plan notes, rule
@@ -82,8 +82,18 @@ versions follow [Semantic Versioning](https://semver.org/).
   now reviews its own plans with copies of the reviewer that a test keeps equal to the payload.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).
+- `docs/survey-claude-code.md`: what Claude Code's own features already do or constrain, by plan,
+  with the decisions they contradict (30, 31, 35, 57) for the owner to revisit, and six backlog
+  items: lane settings on macOS/Linux, the permission decisions, lane session names and ports
+  through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- A plan for v0.1 (decisions 77–82): a small kit that works first, built only where Claude Code
+  has no built-in. Seven steps in `docs/plans/README.md`. The plugin, plan 07b, the Unity pack,
+  evals and per-lane ports move to v0.2. The installer copies files for now. Process gets lighter
+  (at most three open questions per plan, each with a recommended answer). The secrets default
+  is to become `.env.*` with an `.env.example` exemption, in the fix batch. The backlog statuses follow the plan, and
+  `/kit-next` follows the build order.
 - `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
   `.claude/kit/python-path` through `.worktreeinclude`. This repo's own `/next` is now `/kit-next`.
 - `lanes status` and the lane router's warning count changed and untracked files apart ("N changed ·

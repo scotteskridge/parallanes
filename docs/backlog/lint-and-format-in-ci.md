@@ -1,5 +1,5 @@
 ---
-status: next
+status: now
 lane: any
 size: M
 ---

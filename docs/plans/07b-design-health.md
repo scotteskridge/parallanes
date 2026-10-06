@@ -14,7 +14,7 @@ OK. `/code-health` audits the whole codebase by area, writes a dated report, and
 findings the owner picks into backlog items, so they enter the normal loop.
 
 ## Out of scope
-- `/onboard`: plan 08 (decision 85).
+- `/onboard`: v0.2 (decision 85, reconciled with decision 77 on merging main).
 - A setup health check (`kit doctor`): backlog `doctor-and-uninstall`. `/code-health` looks at the
   code, never at the kit's own setup, so the two don't blur.
 - Fixing anything `/code-health` finds: findings become backlog items; fixes go through the loop.
