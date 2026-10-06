@@ -4,10 +4,10 @@ Unit tests prove the kit's code; a live check proves Claude Code actually runs i
 assumes: that a hook fires, a skill loads, a permission rule holds. Each one runs real headless
 `claude -p` sessions in a scratch project, so it costs money and needs your login. That's why live
 checks never run in CI or in the normal test commands: without `--live` they are skipped, whatever
-`-m` says.
+`-m` says. Run them with the project's `.venv` (`.venv/bin/python` on macOS/Linux; AGENTS.md):
 
 ```bash
-python -m pytest --live tests/live
+.venv/Scripts/python -m pytest --live tests/live
 ```
 
 ## Why each check asserts what loaded

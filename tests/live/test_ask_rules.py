@@ -1,6 +1,6 @@
 """Decision 92's live check, repeatable: ask rules are never auto-approved, even in bypass mode.
 
-Run with `python -m pytest --live tests/live` (docs/live-checks.md). One file has an ask rule, one
+Run with `.venv/Scripts/python -m pytest --live tests/live` (docs/live-checks.md). One file has an ask rule, one
 a deny rule and one neither. The deny rule shows the project settings loaded; a PreToolUse hook on
 Edit shows hooks loaded (`--bare` would skip it); the control run without the ask rule shows the
 ask rule is what stops the edit.

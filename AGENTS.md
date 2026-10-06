@@ -13,10 +13,17 @@ and `packs/` (once they exist). Plan and status: `docs/ROADMAP.md`. Why things a
 - The shell starts at the project root: never prefix commands with `cd`.
 
 ## Checking your work
-- While working, run the fast set: `python -m pytest -m "not slow"`. Before a commit or PR, run the
-  full suite (`python -m pytest`) and report its result lines. Evidence, not claims.
-- Before a commit or PR, also run `ruff check .` and `ruff format --check .` (CI fails on either);
-  `ruff format .` fixes formatting. Ruff is in the dev extras: `pip install -e ".[dev]"`.
+- Run Python tools with the project's `.venv`, not the `python` on PATH (it may lack pytest and
+  ruff): `.venv/Scripts/python` on Windows, `.venv/bin/python` on macOS/Linux. Set up once with
+  `python -m venv .venv` (`python3` on macOS/Linux), then
+  `.venv/Scripts/python -m pip install -e ".[dev]"`.
+- While working, run the fast set: `.venv/Scripts/python -m pytest -m "not slow"`. Before a commit
+  or PR, run the full suite (`.venv/Scripts/python -m pytest`) and report its result lines.
+  Evidence, not claims. Don't pipe test output through `tail` or `head`: the pipe hides a failing
+  exit code.
+- Before a commit or PR, also run `.venv/Scripts/python -m ruff check .` and
+  `.venv/Scripts/python -m ruff format --check .` (CI fails on either); `-m ruff format .` fixes
+  formatting.
 - Every hook and CLI command has tests. Test paths with spaces and Windows separators.
 - **Never weaken, skip or delete a test, or swallow an exception, to make something pass.** Fix the
   cause or stop and say so.
