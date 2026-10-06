@@ -15,7 +15,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 06 | [Reviewer](06-reviewer.md) | `reviewer` subagent, universal checklist, stack checklist mechanism | Done |
 | 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
 | 07b | [Skills: design and code health](07b-design-health.md) | `/design`, `/code-health` (dated report, findings become backlog items) (decisions 61, 69, 85–91) | Done |
-| 08 | [Installer](08-installer.md) | One `kit init` (behind `install.ps1` / `install.sh`) that copies the kit in: prerequisites, interpreter detection, dry run, manifest, no overwrites (decision 78) | In progress |
+| 08 | [Installer](08-installer.md) | One `kit init` (behind `install.ps1` / `install.sh`) that copies the kit in: prerequisites, interpreter detection, dry run, manifest, no overwrites (decision 78) | Done |
 | 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
 | 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
@@ -32,7 +32,7 @@ like any other.
 2. Small fixes, each under an hour: `lane-settings-cross-platform`, `revisit-permission-decisions`,
    `live-checks-pin-what-loads`, `lint-and-format-in-ci`, `agents-md-venv-test-command`
 3. ~~The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim~~ (done)
-4. Plan 08: the installer
+4. ~~Plan 08: the installer~~ (done)
 5. A two-lane trial on a small web project: `prove-it-on-a-real-project` (with
    `lanes-and-worktree-flag` and `lane-dependency-hint`)
 6. Plan 09: the CI template

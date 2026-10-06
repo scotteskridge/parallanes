@@ -1,7 +1,7 @@
 # 08 — Installer
 
-**Status:** In progress
-**Branch / PR:** `plan/08-installer` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/08-installer` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/28
 **Builds on:** plans 01–07 (Done); decisions 7, 19, 25, 29, 78; ARCHITECTURE §4, §10, §14 and the
 §15 rows owned by plan 08
 
@@ -105,10 +105,10 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
 | After install: `sh .claude/kit/kit check all` and `kit check settings` | The installed kit runs, and settings agree with `kit.toml` |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Live check in `tests/live/` (step 8), run with `--live`
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE §15 and the decisions log updated
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Live check in `tests/live/` (step 8), run with `--live`
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE §15 and the decisions log updated
 
 ## Notes after implementation
 - **Layout:** `kit_setup.py` plus an `installer/` package (`values`, `plan`, `blocks`,
