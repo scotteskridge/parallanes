@@ -231,7 +231,7 @@ REPORT_TEMPLATE = SKILLS / "code-health" / "report-template.md"
 def test_code_health_report_template():
     """Decisions 69, 79: the template sits in the skill's own folder and fixes the finding shape."""
     text = REPORT_TEMPLATE.read_text(encoding="utf-8")
-    for part in ("\U0001f534", "\U0001f7e0", "\U0001f7e1", "check", "`path:line`"):
+    for part in ("\U0001f534", "\U0001f7e0", "\U0001f7e1", "| Check |", "`path:line`"):
         assert part in text, f"report template lacks {part!r}"
     assert "report-template.md" in body(SKILLS / "code-health" / "SKILL.md")
     assert b"\r\n" not in REPORT_TEMPLATE.read_bytes()
@@ -248,14 +248,50 @@ def test_code_health_says_what_it_adds():
 def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
     text = body(SKILLS / "code-health" / "SKILL.md")
     assert "in parallel" in text and "`sonnet`" in text  # decision 79
-    assert "docs/health/YYYY-MM-DD.md" in text and "health-YYYY-MM-DD" in text  # decision 80
     assert "in the foreground" in text  # wait for every area before writing the report
+    # Decision 80 (review round 1): named per lane or area, so two runs on one day can't collide.
+    assert "docs/health/YYYY-MM-DD-<area>.md" in text and "health-YYYY-MM-DD-<area>" in text
+
+
+def test_code_health_area_agents_are_read_only():
+    """Review round 1: "changes no code" can't rest on prompt text alone for agents that can edit."""
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    assert "`subagent_type: Explore`" in text
+    assert "never run the tests, coverage" in text
+
+
+def test_code_health_without_lanes_audits_the_source():
+    """Review round 1: every install ships rules files for docs and tests, so falling back to their
+    `paths:` would audit those and skip the source."""
+    step1 = body(SKILLS / "code-health" / "SKILL.md").split("## 1.", 1)[1].split("## 2.", 1)[0]
+    assert "top-level folders" in step1 and "Not checked" in step1
+    assert "only to split" in step1
+
+
+def test_code_health_stops_before_the_audit_when_it_could_not_write():
+    """Review round 1: a folder that can't start a task, or the main checkout, would lose the findings."""
+    step0 = body(SKILLS / "code-health" / "SKILL.md").split("## 0.", 1)[1].split("## 1.", 1)[0]
+    assert "isn't merged" in step0
+    assert "show the findings and stop" in step0
+
+
+def test_code_health_branches_like_plan_feature():
+    text = " ".join(body(SKILLS / "code-health" / "SKILL.md").split())  # phrases may wrap
+    assert "`Here: not a lane` (no lanes)" in text
+    assert "--no-track -c" in text and "origin/<integration branch>" in text  # pr mode, as /plan-feature
+    assert "then tell the owner to run `/wrap-up`" in text  # it can't invoke /wrap-up itself
 
 
 def test_design_follows_the_rules_file():
     """`.claude/rules/design-docs.md` says how a point is settled; /design does exactly that."""
     text = body(SKILLS / "design" / "SKILL.md")
-    assert "exact" in text and "`docs/design/DESIGN.md`" in text
-    assert "`docs/design/decisions-log.md`" in text
     assert "changes no branches" in text  # decision 81
-    assert "never read it whole" in text.lower() or "one section" in text
+    assert "never read it whole" in text
+    step4 = text.split("## 4.", 1)[1]
+    # The order the rules file sets: show the exact DESIGN.md edit, apply on OK, then the log entry.
+    exact, log = step4.index("**exact** `DESIGN.md` edit"), step4.index("`docs/design/decisions-log.md`")
+    assert exact < step4.index("Apply") < log
+
+
+def test_design_offers_a_light_way_to_start_a_task():
+    assert "git switch -c <task>" in body(SKILLS / "design" / "SKILL.md")

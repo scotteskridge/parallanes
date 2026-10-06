@@ -20,7 +20,8 @@ Run `sh .claude/kit/kit next --offline`. Its first line says where this folder i
 - `Here: not a lane`: fine; check the branch as below.
 If this folder isn't on a task branch (it's on the integration branch, `integration_branch` in
 `.claude/kit.toml`, default `main`, or detached between tasks), discuss freely but edit nothing:
-say to start a task first (`/plan-feature`, or `sh .claude/kit/kit lanes start <task>` in a lane).
+say to start a task first: in a lane `sh .claude/kit/kit lanes start <task>`; without lanes
+`git switch -c <task>` from the integration branch, as `/plan-feature` step 3 does.
 
 ## 1. Find the one section
 - Search `docs/design/DESIGN.md` for the heading that fits the question (Grep for `^#`), and read

@@ -81,7 +81,7 @@ my-project/
     ├── plans/  (+ finished/)      P  one file per plan (YYYY-MM-DD-slug.md), from _TEMPLATE.md
     ├── backlog/<slug>.md          P  one file per backlog item                                    [13]
     ├── changelog.d/<lane>-<task>.md  P  changelog fragments, compiled into CHANGELOG.md at release [13]
-    ├── health/YYYY-MM-DD.md       P  /code-health reports, one per run                         [80]
+    ├── health/<date>-<area>.md    P  /code-health reports, one per run                         [80]
     ├── CHANGELOG.md · CODE-STANDARDS.md        (BUILD-STATE.md arrives with /sync-state [21])
     └── design/  decisions-log.md · VISION.md and DESIGN.md as optional stubs [22]
 ```
@@ -272,7 +272,7 @@ guard_kit = true
 | `/plan-feature` | opus | Understand → ask → task branch → plan file (Draft) → stop for approval | `kit lanes start` (outside a lane: `git switch`) |
 | `/implement` | sonnet | Build one approved plan, tests first, on its branch; stop on anything the plan doesn't settle | `kit next` |
 | `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; for each thing corrected more than once, proposes one rules line, `P` check or `kit.toml` pattern (never adds it unasked) [66] | `kit lanes finish` (outside a lane: `git push`, `gh pr create`) |
-| `/code-health` (07b) | opus | Whole-codebase audit by area (parallel `sonnet` subagents) against the project's rules → findings → dated report and chosen backlog items on a `health-<date>` branch; changes no code; not a diff review (built-in `/code-review`) [78] [79] [80] | `kit lanes start` (outside a lane: `git switch`) |
+| `/code-health` (07b) | opus | Whole-codebase audit by area (parallel `sonnet` subagents) against the project's rules → findings → dated report and chosen backlog items on a `health-<date>-<area>` branch; changes no code; not a diff review (built-in `/code-review`) [78] [79] [80] | `kit lanes start` (outside a lane: `git switch`) |
 | `/design` (07b) | opus | Read one design-doc section → options and a recommendation → on OK, the exact `DESIGN.md` edit and a decisions-log entry; changes no branches [81] | — |
 | `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `kit next` [63] |
 

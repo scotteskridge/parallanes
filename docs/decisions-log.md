@@ -10,18 +10,22 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     a trial of backlog `lighten-plan-process`.
 
 81. **`/design` edits `DESIGN.md` where it is and changes no branches.** In a lane the ownership hook
-    asks once per edit, since `DESIGN.md` isn't shared; on the integration branch the skill stops
-    and says to start a task first. Without a `DESIGN.md` the decision goes only in the decisions
+    asks once per edit, since `DESIGN.md` isn't shared; on the integration branch, or a lane
+    between tasks, the skill stops and says to start a task first. Without a `DESIGN.md` the decision goes only in the decisions
     log, and the file is created only when the owner asks. *Why:* a design change is rare and the
     owner is present for it; one prompt is the right friction.
 
 80. **`/code-health`'s report and the backlog items the owner picks are committed on their own task
-    branch, and `docs/health/**` is a default shared path.** *Why:* one dated file per run never
-    conflicts (decision 13), and the report goes through the same loop as any change.
+    branch, and `docs/health/**` is a default shared path.** Report and branch are named by date
+    and area (`YYYY-MM-DD-<lane, area or all>`, `-2` if taken; review round 1: two lanes on one day
+    would otherwise collide). *Why:* a new file per run doesn't conflict (decision 13), and the
+    report goes through the same loop as any change.
 
-79. **`/code-health` audits by area with parallel read-only subagents:** areas from the lanes' `owns`,
-    else the `.claude/rules/` paths, else the top-level source folders, at most six; the skill on
-    `opus`, the area audits on `sonnet`; findings in one shape (severity, check ID, `path:line`,
+79. **`/code-health` audits by area with parallel read-only subagents** (`Explore`, which can't
+    edit): areas from the lanes' `owns`, else the top-level source folders (`.claude/rules/` paths
+    only split a big folder: review round 1 found every install's rules cover docs and tests, not
+    source); uncovered source is listed as not checked; at most six; the skill on `opus`, the
+    area audits on `sonnet`; findings in one shape (severity, check ID, `path:line`,
     why). *Why:* areas keep each audit small and parallel; Sonnet keeps a full audit affordable.
 
 78. **`/code-health` is the whole-codebase audit, not a diff review:** Claude Code's `/code-review`,

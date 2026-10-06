@@ -135,3 +135,16 @@ planted problems; scripts and outputs in the session scratchpad):
   compound shell command.
 - *Not shown live:* the owner approving the `DESIGN.md` prompt in an interactive session, a
   project without lanes or without `DESIGN.md`, macOS/Linux.
+
+**Review** (by this repo's `reviewer`; every finding fixed, tests where a check is cheap; the
+`/design` order test passed before the fix, pinning behaviour already right):
+- *Round 1* (1 🔴, 4 🟠, 5 🟡): without lanes, `/code-health` took its areas from the rules files,
+  which every install ships for docs and tests, so it would never audit the source (🔴; areas are
+  now the top-level source folders, rules paths only split one, and uncovered source is listed);
+  it audited even when it couldn't write a branch afterwards, and from the main checkout,
+  losing the findings (it now stops first, or audits and stops); its non-lane branch didn't start
+  from the integration branch as `/plan-feature`'s does; two runs on one day collided on one
+  report name (now `<date>-<area>`, `-2` if taken); it told the agent to run `/wrap-up`, which
+  only the owner can start; its area agents could edit (now `Explore`, told never to run tests or
+  coverage); `/design` offered no light way to start a task without lanes; weak test assertions;
+  decision 81 lagged the skill.

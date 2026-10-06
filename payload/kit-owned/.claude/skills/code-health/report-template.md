@@ -1,6 +1,6 @@
-# Code health: YYYY-MM-DD
+# Code health: YYYY-MM-DD (<area>)
 
-**Scope:** <areas audited, and where they came from: lanes, rules files or folders>
+**Scope:** <areas audited, and where they came from: lanes or top-level folders>
 **Commit:** <the commit audited> · **Checklists:** <the `.claude/review/*.md` files used>
 **Summary:** <one or two lines: the state of the code, and the most important finding>
 
