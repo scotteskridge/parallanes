@@ -1,7 +1,7 @@
 """Lane logic on canned git and gh output: no repos, so these stay in the fast set.
 
 The slow tests prove the same commands end to end on real repos; these keep each lane module covered
-by `python -m pytest -m "not slow"` while working.
+by the fast set (`-m "not slow"`, AGENTS.md) while working.
 """
 
 import subprocess

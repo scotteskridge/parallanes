@@ -29,7 +29,8 @@ select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF100"]
 testpaths = ["tests"]
 # -n auto: tests run in parallel (pytest-xdist). Each test uses its own temp folders, so they can.
 addopts = "-ra -n auto --strict-markers"
-# While working: `python -m pytest -m "not slow"`; before a commit or PR, the full suite (AGENTS.md).
+# Run with the .venv's python, not the one on PATH (AGENTS.md): the fast set while working
+# (`-m pytest -m "not slow"`), the full suite before a commit or PR.
 markers = [
     "slow: builds real repos, worktrees and CLI processes; seconds a test on Windows",
     "live: runs real claude -p sessions; skipped unless pytest runs with --live (docs/live-checks.md)",
