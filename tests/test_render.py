@@ -1,5 +1,4 @@
 import pytest
-
 from kitlib.render import TemplateError, placeholders_in, render
 
 REGISTRY = {"project_name", "test_command"}

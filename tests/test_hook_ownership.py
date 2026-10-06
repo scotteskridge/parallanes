@@ -4,7 +4,6 @@ import json
 import os
 
 import pytest
-
 from helpers import run_cli, write
 from lane_helpers import LANES_TOML, lane_dir, lanes_repo
 

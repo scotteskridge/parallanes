@@ -197,7 +197,7 @@ def check_protected(root: Path, config, args) -> list:
 def explicit_paths(root: Path, names) -> list[str]:
     # `vendor\a.py` means the same file on every platform, as in kit.toml globs.
     paths = [relative_to_root(root, Path(normalize(name))) for name in names]
-    for name, path in zip(names, paths):
+    for name, path in zip(names, paths, strict=True):
         if not (root / path).is_file():
             raise UsageError(f"{name}: not a file")  # a typo must not pass as "clean"
     return paths

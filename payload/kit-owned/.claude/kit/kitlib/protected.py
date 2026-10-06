@@ -97,7 +97,10 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
         pattern = _matching(path, positive, removes=True, itself=False) if removes else None
         if pattern:
             # The folder itself isn't protected; what's inside it is. Say so, or the reason misleads.
-            return f"removing {shown} would delete protected files (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+            return (
+                f"removing {shown} would delete protected files "
+                f"(matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+            )
     return None
 
 

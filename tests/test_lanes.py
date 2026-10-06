@@ -4,7 +4,6 @@ import json
 import os
 
 import pytest
-
 from helpers import git, run_cli, write
 from kitlib import lane_setup, lanes
 from kitlib.config import load

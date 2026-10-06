@@ -5,7 +5,6 @@ writes. The documented misses are pinned too, so a change in behaviour is a visi
 """
 
 import pytest
-
 from kitlib import commands, file_commands
 from kitlib.config import DEFAULT_COMMANDS
 

@@ -55,7 +55,8 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
             if not abandon:
                 raise LaneError(
                     f"this lane has commits on no branch (HEAD {here[:12]}) that a new task would leave behind. "
-                    f"Keep them with `git branch {lane.name}/<name>`, or drop them on purpose: kit lanes start {task} --abandon"
+                    f"Keep them with `git branch {lane.name}/<name>`, "
+                    f"or drop them on purpose: kit lanes start {task} --abandon"
                 )
             lines.append(
                 f"Abandoned commits on no branch at {here}. To get them back: git branch {lane.name}/recovered {here}"
@@ -239,11 +240,12 @@ def _nothing_in_progress(top: Path) -> None:
     paths = _git(
         top, "rev-parse", "--path-format=absolute", *[arg for name in IN_PROGRESS for arg in ("--git-path", name)]
     )
-    for name, path in zip(IN_PROGRESS, paths.splitlines()):
+    for name, path in zip(IN_PROGRESS, paths.splitlines(), strict=True):
         if Path(path).exists():
             kind = IN_PROGRESS[name]
             raise LaneError(
-                f"a {kind} is in progress here: finish it (`git {kind} --continue`) or undo it (`git {kind} --abort`) first"
+                f"a {kind} is in progress here: "
+                f"finish it (`git {kind} --continue`) or undo it (`git {kind} --abort`) first"
             )
 
 

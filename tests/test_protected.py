@@ -3,11 +3,10 @@
 import os
 
 import pytest
-
 from helpers import RULES_TOML, git, make_repo, run_cli, write
 from kitlib.config import Protected
 from kitlib.protected import path_reason
-from test_precommit import commit, install_hook
+from test_precommit import install_hook
 
 PROTECTED_TOML = (
     RULES_TOML
@@ -182,7 +181,6 @@ def test_allow_variable_lets_a_human_commit_and_says_so(tmp_path):
 
 
 def test_precommit_blocks_a_protected_change(tmp_path):
-    from test_precommit import install_hook  # the same setup the pre-commit tests use
 
     repo = committed_repo(tmp_path)
     install_hook(repo)

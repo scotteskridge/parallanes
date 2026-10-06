@@ -1,7 +1,6 @@
 """`[[lanes]]` and the lane keys of `[project]` are validated strictly (decision 42)."""
 
 import pytest
-
 from helpers import RULES_TOML, make_repo
 from kitlib.config import ConfigError, load
 

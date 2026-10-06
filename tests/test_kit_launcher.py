@@ -10,7 +10,6 @@ import subprocess
 import sys
 
 import pytest
-
 from helpers import ROOT, make_repo
 
 LAUNCHER = ROOT / "payload" / "kit-owned" / ".claude" / "kit" / "kit"

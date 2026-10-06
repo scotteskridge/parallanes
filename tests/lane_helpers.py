@@ -174,7 +174,8 @@ def cycle_repo(base: Path, mode: str = "pr") -> tuple[Path, Path]:
     """(main checkout, core lane folder) for the task cycle.
 
     test_command is a stand-in that logs the HEAD it ran on to <base>/test-runs.log and fails while
-    <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local mode the main checkout is detached, as decision 38 asks.
+    <base>/FAIL exists. If <base>/RACE holds a commit, the first run moves local main there. In local
+    mode the main checkout is detached, as decision 38 asks.
     """
     # One shared script, so the committed config (and so the cached repo) is the same for every test;
     # the script finds this test's folder through KIT_TEST_CONTROL (conftest clears it after each test).

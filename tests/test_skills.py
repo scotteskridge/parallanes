@@ -9,7 +9,6 @@ import re
 import shlex
 
 import pytest
-
 from helpers import ROOT, frontmatter
 
 PAYLOAD = ROOT / "payload"

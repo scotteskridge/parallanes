@@ -9,7 +9,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from kitlib import lane_cli, lane_cycle, lane_merged, lane_status, lanes
 from kitlib.lane_pr import compare_url
 
@@ -119,7 +118,7 @@ def gh_says(monkeypatch, stdout, returncode=0):
 
 
 def test_pull_requests_reads_gh_json(monkeypatch):
-    prs, error = gh_says(monkeypatch, '[{"number": 1, "state": "OPEN", "headRefOid": "%s", "baseRefName": "main"}]' % A)
+    prs, error = gh_says(monkeypatch, f'[{{"number": 1, "state": "OPEN", "headRefOid": "{A}", "baseRefName": "main"}}]')
     assert error is None and prs[0]["number"] == 1
 
 

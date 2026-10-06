@@ -3,7 +3,6 @@
 import subprocess
 
 import pytest
-
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, gh_calls, no_gh_env, scripted_gh
 

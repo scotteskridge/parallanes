@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from helpers import git, run_cli, write
 from lane_helpers import commit, cycle_repo, no_gh_env
 

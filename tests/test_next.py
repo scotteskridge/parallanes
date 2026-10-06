@@ -1,7 +1,6 @@
 """`kit next`: the facts `/next` words (decision 63): where this folder is, lanes, plans, backlog."""
 
 import pytest
-
 from helpers import git, make_repo, run_cli, write
 from kitlib import next_facts
 from kitlib.config import load
@@ -203,7 +202,7 @@ def test_a_malformed_backlog_item_is_reported_not_hidden(tmp_path, text, reason)
 def test_backlog_header_tolerates_a_bom_and_crlf(tmp_path):
     path = tmp_path / "docs" / "backlog" / "win.md"
     path.parent.mkdir(parents=True)
-    path.write_bytes("﻿---\r\nstatus: now\r\nlane: any\r\nsize: S\r\n---\r\n# Windows\r\n".encode("utf-8"))
+    path.write_bytes("﻿---\r\nstatus: now\r\nlane: any\r\nsize: S\r\n---\r\n# Windows\r\n".encode())
     found, problems = next_facts.backlog(tmp_path, [])
     assert problems == [] and found[0].title == "Windows"
 

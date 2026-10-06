@@ -9,7 +9,6 @@ ask rule is what stops the edit.
 import json
 
 import pytest
-
 from claude_run import run_claude, scratch_project
 
 pytestmark = pytest.mark.live

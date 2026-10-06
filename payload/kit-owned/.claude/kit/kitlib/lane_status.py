@@ -14,14 +14,13 @@ from .lanes import (
     git,
     integration_tip,
     lane_folder,
-    registered_worktrees,
     main_checkout,
+    registered_worktrees,
     same_path,
     toplevel,
     unpushed_count,
     upstream_gone,
 )
-
 
 UNKNOWN = "PR: unknown"
 

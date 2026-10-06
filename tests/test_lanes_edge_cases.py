@@ -6,7 +6,6 @@ import subprocess
 import sys
 
 import pytest
-
 from helpers import CLI, RULES_TOML, git, make_repo, run_cli, write
 from kitlib import lane_setup, lanes
 from kitlib.config import load
