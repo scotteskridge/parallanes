@@ -1,7 +1,7 @@
 # 06 — Reviewer
 
-**Status:** Approved
-**Branch / PR:** `plan/06-reviewer` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/06-reviewer` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/10
 **Builds on:** plan 01 (`CODE-STANDARDS.md` severities, `WORKFLOW.md`, template rendering and
 tests); plan 03 (protected paths, which the reviewer flags); ARCHITECTURE §5 (layers), §9 (the
 reviewer), §11 (packs carry a reviewer checklist); decisions 7 (kit-owned vs project-owned), 16
@@ -133,10 +133,10 @@ against the project's own rules and the plan, using numbered checks from three c
 | `test_templates` (extended) | `project.md.tmpl` renders, is LF, its links resolve |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Live check done and verified, or its gaps recorded in ARCHITECTURE §15
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
+- [x] Tests above pass locally (801 passed) and in CI (Windows + Ubuntu, Python 3.11 + 3.13)
+- [x] Live check done and verified, or its gaps recorded in ARCHITECTURE §15
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] CHANGELOG, ROADMAP, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
 Changes from the plan:

@@ -25,7 +25,7 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Protected paths (deny rules + command backstop) | 03 | ✅ done |
 | Lanes core: config, create, status, remove, lane-router and ownership hooks | 04 | ✅ done |
 | Lane task cycle: start, sync, finish (PR and local mode) | 05 | ✅ done |
-| Reviewer: read-only subagent, numbered checklists (universal, project, stack) | 06 | 🔨 in progress |
+| Reviewer: read-only subagent, numbered checklists (universal, project, stack) | 06 | ✅ done |
 | Skills (incl. `/next`, `/onboard`) | 07 | planned |
 | Installer (Windows first) and CI template | 08–09 | planned |
 | Unity pack | 10 | planned |
