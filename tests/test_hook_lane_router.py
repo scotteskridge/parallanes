@@ -38,6 +38,8 @@ def test_briefing_between_tasks(repo):
     assert "detached" in text
     assert "kit lanes start" in text
     assert len(text.splitlines()) <= 15
+    # Decision 97: a broad lane learns that nested lanes' files aren't its own before it edits them.
+    assert "A file another lane's more specific pattern matches is that lane's" in text
 
 
 @pytest.mark.parametrize("source", ["startup", "resume", "clear", "compact"])

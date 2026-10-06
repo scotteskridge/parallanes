@@ -105,10 +105,18 @@ another remote, counts as unpushed, and `sync` would rebase it.
   covers Claude Code's file tools only, not shell commands, and may not prompt in
   `bypassPermissions` mode. Edits from a lane to the main checkout or to another lane's folder
   ask too. When the work lands, the boundary is enforced: `lanes finish`, the pre-commit hook and
-  CI (`{{kit_command}} check lanes`) refuse a lane's change outside its own and the shared paths,
-  and any change to `.claude/kit.toml`. To land one on purpose, a person uses a branch that isn't
+  CI (`{{kit_command}} check lanes`) refuse a lane's change to a file it doesn't own (see the next
+  rule) outside the shared paths, and any change to `.claude/kit.toml`. To land one on purpose, a person uses a branch that isn't
   a lane's; `KIT_ALLOW_CROSS_LANE=1` gets a local commit or a local-mode finish through, but CI has
   no override, so a pull request needs the non-lane branch. An agent stops and asks instead.
+- **When two lanes' patterns match one file, the more specific one owns it.** A lane owning
+  `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
+  the boundary check refuses them. More specific means more literal folder and file names, then a
+  pattern rooted at the project top over one matching at any depth (`conftest.py`, `build/`),
+  then fewer wildcards. Order in `kit.toml` doesn't matter. The same pattern in two lanes doesn't
+  load; two patterns equally specific for a file leave it with no owner until you make one more
+  specific. `lanes create` and `lanes status` list both cases. A folder both lanes should change
+  belongs in `shared_paths`.
 - **No shared append-only files.** Changelog entries are fragments; backlog items are one file
   each. That removes the most common merge conflict.
 - **Don't run two tasks at once that edit the same file.** If two lanes need it, do one after the

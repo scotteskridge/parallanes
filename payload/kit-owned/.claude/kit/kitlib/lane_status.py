@@ -5,7 +5,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import gitfiles, lane_merged, lane_owners
+from . import lane_merged, lane_owners
 from .lanes import (
     ahead_behind,
     branch_of,
@@ -85,7 +85,8 @@ def status(start: Path, config, offline: bool = False) -> Status:
                 if entry.pr == UNKNOWN:
                     gh = None  # gh failed or hung: don't make every other lane wait for it too
         result.lanes.append(entry)
-    notes, problems = overlaps(main, config)
+    # Decision 97: who wins a file two lanes claim is a note (a normal split); a tie is a problem.
+    notes, problems = lane_owners.tracked_overlaps(main, config)
     result.notes += notes
     result.warnings += problems
     return result
@@ -110,14 +111,6 @@ def pr_state(folder: Path, branch: str, tip: str | None) -> str:
             # saying "none" could prompt a duplicate PR.
             return f"PR #{pr['number']} OPEN (head not fetched)"
     return "PR: none"
-
-
-def overlaps(main: Path, config) -> tuple[list[str], list[str]]:
-    """(notes, problems) about the tracked files two lanes claim (decision 97), for status and create.
-
-    A nested lane is a normal split, so who wins is a note; a tie is a problem nobody owns.
-    """
-    return lane_owners.overlaps(config, gitfiles.tracked(main)) if len(config.lanes) > 1 else ([], [])
 
 
 def format_status(result: Status) -> str:

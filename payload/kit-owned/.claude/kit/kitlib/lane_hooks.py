@@ -46,6 +46,11 @@ def router_text(cwd: Path) -> str:
     if warnings:
         lines.append("Warnings:")
         lines += [f"- {warning}" for warning in warnings]
+    if len(config.lanes) > 1:
+        # Decision 97: a broad lane (`src/**`) must not assume a nested lane's files are its own.
+        lines.append(
+            f"A file another lane's more specific pattern matches is that lane's; `{ROUTER_COMMAND}` lists them."
+        )
     lines.append(f"Stay inside the owned and shared paths; edits elsewhere ask the user. More: {ROUTER_COMMAND}.")
     return "\n".join(lines)
 
@@ -154,7 +159,7 @@ def ownership_reason(payload: dict) -> str | None:
     if why is None:
         return None
     return (
-        f"{rel} is outside lane {lane.name!r} ({why}), which owns {', '.join(lane.owns)}"
+        f"{rel} isn't lane {lane.name!r}'s to change: {why}. Lane {lane.name!r} owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
     )

@@ -74,7 +74,12 @@ def test_a_file_a_more_specific_lane_owns_asks_the_wider_lane(tmp_path):
     repo = lanes_repo(tmp_path, config=LANES_TOML.replace('owns = ["src/api/**"]', 'owns = ["src/**"]'))
     assert run_cli(repo, "lanes", "create").returncode == 0
     api = lane_dir(repo, "api")
-    assert_asks(hook(api, api / "src/core/a.py"), "owned by lane 'core'", "more specific than src/**")
+    reason = json.loads(hook(api, api / "src/core/a.py").stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    # Review round 1: one plain sentence for why, not parentheses nested in "outside the lane".
+    assert reason.startswith(
+        "src/core/a.py isn't lane 'api''s to change: src/** matches it, but lane 'core' owns it: "
+        "src/core/** is more specific. Lane 'api' owns src/**"
+    ), reason
     assert_allowed(hook(api, api / "src/api/x.py"))
     assert_allowed(hook(lane_dir(repo, "core"), lane_dir(repo, "core") / "src/core/a.py"))
 

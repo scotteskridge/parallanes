@@ -50,7 +50,7 @@ def test_a_file_a_more_specific_lane_owns_fails_for_the_wider_lane():
     # Decision 97: `**` claims src/core/a.py too, but core's src/core/** is more specific.
     found = flagged(EVERYTHING, ["src/core/a.py", "README.md"], config(EVERYTHING, CORE))
     assert list(found) == ["src/core/a.py"]
-    assert "owned by lane 'core' (src/core/** is more specific than **)" in found["src/core/a.py"]
+    assert "** matches it, but lane 'core' owns it: src/core/** is more specific" in found["src/core/a.py"]
     assert flagged(CORE, ["src/core/a.py"], config(EVERYTHING, CORE)) == {}
 
 

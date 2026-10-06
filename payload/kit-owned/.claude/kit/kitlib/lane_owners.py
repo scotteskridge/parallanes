@@ -1,69 +1,117 @@
 """Who owns a file that more than one lane's `owns` matches (decision 97).
 
 Shared paths come first: every lane may change them. Otherwise the lane whose matching pattern is
-most specific owns the file: most wildcard-free segments, then the longer pattern. Order in kit.toml
-never matters, so a split doesn't silently depend on line order. The same pattern in two lanes is an
-error when kit.toml loads (config); two different patterns can still tie on a real file, and then no
-lane owns it until one is made more specific. The rule is lanekeeper's (docs/survey-lanekeeper.md);
-no code was borrowed. The ownership hook, the boundary check and the overlap report all use it.
+most specific owns the file (`specificity`). Order in kit.toml never matters, so a split doesn't
+silently depend on line order. The same pattern in two lanes is an error when kit.toml loads
+(config); two different patterns can still tie on a real file, and then no lane owns it until one is
+made more specific. The rule is lanekeeper's (docs/survey-lanekeeper.md), refined in review; no code
+was borrowed. The ownership hook, the boundary check and the overlap lists all use it.
 """
 
 import os
+import re
 from dataclasses import dataclass
 
-from . import globs
+from . import gitfiles, globs
 
 POLICY = ".claude/kit.toml"
+_WILDCARDS = re.compile(r"\*\*|\*|\?|\[[^\]]*\]")
 
 
-def _canonical(pattern: str) -> str:
-    """The form a pattern is compared and scored in: `/src/` and `src/**` match the same files."""
-    pattern = globs.normalize(pattern).lstrip("/")
-    return pattern + "**" if pattern.endswith("/") else pattern
+def canonical(pattern: str) -> str:
+    """The pattern written out in full, so patterns that match the same files compare equal.
+
+    globs anchors a pattern only when it has a slash before its end: `main.py` and `src/` match at
+    any depth (`**/main.py`, `**/src/**`), while `/main.py` and `src/**` start at the root.
+    """
+    pattern = globs.normalize(pattern)
+    anchored = "/" in pattern.rstrip("/")
+    if pattern.endswith("/"):
+        pattern += "**"
+    pattern = pattern.lstrip("/")
+    if not anchored:
+        pattern = "**/" + pattern
+    while "**/**" in pattern:
+        pattern = pattern.replace("**/**", "**")
+    if pattern == "**/*" or pattern.endswith("/**/*"):  # `src/**/*` is every file under src/, as `src/**` is
+        pattern = pattern[:-2]
+    return pattern
 
 
-def specificity(pattern: str) -> tuple[int, int]:
-    """(wildcard-free segments, length): the larger, the more specific."""
-    pattern = _canonical(pattern)
-    literal = [part for part in pattern.split("/") if part and not globs.WILDCARD.search(part)]
-    return len(literal), len(pattern)
+def specificity(pattern: str) -> tuple[int, bool, int, int, int]:
+    """Larger is more specific: compared in order, the first difference decides.
+
+    Wildcard-free segments (`src/core/**` over `src/**`); then rooted over any depth (`src/**` over
+    `**/conftest.py`); then fewer `**`; then fewer other wildcards; then more literal characters.
+    Length alone isn't used: `src/**` is longer than `src/*` but matches more (review round 1).
+    """
+    pattern = canonical(pattern)
+    parts = pattern.split("/")
+    literal = sum(1 for part in parts if not _WILDCARDS.search(part))
+    double = parts.count("**")
+    others = len(_WILDCARDS.findall(pattern)) - double
+    characters = len(_WILDCARDS.sub("", pattern).replace("/", ""))
+    return literal, parts[0] != "**", -double, -others, characters
 
 
 @dataclass(frozen=True)
 class Claim:
     owner: str | None  # None: no lane claims the file, or a tie
     pattern: str | None  # the owner's most specific matching pattern
-    losers: tuple = ()  # (lane, its best pattern) for the other lanes that match
+    losers: tuple = ()  # (lane, its best pattern) for the other lanes that match, most specific first
     tied: tuple = ()  # (lane, pattern) for every lane in a tie, by lane name
 
 
+class Owners:
+    """The rule for one config, compiled once: `lanes status` judges every tracked file with it."""
+
+    def __init__(self, config):
+        self.shared = globs.file_matcher(config.lane_settings.shared_paths)
+        self.lanes = []
+        for lane in config.lanes:
+            ranked = sorted(lane.owns, key=specificity, reverse=True)
+            self.lanes.append(
+                (
+                    lane.name,
+                    globs.file_matcher(lane.owns),
+                    [(p, specificity(p), globs.file_matcher([p])) for p in ranked],
+                )
+            )
+
+    def claim(self, path: str, candidates=None) -> Claim:
+        """Which lane owns path, by `owns` alone (shared paths are the caller's first question)."""
+        best = []
+        for name, matches, ranked in candidates or self.lanes:
+            if matches(path):
+                pattern, score = next((p, score) for p, score, one in ranked if one(path))
+                best.append((score, name, pattern))
+        if not best:
+            return Claim(None, None)
+        top = max(score for score, _, _ in best)
+        winners = sorted((name, pattern) for score, name, pattern in best if score == top)
+        if len(winners) > 1:
+            return Claim(None, None, tied=tuple(winners))
+        losers = tuple((name, pattern) for score, name, pattern in sorted(best, reverse=True) if score != top)
+        return Claim(winners[0][0], winners[0][1], losers)
+
+    def overlapping(self, path: str) -> list:
+        """The lanes that match path, when it isn't shared and more than one does; else []."""
+        if self.shared(path):
+            return []
+        matching = [entry for entry in self.lanes if entry[1](path)]
+        return matching if len(matching) > 1 else []
+
+
 def claim(config, path: str) -> Claim:
-    """Which lane owns path, by `owns` alone (shared paths are the caller's first question)."""
-    best = []
-    for lane in config.lanes:
-        matching = [pattern for pattern in lane.owns if globs.matches_any_file(path, [pattern])]
-        if matching:
-            pattern = max(matching, key=specificity)
-            best.append((specificity(pattern), lane.name, pattern))
-    if not best:
-        return Claim(None, None)
-    top = max(score for score, _, _ in best)
-    winners = sorted((name, pattern) for score, name, pattern in best if score == top)
-    if len(winners) > 1:
-        return Claim(None, None, tied=tuple(winners))
-    losers = tuple((name, pattern) for score, name, pattern in sorted(best, reverse=True) if score != top)
-    return Claim(winners[0][0], winners[0][1], losers)
-
-
-def is_shared(config, path: str) -> bool:
-    return globs.matches_any_file(path, config.lane_settings.shared_paths)
+    return Owners(config).claim(path)
 
 
 def why_not(config, lane, path: str) -> str | None:
     """Why lane may not change path, or None when it may (shared, or the lane owns it)."""
-    if is_shared(config, path):
+    owners = Owners(config)
+    if owners.shared(path):
         return None
-    found = claim(config, path)
+    found = owners.claim(path)
     if found.owner == lane.name:
         return None
     if found.tied:
@@ -75,7 +123,7 @@ def why_not(config, lane, path: str) -> str | None:
     mine = dict(found.losers).get(lane.name)
     if mine is None:
         return f"owned by lane {found.owner!r}"
-    return f"owned by lane {found.owner!r} ({found.pattern} is more specific than {mine})"
+    return f"{mine} matches it, but lane {found.owner!r} owns it: {found.pattern} is more specific"
 
 
 def same_pattern(lanes) -> tuple[str, str, str, str] | None:
@@ -83,7 +131,7 @@ def same_pattern(lanes) -> tuple[str, str, str, str] | None:
     seen = {}
     for lane in lanes:
         for pattern in lane.owns:
-            key = _canonical(pattern)
+            key = canonical(pattern)
             key = key.lower() if os.name == "nt" else key  # matching ignores case there (globs)
             first = seen.setdefault(key, (lane.name, pattern))
             if first[0] != lane.name:
@@ -91,27 +139,37 @@ def same_pattern(lanes) -> tuple[str, str, str, str] | None:
     return None
 
 
-def overlaps(config, files) -> tuple[list[str], list[str]]:
+def overlaps(config, paths) -> tuple[list[str], list[str]]:
     """(notes, problems) about the files more than one lane claims, grouped by outcome.
 
     A note says which lane wins; a problem is a tie, which no lane owns until someone decides.
     """
+    owners = Owners(config)
     groups: dict = {}
-    for path in files:
-        if is_shared(config, path):
-            continue
-        found = claim(config, path)
-        if found.losers or found.tied:
-            groups.setdefault(found, []).append(path)
+    for path in paths:
+        matching = owners.overlapping(path)
+        if matching:
+            groups.setdefault(owners.claim(path, matching), []).append(path)
     notes, problems = [], []
-    for found, paths in groups.items():
-        files = f"{len(paths)} file{'' if len(paths) == 1 else 's'}"
-        example = f"e.g. {sorted(paths)[0]}"
+    for found, grouped in groups.items():
+        count = f"{len(grouped)} file{'' if len(grouped) == 1 else 's'}"
+        example = f"e.g. {min(grouped)}"
         if found.tied:
             who = " and ".join(f"{pattern} ({name})" for name, pattern in found.tied)
             settle = f"no lane owns it until one pattern in {POLICY} is more specific"
-            problems.append(f"{who} claim {files} equally, {example}: {settle}")
+            problems.append(f"{who} claim {count} equally, {example}: {settle}")
         else:
             others = ", ".join(f"{pattern} ({name})" for name, pattern in found.losers)
-            notes.append(f"{found.pattern} ({found.owner}) wins over {others}: {files}, {example}")
+            notes.append(f"{found.pattern} ({found.owner}) wins over {others}: {count}, {example}")
     return sorted(notes), sorted(problems)
+
+
+def tracked_overlaps(root, config) -> tuple[list[str], list[str]]:
+    """overlaps() for the files git tracks in root; a git failure is a problem line, not a traceback."""
+    if len(config.lanes) < 2:
+        return [], []
+    try:
+        paths = gitfiles.tracked(root)
+    except gitfiles.GitError as error:
+        return [], [f"files two lanes claim not checked: {error}"]
+    return overlaps(config, paths)
