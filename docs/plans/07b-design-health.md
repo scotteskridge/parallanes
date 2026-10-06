@@ -1,6 +1,6 @@
 # 07b — Skills: design and code health
 
-**Status:** Approved
+**Status:** In progress
 **Branch / PR:** `plan/07b-design-health` · PR link once open
 **Builds on:** plan 07 (skill layout, step-0 lane check, `kit next`, the skill tests in
 `tests/test_skills.py`); plan 01 (`docs/design/` templates, `.claude/rules/design-docs.md`); plan 06
@@ -106,4 +106,32 @@ Settled without a question: both skills have side effects (files, subagent cost)
 - [ ] CHANGELOG, ARCHITECTURE and decisions log updated where this plan changed them
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+Changes from the plan:
+- **`docs/health/README.md`** (a new template): the path test showed the kit didn't install the
+  folder `/code-health` writes to; the README says what the reports are and that findings live in
+  the backlog.
+- **`/design` stops on a lane between tasks too,** not only on the integration branch: a lane is
+  detached then, and an edit there would block the next `lanes start`.
+- `/implement` names `docs/health/` among the shared docs (the test from plan 07 requires every
+  default shared path).
+- No `WORKFLOW.md` or `CLAUDE.md` edits: both already describe the two skills as built.
+
+**Live check** (Windows, Claude Code 2.1.284, headless `claude -p`; a throwaway project laid out as
+the kit installs it, two lanes `core` and `tools`, a `DESIGN.md` with an **[OPEN]** section, three
+planted problems; scripts and outputs in the session scratchpad):
+- *`/design`* (Opus) on the lane between tasks: read only §2 and the log, gave three options with
+  costs and a recommendation, asked three questions, and edited nothing, saying to start a task.
+  After `lanes start` and an answer, it showed the exact `DESIGN.md` edit (**[OPEN]** →
+  **[DIRECTION]**) and the log entry. The ownership hook asked before the `DESIGN.md` edit
+  (decision 81); headless, that ask is a denial, and the skill stopped and waited instead of
+  working around it, without writing the log entry first.
+- *`/code-health`* (Opus, with Sonnet area agents) from the `tools` lane: two areas from the lanes'
+  `owns`; found all three planted problems (U4 swallowed exception, U7 duplicated rounding across
+  lanes, U13 a 359-line file) plus real ones (a rounding bug, untested code, a design label that
+  didn't match the code), checked a sample itself, and asked. On the answer it ran `lanes start`,
+  wrote `docs/health/2026-10-06.md` and exactly the three items picked (one combining two
+  findings), and committed on `tools/health-2026-10-06`. `kit next` read the new items' headers
+  without problems. No permission denials after the first audit turn, which had one refused
+  compound shell command.
+- *Not shown live:* the owner approving the `DESIGN.md` prompt in an interactive session, a
+  project without lanes or without `DESIGN.md`, macOS/Linux.

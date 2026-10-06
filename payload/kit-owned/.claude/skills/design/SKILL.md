@@ -18,8 +18,9 @@ Run `sh .claude/kit/kit next --offline`. Its first line says where this folder i
 - `Here: main checkout` (or `a worktree that isn't a lane`): fine for discussion; before any edit,
   check the branch as below.
 - `Here: not a lane`: fine; check the branch as below.
-If the current branch is the integration branch (`integration_branch` in `.claude/kit.toml`,
-default `main`), discuss freely but edit nothing: say to start a task first (`/plan-feature`).
+If this folder isn't on a task branch (it's on the integration branch, `integration_branch` in
+`.claude/kit.toml`, default `main`, or detached between tasks), discuss freely but edit nothing:
+say to start a task first (`/plan-feature`, or `sh .claude/kit/kit lanes start <task>` in a lane).
 
 ## 1. Find the one section
 - Search `docs/design/DESIGN.md` for the heading that fits the question (Grep for `^#`), and read
