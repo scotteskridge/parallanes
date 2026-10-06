@@ -3,6 +3,30 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Plan 08 questions (the installer)
+
+101. **The installer asks five values, each with a detected default, plus one yes/no.** Project
+     name (the folder), a one-line description, the stack, the test command (from `pyproject.toml`,
+     `package.json`, `go.mod` or `Cargo.toml`), the integration branch (from git, else `main`), and
+     whether to turn on the pre-commit hook (decision 25). No lane questions: `kit.toml` ships the
+     commented example. `--yes` takes every default. *Why:* decision 17, ask only what can't be
+     detected; lanes need judgement the owner applies after reading `parallel-lanes.md`.
+
+100. **No prompt per existing file.** An existing project-owned file is left alone and the kit's
+     version is written beside it as `<name>.kit-new`. `.gitignore`, `.gitattributes` and
+     `.worktreeinclude` get the kit's lines in a managed block between marker lines, replaced in
+     place; a lone or doubled marker stops the install. `settings.json` gets the kit's hooks and
+     rules merged in, recorded so owner entries are never touched (decision 29, extended to hooks).
+     A kit-owned file is replaced only if it still matches the manifest; an edited one gets a
+     `.kit-new`. So a re-run is safe. *Why:* a prompt per file is slow and easy to answer wrongly,
+     and `--dry-run` already shows every case.
+
+99. **Everyone runs the kit as `sh .claude/kit/kit` (`{{kit_command}}`); no shims at the project
+    root.** On Windows the installer requires Git for Windows' `sh`. *Why:* the skills already use
+    it (decision 71); it reads the gitignored `python-path`, so committed files never hold a
+    machine's interpreter, where `python …` can hit the Store alias (decision 19); and the hook
+    launcher needs `sh` anyway. A `kit.cmd` for plain PowerShell waits for the trial to show a need.
+
 ## 2026-10-06: What the kit adds over the built-ins
 
 98. **Answer an outside review's "why not the built-ins?" with enforcement, not persistence, and

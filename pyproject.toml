@@ -16,8 +16,8 @@ dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
 line-length = 120
 target-version = "py311"
 # Where the kit's own modules and test helpers live, so imports of them sort apart from pytest;
-# found by folder, so a new helper needs no list update.
-src = ["tests", "tests/live", "payload/kit-owned/.claude/kit"]
+# found by folder, so a new helper needs no list update. "." holds the installer.
+src = [".", "tests", "tests/live", "payload/kit-owned/.claude/kit"]
 
 [tool.ruff.lint]
 # BLE: a broad except needs an explicit `# noqa: BLE001`, which by convention says why (AGENTS.md:

@@ -28,7 +28,8 @@ The design they build against: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Reviewer: read-only subagent, numbered checklists (universal, project, stack) | 06 | ✅ done |
 | Skills: the task loop (`/next`, `/plan-feature`, `/implement`, `/wrap-up`) and `kit next` | 07 | ✅ done |
 | Skills: `/design`, `/code-health` | 07b | ✅ done |
-| Installer (Windows first) and CI template | 08–09 | planned |
+| Installer: `install.ps1` / `install.sh`, dry run, manifest, no overwrites | 08 | ✅ done |
+| CI template | 09 | planned |
 | Unity pack | 10 | planned |
 | Example Python project and evals | 11 | planned |
 

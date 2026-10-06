@@ -23,8 +23,8 @@ description = "Where finished work lands."
 example = "main"
 
 [kit_command]
-description = "How to run the kit CLI from the project root (decided in plan 08: a shim, or python with the script path)."
-example = "python .claude/kit/cli.py"
+description = "How to run the kit CLI from the project root: the launcher that reads python-path (decision 99)."
+example = "sh .claude/kit/kit"
 
 [kit_version]
 description = "Version of the kit that installed these files."

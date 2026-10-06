@@ -1,6 +1,6 @@
 # 08 — Installer
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/08-installer` · PR link once open
 **Builds on:** plans 01–07 (Done); decisions 7, 19, 25, 29, 78; ARCHITECTURE §4, §10, §14 and the
 §15 rows owned by plan 08
@@ -111,4 +111,20 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
 - [ ] CHANGELOG, ROADMAP, ARCHITECTURE §15 and the decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **Layout:** `kit_setup.py` plus an `installer/` package (`values`, `plan`, `blocks`,
+  `settings_hooks`, `main`), importing kitlib straight from the payload. Everything is planned
+  before anything is written, so `--dry-run` and the real run print the same list, and a broken
+  managed block stops the install with nothing written.
+- **Project-owned files on a re-run:** the manifest also lists the templates the kit rendered, so a
+  re-run never touches them again (decision 7), even after the owner edits them. Only a file the
+  owner had *before* the kit gets a `.kit-new`. The manifest keeps the answers too, so a re-run
+  renders the same files (the install date included).
+- **Python:** `python-path` holds the interpreter that ran the installer (`sys.executable`). The
+  bootstrappers pick it by running each candidate; `install.ps1` also skips anything under
+  `WindowsApps` without running it, and lets the `py` launcher report the real interpreter it chose.
+- **New folder:** no `git init`; the next steps say to run it and turn on the pre-commit check.
+- **`.claude/kit/VERSION`** is written as a kit-owned file, as ARCHITECTURE §4 lists it.
+- **Live check** (`tests/live/test_installed_kit.py`, Windows, Claude Code with haiku): all four
+  hooks fired from the installed `settings.json`, the protected hook blocked a `cp` into `vendor/`
+  (exit 2, its own message), and the generated deny rule refused a Write. Not run: macOS/Linux.
+- Dev-only: ruff's `src` gained `"."` so `installer` sorts as first-party.

@@ -8,10 +8,10 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
 ## 1. Setup and installation
 - **MVP** One-command setup: `install.ps1` (Windows first) and `install.sh` (Mac/Linux), both thin wrappers over one Python script
-- **MVP** Asks only what it can't detect (project name, description, lanes, packs); `/onboard` (v0.2) fills the rest
+- **MVP** Asks only what it can't detect (project name, description, stack, test command, integration branch, pre-commit), each with a detected default; `/onboard` (v0.2) fills the rest. Lanes are added to `kit.toml` afterwards (decision 101)
 - **MVP** Prerequisite check: git, Python 3.11+ (a real interpreter, not the Windows Store alias), Claude Code, gh (optional)
-- **MVP** Works on a brand-new folder *or* an existing repo, without overwriting existing files (asks first)
-- **MVP** Dry-run mode that lists what it would create before doing anything
+- **MVP** Works on a brand-new folder *or* an existing repo, without overwriting existing files: the kit's version goes beside yours as `.kit-new`, and a re-run is safe (decision 100)
+- **MVP** Dry-run mode that lists what it would create before doing anything. *Done in plan 08* (with the four lines above).
 - **Later** Non-interactive mode (answers from a config file) for repeat setups
 - **v0.2** Updates through the Claude Code plugin marketplace (decision 78), instead of a copy-based update command
 - **Later** Uninstall/removal command

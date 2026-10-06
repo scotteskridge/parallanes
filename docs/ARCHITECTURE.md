@@ -34,7 +34,7 @@ e.g. [11], point there). Claude Code behaviour cited here was checked against th
 ```
 claude-code-lanes-starter/
 ├── install.ps1 · install.sh        thin bootstrappers: check prerequisites, run kit_setup.py   (plan 08)
-├── kit_setup.py                    the installer (dry run, questions, manifest)                (plan 08)
+├── kit_setup.py · installer/       the installer (dry run, questions, manifest)                (plan 08)
 ├── payload/
 │   ├── kit-owned/                  copied as-is; mirrors target paths; replaceable on update
 │   │   └── .claude/
@@ -73,7 +73,6 @@ my-project/
 │   └── worktrees/<lane>/             lane worktrees (gitignored)
 ├── .worktreeinclude               P  gitignored files copied into each new worktree (settings.local.json, .env)
 ├── .githooks/pre-commit          K  `check all --staged` before each commit (opt-in, decision 25)
-├── kit · kit.cmd                  K  shims (if plan 08 keeps them): `kit lanes status`, `kit check rules --staged`
 ├── .github/workflows/kit.yml      P  CI: tests + checks on every push and PR                     (plan 09)
 └── docs/
     ├── ai/WORKFLOW.md             P  the human guide: the daily loop and why each rule exists
@@ -333,17 +332,25 @@ from `.claude/kit/python-path`, because a kit-owned file can't hold a machine's 
 
 ```
 install.ps1 / install.sh
-  └─ check git, Python ≥ 3.11 (real interpreter, not the Windows Store alias), Claude Code, gh (optional)
-     └─ kit_setup.py [--dry-run] [--target DIR] [--pack unity]
-          1. detect: new folder or existing repo; existing CLAUDE.md / AGENTS.md / .claude/
-          2. ask only what can't be detected (name, one-line description, lanes, packs)
-          3. plan the file list; --dry-run prints it and stops
-          4. existing file → ask: skip / keep both (writes .kit-new beside it) / overwrite
-          5. copy kit-owned, render templates, write manifest, write hook commands with the
-             interpreter's full path (quoted: paths with spaces)
-          6. print next steps: open Claude Code, run /onboard
-/onboard (agentic): stack, test command, rules files, lane split → owner approves → written
+  └─ find Python ≥ 3.11 by running each candidate (skips the Windows Store alias); check git, sh
+     (Windows: Git for Windows'), Claude Code and gh (both only warned about)
+     └─ kit_setup.py [--dry-run] [--target DIR] [--yes]
+          1. detect defaults: folder name, stack and test command from marker files, the
+             integration branch from git; an earlier install's answers (in the manifest) win
+          2. ask five values and whether to turn on the pre-commit check (decision 101)
+          3. plan every write; a broken managed block stops here with nothing written
+          4. print the plan; --dry-run stops here
+          5. write: kit-owned files (replaced only if unedited, else `.kit-new`), templates
+             (an owner's existing file gets a `.kit-new`; one the kit rendered before is left
+             alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude, deny rules and
+             hooks merged into settings.json, python-path, manifest (decision 100)
+          6. print next steps: accept the trust dialog, review .kit-new files, fill TODOs, lanes
+/onboard (v0.2, agentic): stack, test command, rules files, lane split → owner approves → written
 ```
+
+Hooks in `settings.json` run `sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" <name>`: the launcher reads
+`python-path`, so the committed file holds no machine path. Only `protected` and `reviewer-bash`
+fail closed through it. Everyone, agents and people, runs the kit as `sh .claude/kit/kit` [99].
 
 ## 11. Packs
 
@@ -386,27 +393,27 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 
 | Question | Answered by |
 | --- | --- |
-| ~~Which shell runs hook commands on native Windows?~~ Answered in plan 02: Git Bash by default, PowerShell if it's missing; the `args` form runs the program with no shell, avoiding quoting problems. Plan 08 uses `args` | plan 08 |
+| ~~Which shell runs hook commands on native Windows?~~ Answered in plan 02: Git Bash by default, PowerShell if it's missing; the `args` form runs the program with no shell. Plan 08 uses `command` with `sh` instead: whether `$CLAUDE_PROJECT_DIR` expands inside `args` isn't documented, and the reviewer guard's `command` form already ran live | — |
 | ~~Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session?~~ Moot: the lane hooks use the hook input's `cwd` (verified live in plan 04). In the agent's own shell it is not set at all; it exists only for hook processes | — |
-| Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`: is a root-level shim acceptable in every project? A bare `kit` needs PATH or `./kit`; templates use `{{kit_command}}`, so the answer only sets that value | plan 08 |
+| ~~Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`?~~ Answered (decision 99): `sh .claude/kit/kit` everywhere, no root shims | — |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the page is published, and plugin eval loads no project `.claude/` or `CLAUDE.md`, so plan 11 keeps its own `claude -p` harness and borrows plugin eval's design (decision 80, `survey-claude-code.md`) | plan 11 |
 | ~~`/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items~~ Answered: `kit next` skips them, `done/` and `finished/` (decision 63) | — |
 | ~~Kit-owned skills under `payload/` discovered while developing the kit?~~ Yes, verified live in plan 07 (Claude Code 2.1.284): they load once a file under `payload/kit-owned/` is read; a name clashing with a root skill is listed as `/payload/kit-owned:next` (the root one wins `/next`), others under their plain names. This repo's prototype is now `/kit-next` (decision 64), and a test keeps the names apart. Also seen: a skill's `model` took effect when typed as `/name`, but not when Claude ran it through the Skill tool (one headless run each) | — |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
-| Values rendered into `kit.toml` must be TOML-escaped (a test command containing `"` would break it) | plan 08 |
+| ~~Values rendered into `kit.toml` must be TOML-escaped~~ Done in plan 08: values are escaped in `.toml` templates only, tested with quotes and backslashes | — |
 | ~~Worktrees nested in the main checkout load the root's `CLAUDE.md`?~~ Yes (instruction files load from every folder up to the root). Plan 04: `lanes create` adds `claudeMdExcludes` to the lane's `settings.local.json` (decision 35); verified live on Windows with forward-slash absolute paths containing a space: the session's loaded-instructions list had the main checkout's `CLAUDE.local.md` (not excluded) but not its `CLAUDE.md` in the same folder. Checked again on Linux (WSL2) and Windows with Claude Code 2.1.291 (decision 84): a lane loads neither of the main checkout's committed `CLAUDE.md` nor `.claude/CLAUDE.md` even without excludes, so they are now a backstop; it does load the main checkout's `CLAUDE.local.md`; the lane's own `settings.local.json` works on both, and on Linux the main checkout's applies too. Not shown: the `AGENTS.md` entry on its own, macOS. Root tools must skip `.claude/worktrees/` (documented in `parallel-lanes.md`) | — |
 | ~~What the main checkout holds~~ Answered (decision 38): whatever the owner left; `lanes status` warns in local mode when it has the integration branch checked out | — |
 | ~~PR-mode merge detection~~ Answered in plan 05 (decision 46): `lanes start` counts only a merged PR whose head commit is the branch tip; open, closed or no PR refuses, `--abandon` drops the branch on purpose | — |
 | ~~Claude Code's auto memory across worktrees~~ Verified live on Windows (plan 04): a lane uses the main checkout's memory folder, so every lane shares one memory. Documented in `parallel-lanes.md`; lane-aware memory is on the roadmap as Later | — |
-| Live-verify what plan 03's live run didn't cover: deny rules written by `kit settings sync`, the Edit/MultiEdit/NotebookEdit tools, fail-closed with a broken config, macOS/Linux. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode); the ask rules in `acceptEdits` and `bypassPermissions` were checked live (decision 92) | plan 08 |
+| Live-verify what plan 03's live run didn't cover: the MultiEdit/NotebookEdit tools, fail-closed with a broken config, macOS/Linux. Plan 08's live check (`tests/live/test_installed_kit.py`, Windows) showed a deny rule written by `kit settings sync` refusing a Write, and the protected hook firing on Edit and blocking a `cp`. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode); the ask rules in `acceptEdits` and `bypassPermissions` were checked live (decision 92) | plan 08 |
 | ~~Do ask rules still prompt in `acceptEdits` mode?~~ Answered (decision 92): ask rules are never auto-approved, in `acceptEdits` or `bypassPermissions`; the hook's bypass-mode block now covers shell commands only. Open: the same gap in `acceptEdits`, `auto`, `dontAsk` and allow-listed commands (backlog `kit-config-shell-guard-modes`). Not live-checked: whether `Edit` ask rules cover `rm`, redirections or PowerShell cmdlets | — |
-| Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29) | plan 08 |
-| Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 08 |
+| Wire `kit hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `kit settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29). **Done in plan 08:** the installer wires it, runs the sync, and keeps `generated-rules.json` separate; verified live on Windows | — |
+| Wire `kit hook lane-router` (SessionStart, no matcher) and `kit hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. **Done in plan 08:** wired by the installer, both seen firing live from the installed `settings.json` (Windows). Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 11 |
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows); plan 07 drove `lanes start`/`finish` through the skills in headless sessions (local mode, and PR mode against a local origin with a stand-in `gh`). Not yet shown live: the skills opening a real GitHub PR, a project without lanes, a sync conflict during `/wrap-up`, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 11 |
-| The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
-| The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
+| The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps have the owner open Claude Code in the project once and accept the trust dialog (done in plan 08); evals (plan 11) must trust their folder first | plan 11 |
+| The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. **Plan 08:** `install.ps1` requires Git for Windows' `sh` (decision 99) and writes `.claude/kit/python-path`; which shell runs a hook by default on Windows still isn't documented. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 11 |
 | ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 08 |
-| The installer writes and gitignores `.claude/kit/python-path`, which the skills' `kit` launcher needs as the hook launcher does; `.worktreeinclude` copies it into each lane (found in plan 07's live run) | plan 08 |
+| ~~The installer writes and gitignores `.claude/kit/python-path`~~ Done in plan 08; `.worktreeinclude` copies it into each lane | — |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References
