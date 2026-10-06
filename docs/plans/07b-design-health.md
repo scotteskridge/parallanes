@@ -4,7 +4,7 @@
 **Branch / PR:** `plan/07b-design-health` · PR link once open
 **Builds on:** plan 07 (skill layout, step-0 lane check, `kit next`, the skill tests in
 `tests/test_skills.py`); plan 01 (`docs/design/` templates, `.claude/rules/design-docs.md`); plan 06
-(the review checklists and severities); decisions 61, 69, 77; `survey-hoem.md` rows `design` and
+(the review checklists and severities); decisions 61, 69, 85; `survey-hoem.md` rows `design` and
 `code-health`; backlog `readme-builtins-comparison`, `ship-kit-as-plugin`, `lighten-plan-process`
 
 ## Goal
@@ -14,7 +14,7 @@ OK. `/code-health` audits the whole codebase by area, writes a dated report, and
 findings the owner picks into backlog items, so they enter the normal loop.
 
 ## Out of scope
-- `/onboard`: plan 08 (decision 77).
+- `/onboard`: plan 08 (decision 85).
 - A setup health check (`kit doctor`): backlog `doctor-and-uninstall`. `/code-health` looks at the
   code, never at the kit's own setup, so the two don't blur.
 - Fixing anything `/code-health` finds: findings become backlog items; fixes go through the loop.
@@ -127,7 +127,7 @@ planted problems; scripts and outputs in the session scratchpad):
   costs and a recommendation, asked three questions, and edited nothing, saying to start a task.
   After `lanes start` and an answer, it showed the exact `DESIGN.md` edit (**[OPEN]** →
   **[DIRECTION]**) and the log entry. The ownership hook asked before the `DESIGN.md` edit
-  (decision 81); headless, that ask is a denial, and the skill stopped and waited instead of
+  (decision 89); headless, that ask is a denial, and the skill stopped and waited instead of
   working around it, without writing the log entry first.
 - *`/code-health`* (Opus, with Sonnet area agents) from the `tools` lane: two areas from the lanes'
   `owns`; found all three planted problems (U4 swallowed exception, U7 duplicated rounding across
@@ -158,7 +158,7 @@ planted problems; scripts and outputs in the session scratchpad):
   report name (now `<date>-<area>`, `-2` if taken); it told the agent to run `/wrap-up`, which
   only the owner can start; its area agents could edit (now `Explore`, told never to run tests or
   coverage); `/design` offered no light way to start a task without lanes; weak test assertions;
-  decision 81 lagged the skill.
+  decision 89 lagged the skill.
 - *Round 2* (the fix commit; all ten round-1 fixes confirmed; no 🔴, 1 🟠 for the owner, 6 🟡):
   the report name said one lane for a whole-project audit, and a narrowed folder wasn't a valid
   task name (now `<lane>-<area>` in the report, `<area>` a slug or `all`); the audit-only paths
@@ -167,5 +167,5 @@ planted problems; scripts and outputs in the session scratchpad):
   has Bash; the plan's text and live-check notes lagged the fixes. All fixed. **For the owner:**
   the audit reads the folder as it is, but the report's branch starts from the newer integration
   tip, so a lane that is behind reports `path:line`s that may have moved.
-- *Owner's answers after round 2:* option A, the task branch first (decision 83, with a test that
+- *Owner's answers after round 2:* option A, the task branch first (decision 91, with a test that
   the branch step comes before the audit); a backlog item for a dedicated `auditor` agent.

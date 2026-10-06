@@ -234,7 +234,7 @@ def section(skill: str, heading: str) -> str:
 
 
 def test_code_health_report_template():
-    """Decisions 69, 79: the template sits in the skill's own folder and fixes the finding shape."""
+    """Decisions 69, 87: the template sits in the skill's own folder and fixes the finding shape."""
     text = REPORT_TEMPLATE.read_text(encoding="utf-8")
     for part in ("\U0001f534", "\U0001f7e0", "\U0001f7e1", "| Check |", "`path:line`"):
         assert part in text, f"report template lacks {part!r}"
@@ -243,7 +243,7 @@ def test_code_health_report_template():
 
 
 def test_code_health_says_what_it_adds():
-    """Decision 78: not a diff review; the description steers Claude away from it for one."""
+    """Decision 86: not a diff review; the description steers Claude away from it for one."""
     description = frontmatter(SKILLS / "code-health" / "SKILL.md")["description"]
     for phrase in ("whole codebase", "dated report", "backlog"):
         assert phrase in description, f"description lacks {phrase!r}"
@@ -252,9 +252,9 @@ def test_code_health_says_what_it_adds():
 
 def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
     text = body(SKILLS / "code-health" / "SKILL.md")
-    assert "in parallel" in text and "`sonnet`" in text  # decision 79
+    assert "in parallel" in text and "`sonnet`" in text  # decision 87
     assert "in the foreground" in text  # wait for every area before writing the report
-    # Decision 80 (review rounds 1-2): the report is named per lane and area, so two lanes' runs on
+    # Decision 88 (review rounds 1-2): the report is named per lane and area, so two lanes' runs on
     # one day can't collide; the branch leaves the lane out (its `<lane>/` prefix has it already).
     assert "docs/health/YYYY-MM-DD-<lane>-<area>.md" in text and "health-YYYY-MM-DD-<area>" in text
     assert "`all`" in text and "slug" in text  # a folder like `src/payments` isn't a valid task name
@@ -305,7 +305,7 @@ def test_code_health_branches_like_plan_feature():
 def test_design_follows_the_rules_file():
     """`.claude/rules/design-docs.md` says how a point is settled; /design does exactly that."""
     text = body(SKILLS / "design" / "SKILL.md")
-    assert "changes no branches" in text  # decision 81
+    assert "changes no branches" in text  # decision 89
     assert "never read it whole" in text
     step4 = text.split("## 4.", 1)[1]
     # The order the rules file sets: show the exact DESIGN.md edit, apply on OK, then the log entry.
