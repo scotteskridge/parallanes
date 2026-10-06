@@ -110,6 +110,49 @@ def test_failing_tests_stop_before_any_push(pr_lane, tmp_path):
     assert gh_calls(gh) == []
 
 
+def test_a_change_outside_the_lane_is_refused_before_the_tests(pr_lane, tmp_path):
+    # Decision 96: the ownership hook only asks; finish is where the boundary holds.
+    repo, lane = pr_lane
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Reach into api")
+    gh = tmp_path / "gh"
+    result = finish(lane, env=scripted_gh(gh))
+    assert result.returncode == 2, result.stderr  # refused, nothing changed
+    assert "src/api/theirs.py" in result.stderr and "lane 'api'" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+    assert remote_branch(repo, "core/task") == [] and gh_calls(gh) == []
+
+
+def test_a_lane_that_widens_itself_is_judged_by_its_old_paths(pr_lane, tmp_path):
+    _, lane = pr_lane
+    toml = (lane / ".claude" / "kit.toml").read_text(encoding="utf-8")
+    write(lane, ".claude/kit.toml", toml.replace('owns = ["src/core/**", "tests/core/**"]', 'owns = ["**"]'))
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Widen core and reach into api")
+    result = finish(lane, env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2, result.stderr
+    assert ".claude/kit.toml:" in result.stderr and "src/api/theirs.py:" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+
+
+def test_the_override_doesnt_push_a_pr_that_ci_would_refuse(pr_lane, tmp_path):
+    # CI has no override (decision 96), so in PR mode the variable would only push a red PR.
+    repo, lane = pr_lane
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Reach into api")
+    gh = tmp_path / "gh"
+    result = finish(lane, env={**scripted_gh(gh), "KIT_ALLOW_CROSS_LANE": "1"})
+    assert result.returncode == 2, result.stderr
+    assert "branch that isn't a lane's" in result.stderr
+    assert remote_branch(repo, "core/task") == [] and gh_calls(gh) == []
+
+
+def test_a_human_can_land_a_cross_lane_change_on_purpose_in_local_mode(tmp_path):
+    _, lane = cycle_repo(tmp_path, mode="local")
+    on_task(lane)
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Reach into api")
+    result = finish(lane, env={**no_gh_env(tmp_path), "KIT_ALLOW_CROSS_LANE": "1"})
+    assert result.returncode == 0, result.stderr
+    assert "KIT_ALLOW_CROSS_LANE" in result.stdout + result.stderr  # said out loud, not silent
+
+
 def test_tests_run_on_the_synced_result(pr_lane, tmp_path):
     repo, lane = pr_lane
     commit(repo, "src/api/other.py", "z = 3\n", "other work")

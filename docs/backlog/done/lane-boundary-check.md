@@ -24,3 +24,5 @@ Reference: `docs/survey-lanekeeper.md` (the check's rules, and the test cases to
 **Done when:** `kit check lanes --diff origin/main` fails a change touching another lane's files or
 an unowned path, names each file, and passes shared paths; `lanes finish` refuses such a change; tests
 cover renames, deletions, shared paths and a missing base.
+
+Done 2026-10-06: decision 96. `kit check lanes` (in `check all`) and `kit lanes finish` refuse a lane change outside its paths; tests in `tests/test_lane_boundary.py` and `tests/test_lane_finish.py`.

@@ -74,6 +74,58 @@ def touched_since(root: Path, base: str) -> list[str]:
     return _names(_git(root, "diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"))
 
 
+def current_branch(root: Path) -> str | None:
+    """The checked-out branch, or None when HEAD is detached (as in CI).
+
+    symbolic-ref, not `rev-parse --abbrev-ref`: it also works before the first commit, which is
+    when the pre-commit hook runs on a new project.
+    """
+    result = _run(root, "symbolic-ref", "--quiet", "HEAD")
+    if result.returncode == 1 and not result.stderr.strip():  # --quiet: exit 1, silent, means detached
+        return None
+    if result.returncode != 0:
+        raise GitError(f"git symbolic-ref HEAD failed: {result.stderr.decode('utf-8', 'replace').strip()}")
+    # The full name, not --short: that prints `heads/core/task` when a tag or remote shares the name.
+    ref = result.stdout.decode("utf-8", "replace").strip()
+    if not ref.startswith("refs/heads/"):
+        raise GitError(f"HEAD points at {ref!r}, not a branch")
+    return ref.removeprefix("refs/heads/")
+
+
+def is_repo(root: Path) -> bool:
+    return _run(root, "rev-parse", "--git-dir").returncode == 0
+
+
+def has_ref(root: Path, ref: str) -> bool:
+    return _run(root, "rev-parse", "--quiet", "--verify", ref + "^{commit}").returncode == 0
+
+
+def touched_by_merge_commit(root: Path) -> list[str]:
+    """During a merge, the paths the commit changes from both parents: the resolution and anything
+    added to it, not what the merged branch brought in. Both names of a rename."""
+    ours = set(_names(_git(root, "diff", "--cached", "--name-only", "--no-renames", "-z", "HEAD")))
+    theirs = _names(_git(root, "diff", "--cached", "--name-only", "--no-renames", "-z", "MERGE_HEAD"))
+    return [path for path in theirs if path in ours]
+
+
+def merge_base(root: Path, base: str) -> str:
+    return _git(root, "merge-base", base, "HEAD").decode("utf-8", "replace").strip()
+
+
+def show(root: Path, ref: str, path: str) -> str | None:
+    """A file's text at a commit, or None if it doesn't exist there."""
+    if _run(root, "cat-file", "-e", f"{ref}:{path}").returncode != 0:
+        return None
+    return _git(root, "show", f"{ref}:{path}").decode("utf-8", "replace")
+
+
+def _run(root: Path, *args: str) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise GitError(f"git {' '.join(args)}: {error}") from None
+
+
 def read_staged(root: Path, path: str) -> str | None:
     """The staged version of a file: what the commit will contain, not the working tree."""
     return decode(_git(root, "show", f":{path}"))

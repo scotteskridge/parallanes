@@ -151,19 +151,13 @@ def ownership_reason(payload: dict) -> str | None:
     if rel is None:
         return _elsewhere(root, main, cwd, target, config, lane)
     allowed = list(lane.owns) + list(config.lane_settings.shared_paths)
-    if _matches(rel, allowed):
+    if globs.matches_any_file(rel, allowed):
         return None
     return (
         f"{rel} is outside lane {lane.name!r}, which owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
     )
-
-
-def _matches(rel: str, patterns) -> bool:
-    if os.name == "nt":  # the file system ignores case, so ownership does too
-        return globs.matches_any(rel.lower(), [pattern.lower() for pattern in patterns])
-    return globs.matches_any(rel, patterns)
 
 
 def _elsewhere(root: Path, main: Path, cwd: Path, target: str, config, lane) -> str | None:

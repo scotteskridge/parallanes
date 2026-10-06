@@ -141,11 +141,45 @@ def load(root: Path) -> Config:
     path = Path(root) / CONFIG_REL
     if not path.is_file():
         raise ConfigMissing(f"{CONFIG_REL.as_posix()} not found in {root}")
+    # utf-8-sig: Windows PowerShell 5.1 writes a byte-order mark that TOML rejects.
+    return parse(path.read_text(encoding="utf-8-sig"))
+
+
+def lanes_only(text: str, named: str) -> Config | None:
+    """Only the lanes and lane settings of a kit.toml, for an older version read from git (decision 96).
+
+    None when no lane there is `named`: nothing is validated then, as for a branch that isn't a lane's.
+    Rules, [protected] and other [project] keys aren't read: a version the current kit would reject
+    there (a check tightened since) must not block the commit that repairs it. The lane keys are
+    still validated, so the caller can fail closed on them.
+    """
     try:
-        # utf-8-sig: Windows PowerShell 5.1 writes a byte-order mark that TOML rejects.
-        raw = tomllib.loads(path.read_text(encoding="utf-8-sig"))
+        raw = tomllib.loads(text.removeprefix("﻿"))
     except tomllib.TOMLDecodeError as error:
-        raise ConfigError(f"{CONFIG_REL.as_posix()}: not valid TOML: {error}") from None
+        raise ConfigError(f"not valid TOML: {error}") from None
+    entries = raw.get("lanes", [])
+    if not isinstance(entries, list) or not any(isinstance(e, dict) and e.get("name") == named for e in entries):
+        return None
+    project = raw.get("project", {})
+    _check_table(project, "[project]")
+    lane_keys = {key: kind for key, kind in _PROJECT_KEYS.items() if key in LaneSettings.__dataclass_fields__}
+    _check_keys({key: value for key, value in project.items() if key in lane_keys}, lane_keys, "[project]")
+    lane_settings = _lane_settings(project)
+    return Config(
+        project=project,
+        rules=[],
+        raw=raw,
+        lanes=_lanes(raw.get("lanes", []), lane_settings),
+        lane_settings=lane_settings,
+    )
+
+
+def parse(text: str, where: str = CONFIG_REL.as_posix()) -> Config:
+    """A config from kit.toml's text: also used for an older version read from git."""
+    try:
+        raw = tomllib.loads(text.removeprefix("﻿"))
+    except tomllib.TOMLDecodeError as error:
+        raise ConfigError(f"{where}: not valid TOML: {error}") from None
 
     _check_keys(raw, dict.fromkeys(_TOP_LEVEL, object), "top level")
     project = raw.get("project", {})

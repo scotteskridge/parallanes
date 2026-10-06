@@ -10,7 +10,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from kitlib import lane_merged, lane_pr, lanes
+from kitlib import gitfiles, lane_boundary, lane_merged, lane_pr, lanes
+from kitlib.config import ConfigError
+from kitlib.findings import format_findings
 from kitlib.lanes import LaneError, Unfinished
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")  # the lane-name pattern, at most 50 characters
@@ -128,6 +130,7 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
     tip = _fetch_tip(top, config)
     if lanes.ahead_behind(top, tip)[0] == 0:
         raise LaneError(f"nothing to finish: {branch} has no commits that aren't in {tip}")
+    _within_lane(top, config, lane, tip)
     tested_on = _test_what_lands(top, branch, tip, command)
     if local:
         return _land_locally(top, main, config, branch, tested_on, command)
@@ -135,6 +138,38 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
 
 
 # ---- steps ---------------------------------------------------------------------------------------
+
+
+def _within_lane(top: Path, config, lane, tip: str) -> None:
+    """Refuse a change outside the lane's own and shared paths (decision 96), before the tests run.
+
+    The merge-base diff, as the pull request will show it: only this branch's own changes, judged by
+    the lanes as they were at the merge base (a lane can't widen itself in its own change).
+    """
+    try:
+        paths = gitfiles.touched_since(top, tip)
+        base = gitfiles.merge_base(top, tip)
+    except gitfiles.GitError as error:
+        raise LaneError(f"can't tell what this branch changed, so nothing was checked: {error}") from None
+    try:
+        found = lane_boundary.lanes_before(top, config, base, lane.name)
+    except ConfigError as error:
+        raise LaneError(str(error)) from None  # it already names the commit and says nothing was checked
+    # A lane missing at the base was added by this branch: judged by today's lanes, and its
+    # kit.toml change is a finding, so this is stricter than the base, never looser.
+    judge, before = found or (config, lane)
+    findings = lane_boundary.check(judge, before, paths)
+    if not findings:
+        return
+    pr_mode = config.lane_settings.merge_mode == "pr"
+    if lane_boundary.allowed_by_human() and not pr_mode:
+        _say([f"{len(findings)} cross-lane change(s) allowed by {lane_boundary.ALLOW_VARIABLE}=1."])
+        return
+    why = "this branch changes files outside its lane:\n" + format_findings(findings) + "\n"
+    if lane_boundary.allowed_by_human():  # PR mode: CI has no override, so a push would only go red
+        why += f"{lane_boundary.ALLOW_VARIABLE} doesn't reach CI: land this from a branch that isn't a lane's."
+        raise LaneError(why)
+    raise LaneError(why + lane_boundary.ADVICE)
 
 
 def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:

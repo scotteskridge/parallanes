@@ -70,7 +70,9 @@ commit message that says *why*. Ask: "Commit and open the pull request?" Wait fo
    ```
    It syncs, tests again, then pushes and opens the PR (or, in local mode, fast-forwards the
    integration branch; the body is then unused). If it stops on a conflict or a failure, show its
-   message and work through it with the owner; never force-push.
+   message and work through it with the owner; never force-push. If it refuses files outside the
+   lane, list them: the owner decides whether that work moves to its own lane or they land it
+   themselves. Never set `KIT_ALLOW_CROSS_LANE`; it is for a person.
 4. Not a lane: with `merge_mode = "pr"`, ask before `git push -u origin HEAD`, then run
    `gh pr create --base <integration branch> --title "<title>" --body-file -` with the same
    heredoc. With `"local"`, stop after the commit and say how to merge it.

@@ -6,6 +6,7 @@ folders, `*` and `?` don't, and a trailing `/` means everything inside that fold
 """
 
 import functools
+import os
 import re
 
 WILDCARD = re.compile(r"[*?\[]")
@@ -83,3 +84,13 @@ def matches(path: str, pattern: str) -> bool:
 
 def matches_any(path: str, patterns) -> bool:
     return any(matches(path, pattern) for pattern in patterns)
+
+
+def matches_any_file(path: str, patterns) -> bool:
+    """matches_any for a real file: on Windows the file system ignores case, so this does too.
+
+    Lane ownership uses it, in the edit-time hook and the boundary check alike, so the two agree.
+    """
+    if os.name == "nt":
+        return matches_any(path.lower(), [pattern.lower() for pattern in patterns])
+    return matches_any(path, patterns)

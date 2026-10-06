@@ -187,6 +187,18 @@ fails open (decision 41). From a lane, edits to the main checkout or another lan
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
 
+The **lane-boundary check** backs the hook up when work lands, and fails closed [96]. `kit check
+lanes` (in `check all`, so pre-commit and CI run it) and `kit lanes finish`, before the tests,
+refuse a lane's change to another lane's paths, to a path no lane owns, or to `.claude/kit.toml`
+(the policy belongs to no lane). The lane comes from `--lane`, else the `<lane>/<task>` branch
+(`GITHUB_HEAD_REF` in CI); other branches aren't lane work and aren't judged. A rename counts for
+both paths, and a diff that can't be computed is an error. The lanes that judge a change are
+`kit.toml` as it was at the base (HEAD for a commit), so a lane can't rename or widen itself in
+its own change; a merge commit is judged on its resolution only. A person lands a cross-lane
+change on purpose from a non-lane branch, or locally with `KIT_ALLOW_CROSS_LANE=1`, which the
+protected hook blocks an agent from setting; CI has no override. It applies whatever
+`ownership` says: `off` only silences the edit prompt.
+
 ### Relation to Claude Code's own features [20]
 
 Lane worktrees sit in the same folder `claude --worktree` uses, so the layout is familiar; they are
@@ -202,7 +214,8 @@ session can still use agent teams or `isolation: worktree` subagents inside its 
 kitlib (config, glob matching, comment stripping, reporting)
    ├── rules_check       ─┐
    ├── protected_paths    ├─  each exposes: check(paths or command) → findings
-   └── ownership         ─┘
+   ├── ownership          │   (hook only: asks at the edit)
+   └── lane_boundary     ─┘   (check only: `kit check lanes`, and `lanes finish`) [96]
           │
           ├── hook mode:   kit hook <name>        reads Claude Code JSON on stdin, answers in hook protocol
           ├── CLI mode:    kit check <name> [--staged | --diff BASE | FILES]   exit 0 clean, 1 findings
