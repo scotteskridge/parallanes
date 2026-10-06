@@ -19,6 +19,9 @@ def run(args) -> int:
         command = args.lanes_command
         if command == "create":
             lines = lane_setup.create(here, config, args.names, args.dry_run)
+            # Said where lanes are set up too, so a split's overlaps are seen before work starts.
+            notes, problems = lane_status.overlaps(lanes.main_checkout(here), config)
+            lines += [f"Note: {note}" for note in notes] + [f"! {problem}" for problem in problems]
         elif command == "remove":
             lines = [lane_setup.remove(here, config, args.name, args.force)]
         elif command == "start":

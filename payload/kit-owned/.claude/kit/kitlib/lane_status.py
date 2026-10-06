@@ -1,12 +1,11 @@
 """`kit lanes status`: every lane at a glance, from local git data plus `gh` when it can (decision 43)."""
 
-import itertools
 import os
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import globs, lane_merged
+from . import gitfiles, lane_merged, lane_owners
 from .lanes import (
     ahead_behind,
     branch_of,
@@ -86,7 +85,9 @@ def status(start: Path, config, offline: bool = False) -> Status:
                 if entry.pr == UNKNOWN:
                     gh = None  # gh failed or hung: don't make every other lane wait for it too
         result.lanes.append(entry)
-    result.notes += overlaps(config)
+    notes, problems = overlaps(main, config)
+    result.notes += notes
+    result.warnings += problems
     return result
 
 
@@ -111,30 +112,12 @@ def pr_state(folder: Path, branch: str, tip: str | None) -> str:
     return "PR: none"
 
 
-def _base(pattern: str) -> str:
-    """The literal folder a glob starts from (`src/core/**` → `src/core/`)."""
-    pattern = globs.normalize(pattern).lstrip("/")
-    cut = min((i for i, ch in enumerate(pattern) if ch in "*?["), default=len(pattern))
-    literal = pattern[:cut]
-    if cut == len(pattern):
-        return literal.rstrip("/") + "/" if pattern.endswith("/") else literal
-    return literal[: literal.rfind("/") + 1]
+def overlaps(main: Path, config) -> tuple[list[str], list[str]]:
+    """(notes, problems) about the tracked files two lanes claim (decision 97), for status and create.
 
-
-def overlaps(config) -> list[str]:
-    """Lanes whose `owns` may cover the same files: allowed, but worth knowing (decision 42).
-
-    Judged by the literal folder each glob starts from: nested folders may overlap. Cheap and
-    sometimes cautious (`src/*.py` and `src/*.js` share `src/`); it is a note, never an error.
+    A nested lane is a normal split, so who wins is a note; a tie is a problem nobody owns.
     """
-    notes = []
-    for a, b in itertools.combinations(config.lanes, 2):
-        for p, q in itertools.product(a.owns, b.owns):
-            bp, bq = _base(p), _base(q)
-            if bp.startswith(bq) or bq.startswith(bp):
-                notes.append(f"lanes {a.name} and {b.name} may overlap: {p} and {q}")
-                break
-    return notes
+    return lane_owners.overlaps(config, gitfiles.tracked(main)) if len(config.lanes) > 1 else ([], [])
 
 
 def format_status(result: Status) -> str:

@@ -421,15 +421,34 @@ def test_status_warns_in_local_mode_when_main_holds_the_integration_branch(tmp_p
     assert "git switch --detach" not in status(repo).stdout
 
 
-def test_status_notes_overlapping_lanes(tmp_path):
+NESTED_NOTE = "src/core/** (core) wins over src/** (api): 1 file, e.g. src/core/a.py"
+
+
+def test_status_and_create_say_who_owns_files_two_lanes_claim(tmp_path):
+    # Decision 97: judged on the tracked files, not on folder names.
     config = LANES_TOML.replace('owns = ["src/api/**"]', 'owns = ["src/**"]')
     repo = lanes_repo(tmp_path, config=config)
-    output = status(repo).stdout
-    assert "Note: lanes core and api may overlap: src/core/** and src/**" in output
+    assert f"Note: {NESTED_NOTE}" in status(repo).stdout
+    result = create(repo)
+    assert result.returncode == 0 and f"Note: {NESTED_NOTE}" in result.stdout
+    assert f"Note: {NESTED_NOTE}" in create(repo, "--dry-run").stdout
+
+
+def test_status_and_create_flag_a_tie(tmp_path):
+    # Same wildcard-free segments, same length: neither is more specific. Ties list lanes by name.
+    config = LANES_TOML.replace('owns = ["src/api/**"]', 'owns = ["src/core/?.py"]').replace(
+        'owns = ["src/core/**", "tests/core/**"]', 'owns = ["src/core/*.py"]'
+    )
+    repo = lanes_repo(tmp_path, config=config)
+    tie = "src/core/?.py (api) and src/core/*.py (core) claim 1 file equally, e.g. src/core/a.py"
+    assert f"! {tie}" in status(repo).stdout
+    result = create(repo)
+    assert result.returncode == 0 and f"! {tie}" in result.stdout
 
 
 def test_status_has_no_overlap_note_for_separate_lanes(repo):
-    assert "may overlap" not in status(repo).stdout
+    output = status(repo).stdout + create(repo).stdout
+    assert "Note:" not in output and "wins over" not in output and "equally" not in output
 
 
 def test_status_from_inside_a_lane_marks_it(repo):

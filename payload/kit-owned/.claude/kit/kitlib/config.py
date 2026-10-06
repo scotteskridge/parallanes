@@ -10,7 +10,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import commands, globs
+from . import commands, globs, lane_owners
 
 CONFIG_REL = Path(".claude") / "kit.toml"
 
@@ -266,6 +266,12 @@ def _lanes(entries, settings: LaneSettings) -> list:
             if not isinstance(value, (str, int, float, bool)):
                 _fail(f"{where}: 'resources' value {key!r} must be a string, number or boolean")
         lanes.append(Lane(name=name, owns=list(owns), scope=entry.get("scope", ""), resources=dict(resources)))
+    twin = lane_owners.same_pattern(lanes)
+    if twin:
+        # Neither is more specific, so the file has no owner (decision 97): nobody has decided yet.
+        first, second, pattern, other = twin
+        same = repr(pattern) if pattern == other else f"{pattern!r} ({other!r} is the same pattern)"
+        _fail(f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in shared_paths")
     return lanes
 
 

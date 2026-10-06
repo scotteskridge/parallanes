@@ -46,6 +46,21 @@ def test_a_path_no_lane_owns_fails():
     assert "no lane owns it" in found["README.md"]
 
 
+def test_a_file_a_more_specific_lane_owns_fails_for_the_wider_lane():
+    # Decision 97: `**` claims src/core/a.py too, but core's src/core/** is more specific.
+    found = flagged(EVERYTHING, ["src/core/a.py", "README.md"], config(EVERYTHING, CORE))
+    assert list(found) == ["src/core/a.py"]
+    assert "owned by lane 'core' (src/core/** is more specific than **)" in found["src/core/a.py"]
+    assert flagged(CORE, ["src/core/a.py"], config(EVERYTHING, CORE)) == {}
+
+
+def test_a_tie_fails_for_both_lanes():
+    a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
+    b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
+    for lane in (a, b):
+        assert "claim it equally" in flagged(lane, ["src/a.py"], config(a, b))["src/a.py"]
+
+
 def test_the_lane_policy_belongs_to_no_lane_even_one_that_owns_everything():
     # lanekeeper: widening the policy inside a lane's own change is a violation, even for `**`.
     found = flagged(EVERYTHING, [".claude/kit.toml", "src/anything.py"], config(EVERYTHING))

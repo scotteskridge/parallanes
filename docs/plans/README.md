@@ -31,7 +31,7 @@ like any other.
    alongside, ahead of the v0.2 it was first set for
 2. Small fixes, each under an hour: `lane-settings-cross-platform`, `revisit-permission-decisions`,
    `live-checks-pin-what-loads`, `lint-and-format-in-ci`, `agents-md-venv-test-command`
-3. The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim
+3. ~~The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim~~ (done)
 4. Plan 08: the installer
 5. A two-lane trial on a small web project: `prove-it-on-a-real-project` (with
    `lanes-and-worktree-flag` and `lane-dependency-hint`)

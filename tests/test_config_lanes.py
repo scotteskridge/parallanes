@@ -75,6 +75,7 @@ def config_error(tmp_path, text):
         ('[[lanes]]\nname = "-ui"\nowns = ["a/**"]\n', "'-ui'"),
         ('[[lanes]]\nname = "main"\nowns = ["a/**"]\n', "integration branch"),
         ('[[lanes]]\nname = "a"\nowns = ["a/**"]\n[[lanes]]\nname = "a"\nowns = ["b/**"]\n', "duplicate lane"),
+        ('[[lanes]]\nname = "a"\nowns = ["a/**"]\n[[lanes]]\nname = "b"\nowns = ["a/"]\n', "'a' and 'b' both own"),
         ('[[lanes]]\nname = "a"\nowns = ["x[]"]\n', "'owns'"),
         ('[[lanes]]\nname = "a"\nowns = ["a/**"]\nowner = "me"\n', "'owner'"),
         ('[[lanes]]\nname = "a"\nowns = "a/**"\n', "'owns'"),

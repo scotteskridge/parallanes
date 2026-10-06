@@ -3,6 +3,29 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: The most specific lane owns a file two lanes claim
+
+97. **A file in `shared_paths` is open to every lane; otherwise the lane whose matching `owns`
+    pattern is most specific owns it: most wildcard-free segments, then the longer pattern.**
+    Owner's OK on Claude's recommendation (backlog `lane-overlap-check`); the rule is
+    lanekeeper's (`docs/survey-lanekeeper.md`), no code borrowed. Replaces decision 42's
+    "overlaps are allowed and reported as a note" and closes the gap decision 96 left open.
+    - *Why this rule:* a broad lane with a narrower one carved out of it (`src/**` and
+      `src/core/**`) is a natural split, and it's explainable in one sentence. Order in `kit.toml`
+      never matters, so a split doesn't silently depend on line order.
+    - *Ties:* the same pattern in two lanes (after `src/` = `src/**`, a leading `/` dropped, and
+      case on Windows) is a config error naming both lanes. Different patterns can still tie on a
+      real file (`src/*.py` and `src/?.py`); finding those means listing files, which `kit.toml`
+      loading and the edit hook shouldn't pay for. Such a file has no owner: `lanes create` and
+      `lanes status` list it as a problem, the boundary check refuses it for every lane, the hook asks.
+    - *One function* (`kitlib/lane_owners.py`) answers for the ownership hook, the boundary check
+      and the overlap lists, so they can't disagree.
+    - *Overlap lists:* `lanes create` and `lanes status` now judge the tracked files, grouped by
+      who wins (`src/core/** (core) wins over src/** (app): 42 files, e.g. …`), instead of the
+      folder-prefix guess ("may overlap").
+    - *Behaviour change:* a lane owning `src/**` is no longer free inside a narrower lane's folder;
+      the hook asks and the boundary check refuses. A folder both should change goes in `shared_paths`.
+
 ## 2026-10-06: The lane boundary holds when work lands
 
 96. **`kit check lanes` and `kit lanes finish` refuse a lane's change outside its own and the
@@ -501,7 +524,8 @@ and the owner accepted them. Research behind them: `docs/survey-claude-code.md`,
 
 42. **`[[lanes]]` is validated strictly.** Names match `^[a-z0-9][a-z0-9-]*$` (they are folder
     names and branch prefixes). Names are unique and none equals the integration branch. `owns`
-    is required and non-empty; overlaps are allowed and reported as a note. *Why:* decision 24; a
+    is required and non-empty; overlaps are allowed and reported as a note (since decision 97, the
+    most specific pattern owns the file, and the same pattern in two lanes is an error). *Why:* decision 24; a
     bad name would only fail later, inside git.
 
 43. **`lanes status` shows PR state when `gh` is available, "unknown" otherwise**, never failing,

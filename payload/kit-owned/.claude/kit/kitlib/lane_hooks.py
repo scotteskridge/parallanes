@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import globs, lanes
+from . import lane_owners, lanes
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -150,11 +150,11 @@ def ownership_reason(payload: dict) -> str | None:
     rel = relative(root, cwd, target, git_bash=False)
     if rel is None:
         return _elsewhere(root, main, cwd, target, config, lane)
-    allowed = list(lane.owns) + list(config.lane_settings.shared_paths)
-    if globs.matches_any_file(rel, allowed):
+    why = lane_owners.why_not(config, lane, rel)  # the boundary check's rule too (decision 97)
+    if why is None:
         return None
     return (
-        f"{rel} is outside lane {lane.name!r}, which owns {', '.join(lane.owns)}"
+        f"{rel} is outside lane {lane.name!r} ({why}), which owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
     )

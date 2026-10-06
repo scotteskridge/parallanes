@@ -9,7 +9,7 @@ base that can't be diffed is an error, never a clean result.
 
 import os
 
-from kitlib import gitfiles, globs
+from kitlib import gitfiles, globs, lane_owners
 from kitlib.config import ConfigError, lanes_only
 from kitlib.findings import Finding
 
@@ -22,7 +22,7 @@ ADVICE = (
     f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks."
 )
 # The lane policy itself: a lane that could change it could widen its own paths inside its own change.
-POLICY = ".claude/kit.toml"
+POLICY = lane_owners.POLICY
 
 
 def lanes_before(root, config, base: str | None, lane_name: str):
@@ -62,17 +62,15 @@ def ci_branch() -> str | None:
 
 
 def check(config, lane, paths) -> list[Finding]:
-    shared = list(config.lane_settings.shared_paths)
     findings = []
     for path in paths:
         path = globs.normalize(path)
         if globs.matches_any_file(path, [POLICY]):
             why = "the lane policy belongs to no lane"
-        elif globs.matches_any_file(path, [*lane.owns, *shared]):
-            continue
         else:
-            owners = [other.name for other in config.lanes if globs.matches_any_file(path, other.owns)]
-            why = f"owned by lane {owners[0]!r}" if owners else "no lane owns it"
+            why = lane_owners.why_not(config, lane, path)  # the hook's rule too (decision 97)
+            if why is None:
+                continue
         findings.append(Finding(path=path, line=0, check=CHECK, message=f"outside lane {lane.name!r}: {why}"))
     return sorted(findings)
 
