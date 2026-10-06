@@ -15,6 +15,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   a tool for the same problem: a lane-boundary check where work lands, modes for shared paths, a
   rule for overlapping lanes, ports in each lane's environment, a fix hint when a boundary stops
   something, and `doctor` plus uninstall.
+- `docs/survey-lanekeeper.md`: what to borrow from lanekeeper for each future step, at a pinned
+  commit, with the test cases to port and what not to copy (decision 74: build on it, don't
+  reinvent it). Three more backlog items from it: an install hint for new lanes, check results on
+  the PR page, and CODEOWNERS from the lanes.
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
   slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,

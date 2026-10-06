@@ -3,7 +3,15 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
-## 2026-10-05: Product name
+## 2026-10-05: Product name and lanekeeper
+
+74. **Build on lanekeeper rather than reinvent it.** `docs/survey-lanekeeper.md` records what to
+    borrow, step by step, at a pinned commit, like `survey-hoem.md` (reference, not spec). Borrowed
+    code keeps lanekeeper's MIT notice and names its source file and commit. Ideas and test cases
+    are taken freely. *Why:* it solves the same problem and found real bypasses and Windows pitfalls
+    the hard way; the owner wants the kit to improve on useful tools, not duplicate them. Where the
+    kit's design differs (long-lived lanes, enforcement inside Claude Code, stdlib only), the kit's
+    design wins.
 
 73. **The kit's name is `worklanes`** (plugin name, and the name the README and launch use).
     *Why:* `claude plugin validate` reserves names starting with `claude-`, so

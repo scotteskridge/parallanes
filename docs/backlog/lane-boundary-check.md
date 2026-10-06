@@ -19,6 +19,8 @@ rather than passing; the kit's own policy files belong to no lane. Open for the 
 the lane (from the `<lane>/<task>` branch name seems natural) and what a deliberate cross-lane
 change looks like (a label, a trailer, or an owner-only path).
 
+Reference: `docs/survey-lanekeeper.md` (the check's rules, and the test cases to port).
+
 **Done when:** `kit check lanes --diff origin/main` fails a change touching another lane's files or
 an unowned path, names each file, and passes shared paths; `lanes finish` refuses such a change; tests
 cover renames, deletions, shared paths and a missing base.

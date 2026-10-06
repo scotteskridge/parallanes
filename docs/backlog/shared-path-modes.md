@@ -16,6 +16,8 @@ That fits the kit's own shared docs exactly, and stops one lane rewriting anothe
 an applied migration. Open for the owner: the `kit.toml` shape, and whether the default shared
 paths become `append_only`.
 
+Reference: `docs/survey-lanekeeper.md`.
+
 **Done when:** a shared path can be marked append-only or ask, with an optional steward lane; the
 ownership hook and the lane-boundary check both honour it; the default shared paths have a
 recorded mode.
