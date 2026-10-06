@@ -54,6 +54,23 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     *Since reconciled with decisions 77–78 on merging main:* for v0.1, plan 08 is the copy
     installer and `/onboard` stays in v0.2, where its plugin-or-installer question is settled.
 
+## 2026-10-06: Lane instructions, checked on Linux
+
+84. **Decision 35 stands on Linux and Windows; no code change.** A live check with Claude Code
+    2.1.291, on WSL2 Ubuntu and native Windows, planted a word in each instruction file:
+    - A lane never loads the main checkout's *committed* `CLAUDE.md` or `.claude/CLAUDE.md`, even
+      with no excludes and with different content in the lane's copy. A plain subfolder in the same
+      place does load its parents' files, so this is specific to worktrees. The kit's excludes for
+      those files are now redundant, and are kept as a backstop for other Claude Code versions,
+      since the docs don't promise this behaviour.
+    - A lane does load the main checkout's *personal* `CLAUDE.local.md` (gitignored, so it exists
+      only there). The kit doesn't exclude it: personal instructions are meant for every session.
+    - An exclude in the **lane's own** `settings.local.json` works on both systems. On Linux, the
+      main checkout's `settings.local.json` also applies to every lane, as the settings docs say;
+      on Windows it doesn't. The kit only writes to the lane's file, so nothing breaks.
+
+    Not tested: an `AGENTS.md`-only project. Backlog `lane-settings-cross-platform` is done.
+
 ## 2026-10-06: Windows CI speed
 
 83. **CI jobs time out after 10 minutes, and Windows CI leaves Defender on.** *Measured in

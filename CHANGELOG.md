@@ -88,6 +88,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- Lane instructions checked live on Linux (WSL2) and Windows (decision 84): no bug. A lane's own
+  `settings.local.json` works on both. Claude Code 2.1.291 already keeps the main checkout's
+  committed instructions out of a lane, so the kit's excludes are now a backstop.
 - A plan for v0.1 (decisions 77–82): a small kit that works first, built only where Claude Code
   has no built-in. Seven steps in `docs/plans/README.md`. The plugin, plan 07b, the Unity pack,
   evals and per-lane ports move to v0.2. The installer copies files for now. Process gets lighter

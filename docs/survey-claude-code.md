@@ -13,7 +13,7 @@ skills. Companion to [survey-lanekeeper.md](survey-lanekeeper.md).
 ## Decisions to revisit (owner's call)
 
 Settled since, on Claude's recommendation: 30 and 31 by decision 82; 57 by decision 78 (the plugin
-waits for v0.2); 35 is checked in the v0.1 fix batch (`lane-settings-cross-platform`).
+waits for v0.2); 35 was checked live on Linux and Windows and isn't a bug (decision 84).
 
 | Decision | What the docs say | Suggested action |
 | --- | --- | --- |

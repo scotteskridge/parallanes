@@ -17,3 +17,5 @@ other lane-local setting) wouldn't apply. See `docs/survey-claude-code.md`.
 checkout's, the owner picks a fix (another place for the excludes, the sibling-folder layout
 decision 35 already names as the fallback, or per-lane entries in the main file), and it's recorded
 in the decisions log and ARCHITECTURE §15.
+
+Done 2026-10-06: no bug; the lane's own file works on Linux and Windows (decision 84).
