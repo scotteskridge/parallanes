@@ -1,4 +1,4 @@
-"""The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit settings`, `kit changelog`.
+"""The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit next`, `kit settings`, `kit changelog`.
 
 Run from anywhere inside a project: `python .claude/kit/cli.py <command>` (or the shim the installer
 sets up). Exit codes. CLI: 0 clean, 1 findings (for `lanes`: unfinished, something is mid-way), 2 usage
@@ -122,6 +122,10 @@ def build_parser() -> argparse.ArgumentParser:
     finish.add_argument("--body-file", help="file holding the PR body (default: the commit list)")
     lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
+    upcoming = commands.add_parser("next", help="what's next: this folder, lanes, open plans, backlog (read-only)")
+    upcoming.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
+    upcoming.set_defaults(run=run_next)
+
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
     perms_commands = perms.add_subparsers(title="settings commands")
     sync = perms_commands.add_parser("sync", help="write the deny and ask rules [protected] needs")
@@ -242,6 +246,26 @@ def run_lanes(args) -> int:
         print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
         return USAGE
     return lane_cli.run(args)
+
+
+# ---- kit next ----------------------------------------------------------------------------------
+
+def run_next(args) -> int:
+    try:
+        # Imported here, as for `kit lanes`: it uses the lane code, which mustn't take the guard down.
+        from kitlib import lanes, next_facts
+    except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
+        print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
+        return USAGE
+    here = Path.cwd()
+    try:
+        root = find_root(here)
+        result = next_facts.facts(here, root, load(root), args.offline)
+    except (ConfigError, lanes.LaneError) as error:
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    print(next_facts.format_facts(result))
+    return OK
 
 
 # ---- kit settings ------------------------------------------------------------------------------
