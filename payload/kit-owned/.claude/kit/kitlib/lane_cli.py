@@ -33,7 +33,7 @@ def run(args) -> int:
         print("\n".join(error.lines))
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
-    except lane_cycle.Unfinished as error:
+    except lanes.Unfinished as error:  # before LaneError, its base class
         print(f"kit: {error}", file=sys.stderr)
         return UNFINISHED
     except (ConfigError, lanes.LaneError) as error:

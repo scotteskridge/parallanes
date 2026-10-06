@@ -197,3 +197,19 @@ def test_lanes_cli_reports_a_missing_config_cleanly(tmp_path, monkeypatch, capsy
     assert lane_cli.run(args) == lane_cli.USAGE
     err = capsys.readouterr().err
     assert err.startswith("kit: ") and "Traceback" not in err
+
+
+def test_lanes_cli_catches_unfinished_from_where_it_is_defined(tmp_path, monkeypatch, capsys):
+    # Unfinished lives in lanes and is raised from lane_pr too; lane_cycle importing it is an accident
+    # that a refactor (or ruff --fix) can remove, so the CLI must not depend on it.
+    monkeypatch.delattr(lane_cycle, "Unfinished", raising=False)  # still passes once the import is gone
+    monkeypatch.setattr(lane_cli, "find_root", lambda here: tmp_path)
+    monkeypatch.setattr(lane_cli, "load", lambda root: config())
+
+    def finish(*args):
+        raise lanes.Unfinished("core/t is pushed, but gh pr create failed")
+
+    monkeypatch.setattr(lane_cycle, "finish", finish)
+    args = SimpleNamespace(lanes_command="finish", title=None, body_file=None)
+    assert lane_cli.run(args) == lane_cli.UNFINISHED
+    assert capsys.readouterr().err == "kit: core/t is pushed, but gh pr create failed\n"
