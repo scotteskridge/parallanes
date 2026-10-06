@@ -42,16 +42,18 @@ def specificity(pattern: str) -> tuple[int, bool, int, int, int]:
     """Larger is more specific: compared in order, the first difference decides.
 
     Wildcard-free segments (`src/core/**` over `src/**`); then rooted over any depth (`src/**` over
-    `**/conftest.py`); then fewer `**`; then fewer other wildcards; then more literal characters.
-    Length alone isn't used: `src/**` is longer than `src/*` but matches more (review round 1).
+    `**/conftest.py`); then more literal characters (`src/**/*_test.py` over `src/**`); then fewer
+    `**` (`src/*` over `src/**`); then fewer other wildcards. Length alone isn't used: `src/**` is
+    longer than `src/*` but matches more (review round 1). A heuristic: a pattern it ranks wrongly
+    in an odd case is settled by rewording it, and a tie is reported, never decided silently.
     """
     pattern = canonical(pattern)
     parts = pattern.split("/")
     literal = sum(1 for part in parts if not _WILDCARDS.search(part))
-    double = parts.count("**")
-    others = len(_WILDCARDS.findall(pattern)) - double
+    found = _WILDCARDS.findall(pattern)
+    double = found.count("**")  # inside a segment too: `src/a**` crosses folders (review round 2)
     characters = len(_WILDCARDS.sub("", pattern).replace("/", ""))
-    return literal, parts[0] != "**", -double, -others, characters
+    return literal, parts[0] != "**", characters, -double, -(len(found) - double)
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,7 @@ class Owners:
     def claim(self, path: str, candidates=None) -> Claim:
         """Which lane owns path, by `owns` alone (shared paths are the caller's first question)."""
         best = []
-        for name, matches, ranked in candidates or self.lanes:
+        for name, matches, ranked in self.lanes if candidates is None else candidates:
             if matches(path):
                 pattern, score = next((p, score) for p, score, one in ranked if one(path))
                 best.append((score, name, pattern))

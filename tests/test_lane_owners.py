@@ -52,6 +52,11 @@ def test_patterns_that_match_the_same_files_have_one_canonical_form(pattern, can
         ("src/a.py", "src/a.p?"),
         ("src/[a]pp/x", "src/*/x"),  # one wildcard each; the class leaves more literal characters
         ("Makefile", "*"),
+        # Review round 2: a filter after `**` narrows it, so literal characters come before wildcards.
+        ("*.md", "**"),
+        ("src/**/*_test.py", "src/**"),
+        ("tests/**/*.py", "tests/**"),
+        ("src/a*", "src/a**"),  # `**` inside a segment still crosses folders
     ],
 )
 def test_the_narrower_pattern_is_more_specific(narrow, wide):
@@ -216,8 +221,11 @@ def test_the_overlap_list_stays_quick_on_a_big_repository():
     import time
 
     lanes = [Lane(name=f"l{n}", owns=[f"pkg{n}/**", f"pkg{n}/core/**"], scope="", resources={}) for n in range(6)]
-    wide = Lane(name="wide", owns=["**/*.md", "pkg0/**/x/**"], scope="", resources={})
+    # Review round 2: every file must overlap (`**/*.py` and a pkgN lane), or claim() never runs.
+    wide = Lane(name="wide", owns=["**/*.md", "**/*.py"], scope="", resources={})
     files = [f"pkg{n % 6}/core/mod{n}/file{n}.py" for n in range(100_000)]
     start = time.perf_counter()
-    lane_owners.overlaps(config(*lanes, wide, shared=["docs/**"]), files)
-    assert time.perf_counter() - start < 3
+    notes, _ = lane_owners.overlaps(config(*lanes, wide, shared=["docs/**"]), files)
+    elapsed = time.perf_counter() - start
+    assert sum(int(note.split(": ")[1].split(" ")[0]) for note in notes) == len(files)
+    assert elapsed < 5  # about 1.5 s on a Windows laptop; the margin is for slow CI runners

@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - A rule for files two lanes claim (decision 97): shared paths first, then the lane with the most
   specific matching pattern owns the file, whatever the order in `kit.toml` (more literal names,
-  then rooted over any depth, then fewer wildcards). The ownership hook and
+  then rooted over any depth, then more literal characters, then fewer wildcards). The ownership hook and
   the lane-boundary check both use it, so a lane owning `src/**` is asked or refused inside another
   lane's `src/core/**`. `lanes create` and `lanes status` list the tracked files each nested lane
   wins, and any tie as a problem; the same pattern in two lanes is a config error. Replaces the

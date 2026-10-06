@@ -190,8 +190,8 @@ fails open (decision 41). From a lane, edits to the main checkout or another lan
 
 **Who owns a file two lanes claim** [97]: `shared_paths` first (every lane may change them), then
 the lane whose matching `owns` pattern is most specific: most wildcard-free segments, then rooted
-at the project top over matching at any depth, then fewer `**`, fewer other wildcards, more
-literal characters. A lane owning `src/**` doesn't own `src/core/a.py` when another lane owns
+at the project top over matching at any depth, then more literal characters, then fewer `**`,
+then fewer other wildcards. A lane owning `src/**` doesn't own `src/core/a.py` when another lane owns
 `src/core/**`. Order in `kit.toml` never matters. The same pattern in two lanes is a config error;
 two different patterns that still tie on a file leave it with no owner, which `lanes create` and
 `lanes status` list as a problem (with the files each nested lane wins, as notes). The hook, the

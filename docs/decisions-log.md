@@ -11,15 +11,20 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     review, no code borrowed. Replaces decision 42's "overlaps are allowed and reported as a
     note" and closes the gap decision 96 left open.
     - *Most specific,* compared in order: more wildcard-free segments; then rooted at the project
-      top over matching at any depth; then fewer `**`; then fewer other wildcards; then more
-      literal characters. Patterns are compared written out in full: globs anchors a pattern
+      top over matching at any depth; then more literal characters; then fewer `**` (inside a
+      segment too); then fewer other wildcards. A heuristic: an odd case it ranks wrongly is
+      settled by rewording a pattern, and a tie is reported, never decided silently.
+      Patterns are compared written out in full: globs anchors a pattern
       only when a slash comes before its end, so `conftest.py` is `**/conftest.py` and `build/`
       is `**/build/**`, while `/main.py` and `src/**` start at the root.
     - *Review round 1 (🔴, both reviewers), a change to what was approved:* the approved
       tie-break was the longer pattern, as in lanekeeper. It handed files to the wider pattern
       (`src/**` is longer than `src/*`; `**/src/**` than `src/**`), and it scored `build/` as if
       it were rooted, so a `build/` lane took `app/build/out.js` from `app/**`. The order above
-      keeps the approved intent, that the narrower pattern wins; flagged for the owner in the PR.
+      keeps the approved intent, that the narrower pattern wins; the owner approved it.
+    - *Review round 2 (🔴):* round 1's order put "fewer wildcards" before "literal characters",
+      so `**` still beat `*.md` and `src/**` beat `src/**/*_test.py`: a filter after `**`
+      narrows it. Characters now come before the wildcard counts; same intent, flagged in the PR.
     - *Why this rule:* a broad lane with a narrower one carved out of it (`src/**` and
       `src/core/**`) is a natural split, and it's explainable in one sentence. Order in `kit.toml`
       never matters, so a split doesn't silently depend on line order.
@@ -39,7 +44,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       `shared_paths`. The session briefing says so when there is more than one lane, and the
       installed guide (`parallel-lanes.md`) explains the rule (review round 1).
     - *Cost:* the lists judge every tracked file, with each lane's patterns compiled once; 100,000
-      files that all overlap take under a second. A git failure listing them is a problem line,
+      files that all overlap take about 2 s on a Windows laptop (a slow test bounds it at 5 s).
+      A git failure listing them is a problem line,
       not a traceback (`create` has made the worktrees by then).
 
 ## 2026-10-06: The lane boundary holds when work lands
