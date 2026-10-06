@@ -6,6 +6,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- A backlog for the kit itself (`docs/backlog/`, the format the kit installs), seeded with eight
+  items from a code review: lint, format, type hints and type checking, coverage, the test command in
+  `AGENTS.md`, decision-number comments, and the weight of the plan process.
 - The kit's own tests run in parallel (`pytest-xdist`, `-n auto`): about 5 minutes → 1 on Windows.
 - Fast test feedback: a `slow` marker on the git-heavy lane tests, so `python -m pytest -m "not
   slow"` runs 488 tests in ~15 s while working, including unit tests that give every lane module fast coverage. Fixture repos are built once per worker and copied,
