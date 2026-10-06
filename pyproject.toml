@@ -20,7 +20,8 @@ target-version = "py311"
 src = ["tests", "tests/live", "payload/kit-owned/.claude/kit"]
 
 [tool.ruff.lint]
-# BLE: a broad except must carry a noqa saying why (AGENTS.md: never swallow an exception);
+# BLE: a broad except needs an explicit `# noqa: BLE001`, which by convention says why (AGENTS.md:
+# never swallow an exception);
 # RUF100: a noqa that no longer suppresses anything is an error, so the reasons stay true.
 select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF100"]
 

@@ -20,8 +20,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       ruff's `src` points at the kit's module folders so local imports sort apart from pytest
       without a hand-kept module list.
     - *BLE and RUF100* (owner-asked follow-up): the code already had `# noqa: BLE001` reasons on
-      every broad `except`, for a rule nobody had turned on. BLE makes a new broad `except` give a
-      reason (AGENTS.md: never swallow an exception); RUF100 fails on a `noqa` that suppresses
+      every broad `except`, for a rule nobody had turned on. BLE makes a new broad `except` carry an
+      explicit `# noqa: BLE001`; that it says why is convention, not checked by ruff (AGENTS.md:
+      never swallow an exception). RUF100 fails on a `noqa` that suppresses
       nothing, which caught two stale ones (F401, E402).
     - Dev-only: nothing ruff-related is installed into projects (stdlib-only rule unaffected).
 
