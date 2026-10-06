@@ -69,7 +69,7 @@ my-project/
 │   ├── review/*.md                K/P checklists: universal.md (K), project.md (P), <pack>.md (K)
 │   ├── kit/                       K  cli.py + kitlib (lanes, checks, hooks); manifest.json; VERSION;
 │   │                                 `hook` and `kit` launchers; python-path (this machine's
-│   │                                 interpreter) and tmp/ (the PR body), both gitignored
+│   │                                 interpreter, gitignored, copied into lanes by .worktreeinclude)
 │   └── worktrees/<lane>/             lane worktrees (gitignored)
 ├── .worktreeinclude               P  gitignored files copied into each new worktree (settings.local.json, .env)
 ├── .githooks/pre-commit          K  `check all --staged` before each commit (opt-in, decision 25)
@@ -134,7 +134,8 @@ integration_branch = "main"
 merge_mode = "pr"                      # "pr" (default) or "local"           [12]
 worktree_root = ".claude/worktrees"    # or "../{project}-lanes" (Unity)    [2]
 ownership = "ask"                      # out-of-lane edit: "ask" (a permission prompt) or "off"
-shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
+shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
+                "docs/design/decisions-log.md"]
 
 [[lanes]]
 name = "core"
@@ -160,7 +161,7 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 | `status` | Every lane: folder, current branch, ahead/behind integration, uncommitted changes, unpushed commits, PR state |
 | `start <task>` | Prove the lane's previous task branch merged: its tip is in the integration tip (PR mode fetches first), or `gh` shows a PR merged into the integration branch whose head commit is that tip or contains it (squash merges; a PR found by name alone never counts, decisions 46, 53) → delete it → create `<lane>/<task>` with no upstream from the integration tip (`origin/<integration>` in PR mode, the local `<integration>` in local mode). Refuses with uncommitted changes to tracked files (untracked ones are listed, decision 52), commits on no branch, an open or closed PR, or no `gh`; `--abandon` drops an unmerged previous branch on purpose and prints its SHA |
 | `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review). A conflict is left in progress with the files and the continue/abort commands (decision 48) |
-| `finish` | `sync`, then run `test_command` through the shell (no skip flag) → **PR mode:** push the task branch and open a PR (`--title`, `--body-file`, which `/wrap-up` fills with the plan link and the review report); a re-run with an open PR only pushes; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, re-syncing, re-testing and retrying once if another lane moved it meanwhile (any other refusal is reported), then detach and delete the branch. The tests must leave HEAD, the branch and tracked files as they were (decision 49) |
+| `finish` | `sync`, then run `test_command` through the shell (no skip flag) → **PR mode:** push the task branch and open a PR (`--title`, `--body-file`, or `--body-file -` for stdin, which `/wrap-up` uses for the plan link and the review report [65]); a re-run with an open PR only pushes; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, re-syncing, re-testing and retrying once if another lane moved it meanwhile (any other refusal is reported), then detach and delete the branch. The tests must leave HEAD, the branch and tracked files as they were (decision 49) |
 | `remove <lane>` | Remove the worktree (refuses with uncommitted changes, or ignored files that may hold work unless `--force`, decision 45) |
 
 `start`, `sync` and `finish` (plan 05, `kitlib/lane_cycle.py`, merge proof in `lane_merged.py`, PR opening in `lane_pr.py`) run only inside a lane
@@ -372,7 +373,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps must have the owner open Claude Code in the project once and accept the trust dialog; evals (plan 11) must trust their folder first | plans 08, 11 |
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. The installer requires Git Bash or gives the agent a PowerShell launcher; it also writes `.claude/kit/python-path`. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 08 |
 | ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | plan 07b |
-| The installer gitignores `.claude/kit/tmp/` (the PR body `/wrap-up` writes, decision 65) and writes `python-path`, which the skills' `kit` launcher needs as the hook launcher does | plan 08 |
+| The installer writes and gitignores `.claude/kit/python-path`, which the skills' `kit` launcher needs as the hook launcher does; `.worktreeinclude` copies it into each lane (found in plan 07's live run) | plan 08 |
 | Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection (required review, no force pushes), and decide how a PR declares an intended protected change (label, trailer) | plan 09 |
 
 ## References

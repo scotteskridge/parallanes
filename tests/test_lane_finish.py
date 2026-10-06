@@ -61,6 +61,28 @@ def test_title_and_body_file_are_passed_on(pr_lane, tmp_path):
     assert call[call.index("--body-file") + 1] == str(body)
 
 
+def test_body_from_stdin_reaches_gh(pr_lane, tmp_path):
+    """`--body-file -`: /wrap-up passes the body on stdin, so it needs no file in the lane (a file
+    outside the lane's paths asks the owner first). Found in plan 07's live run."""
+    _, lane = pr_lane
+    gh = tmp_path / "gh"
+    body = "Plan: docs/plans/x.md\n\n## Review\nready ✅\n"
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin=body, env=scripted_gh(gh))
+    assert result.returncode == 0, result.stderr
+    call = next(call for call in gh_calls(gh) if call[:2] == ["pr", "create"])
+    assert call[call.index("--body-file") + 1] == "-"
+    assert (gh / "gh-stdin.txt").read_bytes() == body.encode("utf-8")  # exact bytes: no carriage returns added on Windows
+
+
+def test_empty_stdin_body_is_refused_before_anything_happens(pr_lane, tmp_path):
+    repo, lane = pr_lane
+    result = run_cli(lane, "lanes", "finish", "--body-file", "-", stdin="", env=scripted_gh(tmp_path / "gh"))
+    assert result.returncode == 2
+    assert "stdin" in result.stderr
+    assert recorded_test_runs(tmp_path) == []
+    assert remote_branch(repo, "core/task") == []
+
+
 def test_missing_body_file_is_refused_before_anything_happens(pr_lane, tmp_path):
     repo, lane = pr_lane
     result = finish(lane, "--body-file", str(tmp_path / "nope.md"), env=scripted_gh(tmp_path / "gh"))

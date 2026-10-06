@@ -85,9 +85,18 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
     command = config.project.get("test_command", "").strip()
     if not command:
         raise LaneError("no test_command in .claude/kit.toml: finish runs the tests before anything lands, so set it first")
-    body = os.path.abspath(body_file) if body_file else None
-    if body and not Path(body).is_file():
-        raise LaneError(f"body file {body_file} not found")
+    body, body_text = None, None
+    if body_file == "-":
+        # Read now, before the tests run: /wrap-up passes the body on stdin so it needs no file,
+        # and a file outside the lane's paths would make the ownership hook ask (plan 07).
+        # LF only: a PowerShell or Windows text pipe sends CRLF.
+        body_text = sys.stdin.buffer.read().decode("utf-8-sig").replace("\r\n", "\n")
+        if not body_text.strip():
+            raise LaneError("--body-file -: no PR body on stdin")
+    elif body_file:
+        body = os.path.abspath(body_file)
+        if not Path(body).is_file():
+            raise LaneError(f"body file {body_file} not found")
     local = config.lane_settings.merge_mode == "local"
     integration = config.lane_settings.integration_branch
     if local:
@@ -98,7 +107,7 @@ def finish(folder: Path, config, title: str | None = None, body_file: str | None
     tested_on = _test_what_lands(top, branch, tip, command)
     if local:
         return _land_locally(top, main, config, branch, tested_on, command)
-    return lane_pr.open_pr(top, integration, branch, tip, title, body)
+    return lane_pr.open_pr(top, integration, branch, tip, title, body, body_text)
 
 
 # ---- steps ---------------------------------------------------------------------------------------

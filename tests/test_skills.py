@@ -38,7 +38,7 @@ READ_ONLY_GRANTS = {
     "Bash(gh pr checks *)",
 }
 
-KIT_CALL = re.compile(r"sh \.claude/kit/kit ([^`\n]+)")
+KIT_CALL = re.compile(r"sh \.claude/kit/kit ([^`\n]+?)(?= <<|`|$)", re.MULTILINE)  # a heredoc isn't an argument
 PATH_MENTION = re.compile(r"`((?:docs|\.claude)/[^`\s]+)`")
 
 
@@ -118,7 +118,7 @@ def payload_has(rel: str) -> bool:
 def path_mentions():
     for path in skill_files():
         for rel in PATH_MENTION.findall(body(path)):
-            if not re.search(r"[<*]|YYYY|\.claude/kit/tmp/", rel):  # patterns, or files the skill creates
+            if not re.search(r"[<*]|YYYY", rel):  # patterns, not paths
                 yield path.parent.name, rel
 
 
@@ -143,7 +143,9 @@ def test_skill_step0_lane_check(path):
 
 def test_wrap_up_hands_the_pr_body_to_lanes_finish():
     text = body(SKILLS / "wrap-up" / "SKILL.md")
-    assert "--body-file .claude/kit/tmp/pr-body.md" in text  # decision 65
+    # Decision 65: on stdin, never a file (a file outside the lane's paths makes the ownership hook ask).
+    assert "lanes finish --title \"<title>\" --body-file - <<'EOF'" in text
+    assert "tmp/" not in text
     assert "reviewer" in text
 
 

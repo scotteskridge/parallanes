@@ -53,14 +53,19 @@ commit message that says *why*. Ask: "Commit and open the pull request?" Wait fo
 
 ## 6. Finish, on the owner's yes
 1. Stage the task's files by name and commit. Untracked files you didn't create: ask first.
-2. Write the PR body to `.claude/kit/tmp/pr-body.md` (create the folder): the plan link, a short
-   summary, the test result lines, the reviewer's report, and a table of findings and their fixes.
-3. In a lane: `sh .claude/kit/kit lanes finish --title "<title>" --body-file .claude/kit/tmp/pr-body.md`.
+2. The PR body: the plan link, a short summary, the test result lines, the reviewer's report, and
+   a table of findings and their fixes. Pass it on stdin (`--body-file -`), never as a file: a
+   file outside the lane's paths makes the ownership hook ask.
+3. In a lane, as one command:
+   ```
+   sh .claude/kit/kit lanes finish --title "<title>" --body-file - <<'EOF'
+   <the PR body>
+   EOF
+   ```
    It syncs, tests again, then pushes and opens the PR (or, in local mode, fast-forwards the
-   integration branch). If it stops on a conflict or a failure, show its message and work through
-   it with the owner; never force-push.
-4. Not a lane: with `merge_mode = "pr"`, ask before `git push -u origin HEAD`, then
-   `gh pr create --base <integration branch> --title "<title>" --body-file .claude/kit/tmp/pr-body.md`.
-   With `"local"`, stop after the commit and say how to merge it.
-5. When the PR is open (or the merge is done), delete `.claude/kit/tmp/pr-body.md`, give the PR
-   link, and suggest `/clear` before the next task.
+   integration branch; the body is then unused). If it stops on a conflict or a failure, show its
+   message and work through it with the owner; never force-push.
+4. Not a lane: with `merge_mode = "pr"`, ask before `git push -u origin HEAD`, then run
+   `gh pr create --base <integration branch> --title "<title>" --body-file -` with the same
+   heredoc. With `"local"`, stop after the commit and say how to merge it.
+5. Give the PR link (or say what was merged), and suggest `/clear` before the next task.

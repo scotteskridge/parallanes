@@ -9,7 +9,8 @@ integration_branch = "{{integration_branch}}"
 # merge_mode = "pr"                 # "pr": finished tasks become pull requests; "local": fast-forward
 # worktree_root = ".claude/worktrees"  # where lane folders go; "../{project}-lanes" puts them beside
 # ownership = "ask"                 # an edit outside the lane's paths asks you first; "off": never
-# shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]  # open to every lane
+# Paths open to every lane:
+# shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
 
 # Forbidden patterns: checked after every agent edit, before each commit and in CI.
 # Run them by hand with: {{kit_command}} check rules

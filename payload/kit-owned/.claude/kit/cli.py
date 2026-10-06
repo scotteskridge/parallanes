@@ -119,7 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     lane_commands.add_parser("sync", help="bring the integration branch in (rebase if unpushed, merge if pushed)")
     finish = lane_commands.add_parser("finish", help="sync, run the tests, then open a PR (or fast-forward in local mode)")
     finish.add_argument("--title", help="PR title (default: the first commit's subject)")
-    finish.add_argument("--body-file", help="file holding the PR body (default: the commit list)")
+    finish.add_argument("--body-file", help="file holding the PR body, or - to read it from stdin (default: the commit list)")
     lane.set_defaults(run=run_lanes, names=[], dry_run=False, offline=False, force=False)
 
     upcoming = commands.add_parser("next", help="what's next: this folder, lanes, open plans, backlog (read-only)")

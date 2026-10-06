@@ -30,8 +30,16 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     here (nested `.claude/skills/` load when working on files there), this repo's prototype becomes
     `/kit-next`. *Why:* plain `/next` must never mean two things.
 
-65. **`/wrap-up` writes the PR body to `.claude/kit/tmp/pr-body.md`** (gitignored by the installer),
-    passes it to `lanes finish --body-file` and deletes it after a successful finish.
+65. **`/wrap-up` passes the PR body on stdin: `lanes finish --body-file -`** with a heredoc; the kit
+    reads it before the tests run and hands it to `gh` as UTF-8 bytes with LF endings. *Changed
+    during the build:* the approved answer was a file in `.claude/kit/tmp/`, but the live run showed
+    every write there asks (the kit's own ask rule on `.claude/kit/**`, and the ownership hook for
+    any path outside the lane), so a file would prompt on every wrap-up. Stdin needs no file and
+    no gitignore entry.
+
+72. **`docs/design/decisions-log.md` is a default shared path.** *Found in the live run:* the skills
+    add decisions there from a lane (ARCHITECTURE §8 allows one entry per task), and the ownership
+    hook asked because only `docs/changelog.d/`, `docs/backlog/` and `docs/plans/` were shared.
 
 66. **Repeated corrections become one proposed rule, never an unasked one.** `/wrap-up` looks back over
     its session and asks the owner; for each repeat it proposes one of a `.claude/rules/` line (know it

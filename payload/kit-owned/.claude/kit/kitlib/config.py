@@ -40,7 +40,8 @@ DEFAULT_COMMANDS = [
 # File names, not `.env.*`: an allow rule can't carve `.env.example` out of a deny (decision 31).
 DEFAULT_SECRETS = [".env", ".env.local", ".env.*.local"]
 # Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
-DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**"]
+DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
+                        "docs/design/decisions-log.md"]
 _RULE_KEYS = {
     "id": (str, True),
     "pattern": (str, True),
