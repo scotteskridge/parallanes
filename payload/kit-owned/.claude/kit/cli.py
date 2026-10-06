@@ -33,7 +33,7 @@ else:
 OK, FINDINGS, USAGE = 0, 1, 2
 HOOK_ERROR, HOOK_BLOCK = 1, 2  # as in kitlib/hooks.py, which can't be imported when IMPORT_ERROR is set
 
-CHECKS = ("rules", "protected", "settings")
+CHECKS = ("rules", "protected", "settings", "lanes")
 
 
 class UsageError(Exception):
@@ -98,6 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument("--staged", action="store_true", help="check what is staged for commit")
     source.add_argument("--diff", metavar="BASE", help="check files changed since BASE (e.g. origin/main)")
     check.add_argument("files", nargs="*", help="files to check (default: every tracked file)")
+    check.add_argument("--lane", help="the lane whose change this is (default: from the <lane>/<task> branch)")
     check.set_defaults(run=run_check)
 
     hook = commands.add_parser("hook", help="Claude Code hook entry points (JSON on stdin)")
@@ -154,6 +155,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run_check(args) -> int:
     names = list(CHECKS) if args.name == "all" else [args.name]
+    if args.lane and "lanes" not in names:
+        print(f"kit: --lane is for `check lanes` (or `all`), not `check {args.name}`", file=sys.stderr)
+        return USAGE
     try:
         root = find_root(Path.cwd())
         config = load(root)
@@ -164,6 +168,8 @@ def run_check(args) -> int:
             findings += check_protected(root, config, args)
         if "settings" in names:
             findings += settings.check(root, config)  # about the project, not the files given
+        if "lanes" in names:
+            findings += check_lanes(root, config, args)
     except (ConfigError, gitfiles.GitError, UsageError, settings.SettingsError) as error:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
@@ -174,22 +180,58 @@ def run_check(args) -> int:
     return OK
 
 
-def check_protected(root: Path, config, args) -> list:
-    """Changes to protected paths. A whole-project run has no change to judge, so it checks nothing."""
+def touched_paths(root: Path, args) -> list[str] | None:
+    """Every path the change adds, changes or deletes; None for a whole-project run, which has no change."""
     if args.staged:
-        paths = gitfiles.touched_staged(root)
-    elif args.diff:
-        paths = gitfiles.touched_since(root, args.diff)
-    elif args.files:
-        paths = explicit_paths(root, args.files)
-    else:
+        return gitfiles.touched_staged(root)
+    if args.diff:
+        return gitfiles.touched_since(root, args.diff)
+    if args.files:
+        return explicit_paths(root, args.files)
+    return None
+
+
+def check_protected(root: Path, config, args) -> list:
+    paths = touched_paths(root, args)
+    findings = protected.check(config, paths) if paths else []
+    return allowed(findings, protected.allowed_by_human(), "protected path", protected.ALLOW_VARIABLE)
+
+
+def check_lanes(root: Path, config, args) -> list:
+    """A lane's change outside its own and the shared paths (decision 96). Other branches aren't judged."""
+    # Imported here, as `kit lanes` does: a fault in lane code must not take the protected hook down.
+    from kitlib import lane_boundary
+
+    if not (args.staged or args.diff or args.files):
+        return []  # a whole-project run has no change to judge
+    if not gitfiles.is_repo(root):
+        return []  # named files in a folder that isn't a git repo: no branch, so no lane
+    branch = args.lane + "/" if args.lane else gitfiles.current_branch(root) or lane_boundary.ci_branch()
+    if not branch or "/" not in branch:
+        return []  # can't be a lane's: the base's kit.toml isn't even read (review round 2)
+    head = "HEAD" if gitfiles.has_ref(root, "HEAD") else None  # None before a new project's first commit
+    base = gitfiles.merge_base(root, args.diff) if args.diff else head
+    # The lanes the change started from; a prefix that names no lane there isn't lane work.
+    found = lane_boundary.lanes_before(root, config, base, branch.split("/", 1)[0])
+    if found is None:
+        if args.lane:
+            raise UsageError(f"--lane {args.lane}: no such lane in .claude/kit.toml")
         return []
-    findings = protected.check(config, paths)
-    if findings and protected.allowed_by_human():
-        print(
-            f"kit: {len(findings)} protected path change(s) allowed by {protected.ALLOW_VARIABLE}=1.",
-            file=sys.stderr,
-        )
+    judge, lane = found
+    if args.staged and gitfiles.has_ref(root, "MERGE_HEAD"):
+        paths = gitfiles.touched_by_merge_commit(root)  # not what the merged branch brought in
+    else:
+        paths = touched_paths(root, args)
+    findings = lane_boundary.check(judge, lane, paths)
+    findings = allowed(findings, lane_boundary.allowed_by_human(), "cross-lane", lane_boundary.ALLOW_VARIABLE)
+    if findings:
+        print(lane_boundary.ADVICE, file=sys.stderr)
+    return findings
+
+
+def allowed(findings: list, by_human: bool, what: str, variable: str) -> list:
+    if findings and by_human:  # said out loud, so an override never passes silently
+        print(f"kit: {len(findings)} {what} change(s) allowed by {variable}=1.", file=sys.stderr)
         return []
     return findings
 

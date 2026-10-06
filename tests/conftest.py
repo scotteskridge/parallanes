@@ -12,6 +12,11 @@ KIT_CODE = ROOT / "payload" / "kit-owned" / ".claude" / "kit"
 if str(KIT_CODE) not in sys.path:
     sys.path.insert(0, str(KIT_CODE))
 
+# A human override exported in a developer's shell, or the PR branch name in the kit's own CI, would
+# change what the lane and protected checks decide in every CLI test that inherits os.environ.
+for _name in ("KIT_ALLOW_PROTECTED", "KIT_ALLOW_CROSS_LANE", "GITHUB_HEAD_REF"):
+    os.environ.pop(_name, None)
+
 
 # git runs `git maintenance run` on its own after fetches and pushes. In throwaway test repos that
 # is pure cost (twice per `lanes finish`), so every git process the tests start skips it.

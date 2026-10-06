@@ -6,6 +6,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The lane-boundary check (decision 96): `kit check lanes` (part of `check all`, so the pre-commit
+  hook runs it) and `kit lanes finish`, before the tests, refuse a lane's change to another lane's
+  paths, to a path no lane owns, or to `.claude/kit.toml`. The lane comes from `--lane` or the
+  `<lane>/<task>` branch (`GITHUB_HEAD_REF` in CI). A person can land a cross-lane change with
+  `KIT_ALLOW_CROSS_LANE=1`; the protected hook blocks an agent from setting it.
 - The kit's own CI cancels a PR's older run when a new commit is pushed; every push to `main` still
   gets a full run (decision 95). Dev-only; nothing is installed.
 - Ruff lints and formats the kit's own Python (decision 94): `ruff check` and `ruff format --check`

@@ -20,9 +20,10 @@ commands Claude Code recognizes), the hook is a **drift guard**: it still protec
 say the deny rules do.
 
 The command checks follow `[protected].commands`: `--no-verify` is caught because it is in the
-default list, and a list you write replaces the defaults. Setting `KIT_ALLOW_PROTECTED` is caught
-where a command does it (`KIT_ALLOW_PROTECTED=1 git commit`, `export`, `$env:`); quoting it in a
-commit message, PR text or search is fine. One false alarm remains: a heredoc line that starts with
+default list, and a list you write replaces the defaults. Setting `KIT_ALLOW_PROTECTED` (or
+`KIT_ALLOW_CROSS_LANE`, the lane-boundary override) is caught where a command does it
+(`KIT_ALLOW_PROTECTED=1 git commit`, `export`, `$env:`); quoting it in a commit message, PR text
+or search is fine. One false alarm remains: a heredoc line that starts with
 the assignment reads like a command. Write such text to a file and pass the file instead.
 
 The hook **fails closed**: if `kit.toml` can't be read, the Python is too old for the kit, or the

@@ -191,17 +191,20 @@ def find_protected(text: str, shell: str, patterns) -> list[tuple[str, str]]:
 _CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"}
 
 
-# Setting the allow variable, judged per command word, not on the raw text: quoting the documented
+# Setting an allow variable, judged per command word, not on the raw text: quoting the documented
 # usage in a commit message, PR body or grep (`"...KIT_ALLOW_PROTECTED=1..."`) must pass. Only two
 # forms that never appear in prose are matched on the raw text: `${X:=1}` and the .NET call.
-_ALLOW_NAME = "kit_allow_protected"
+# Protected paths (decision 34) and cross-lane changes (decision 96) each have one.
+_ALLOW_NAMES = ("kit_allow_protected", "kit_allow_cross_lane")
+_ALLOW_ALTERNATIVES = "|".join(_ALLOW_NAMES)
 _SETS_IN_CODE = re.compile(
-    r"\$\{KIT_ALLOW_PROTECTED:?=|SetEnvironmentVariable\(\s*['\"]KIT_ALLOW_PROTECTED", re.IGNORECASE
+    rf"\$\{{(?:{_ALLOW_ALTERNATIVES}):?=|SetEnvironmentVariable\(\s*['\"](?:{_ALLOW_ALTERNATIVES})\b",
+    re.IGNORECASE,
 )
 _PREFIX_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\+?=")
 _DECLARERS = {"export", "declare", "typeset", "local", "readonly", "set", "setx"}
 _ENV_CMDLETS = {"set-item", "new-item", "si", "ni"}
-_ALLOW_REASON = "KIT_ALLOW_PROTECTED is for a human committing at a terminal, not for an agent"
+_ALLOW_REASON = "the kit's KIT_ALLOW_* variables are for a human at a terminal, not for an agent"
 
 
 def _sets_allow_variable(words: list[str]) -> bool:
@@ -209,7 +212,7 @@ def _sets_allow_variable(words: list[str]) -> bool:
     while i < len(words):  # `X=1 cmd`, `env X=1 cmd`, `sudo X=1 cmd`
         assignment = _PREFIX_ASSIGNMENT.match(words[i])
         if assignment:
-            if assignment.group(1).lower() == _ALLOW_NAME:
+            if assignment.group(1).lower() in _ALLOW_NAMES:
                 return True
         elif program_name(words[i]) in _WRAPPERS:
             while i + 1 < len(words) and words[i + 1].startswith("-"):
@@ -220,12 +223,13 @@ def _sets_allow_variable(words: list[str]) -> bool:
     if i >= len(words):
         return False
     first, args = words[i].lower(), [word.lower() for word in words[i + 1 :]]
-    if first.startswith("$env:" + _ALLOW_NAME):  # `$env:X = 1`, `$env:X='1'`
+    if any(first.startswith("$env:" + name) for name in _ALLOW_NAMES):  # `$env:X = 1`, `$env:X='1'`
         return "=" in first or bool(args) and args[0].startswith("=")
     if first in _DECLARERS:  # `export X=1`, `set X=1`, `setx X 1`
-        return any(re.match(_ALLOW_NAME + r"([+:]?=|$)", arg) for arg in args)
+        return any(re.match(rf"(?:{_ALLOW_ALTERNATIVES})([+:]?=|$)", arg) for arg in args)
     if first in _ENV_CMDLETS:  # `Set-Item env:X 1`, `New-Item -Path Env: -Name X`
-        return any(arg.endswith(_ALLOW_NAME) for arg in args) and any(arg.startswith("env:") for arg in args)
+        named = any(arg.endswith(_ALLOW_NAMES) for arg in args)
+        return named and any(arg.startswith("env:") for arg in args)
     return False
 
 

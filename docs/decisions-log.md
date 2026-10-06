@@ -3,6 +3,49 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: The lane boundary holds when work lands
+
+96. **`kit check lanes` and `kit lanes finish` refuse a lane's change outside its own and the
+    shared paths, and fail closed.** Settled on Claude's recommendation (backlog
+    `lane-boundary-check`); rules from lanekeeper's merge check (`docs/survey-lanekeeper.md`):
+    - *What fails:* another lane's path (the finding names that lane), a path no lane owns, and
+      `.claude/kit.toml` even for a lane that owns `**` (a lane could otherwise widen its own paths
+      inside its own change). A rename counts for both paths, a deletion counts, and a diff that
+      can't be computed is an error, never a clean result.
+    - *Which lane:* `--lane`, else the `<lane>/<task>` branch, else `GITHUB_HEAD_REF` (CI checks out
+      a detached merge commit). A branch that isn't a lane's isn't judged: that branch shape is the
+      one place the lane is written down, and `lanes finish` already requires it.
+    - *Deliberate cross-lane changes:* no label or trailer. A person lands one from a non-lane
+      branch, or with `KIT_ALLOW_CROSS_LANE=1`, which is said out loud when used and which the
+      protected hook blocks an agent from setting (as `KIT_ALLOW_PROTECTED`, decision 34). The
+      variable works only where the person runs the kit (a commit, a local-mode finish); CI has
+      no override, so a pull request's way through is the non-lane branch, and a PR-mode
+      `finish` refuses even with the variable set rather than push a PR CI would refuse
+      (review round 3).
+    - *Judged by the lanes the change started from* (review round 1, 🔴): `kit.toml` at the merge
+      base for `--diff` and `finish`, at HEAD for `--staged`. Otherwise a lane branch that renamed
+      or dropped its lane in `kit.toml` escaped the whole check, the `kit.toml` change included.
+    - *A merge commit is judged on its resolution* (review round 1, 🔴): during a merge,
+      `--staged` takes only the paths that differ from both parents. `lanes sync` asks for
+      `git merge --continue` after a conflict, which runs the pre-commit hook, and other lanes'
+      files that had already landed blocked it. Known gap: a resolution that keeps the lane's side
+      of a file the merge brought in (reverting another lane's work) differs from neither parent
+      the right way and passes the hook; `finish` and CI diff from the merge base and catch it.
+    - *The base's kit.toml is read for its lanes only* (review round 2, 🔴): rules,
+      `[protected]` and non-lane `[project]` keys there aren't validated, and a branch whose prefix
+      names no lane at the base (`main`, `chore/x`) validates nothing there (round 3). Otherwise a kit.toml the current kit rejects at HEAD blocked the commit that
+      repairs it, on any branch. Lanes that don't load at the base fail closed, naming the commit.
+    - *Accepted:* the lane is looked up in the base's lanes, so if the owner renames or drops a
+      lane on main while its task branch is open, that branch stops being judged. Owner-made and
+      rare; the lane's next `lanes finish` refuses anyway (no such lane).
+    - *`ownership = "off"`* silences only the edit-time prompt; the check is a backstop that doesn't
+      depend on edit-time settings. A project that wants no enforcement defines no lanes.
+    - *Same rule as the hook:* own `owns` plus `shared_paths`, case ignored on Windows, now one
+      function (`globs.matches_any_file`). Two lanes claiming one file both pass until
+      `lane-overlap-check` decides which one owns it.
+    - `finish` checks before the tests, on the merge-base diff (what the PR will show), so a
+      refusal costs no test run and changes nothing (exit 2).
+
 ## 2026-10-06: Small changes don't wait on CI twice
 
 95. **A new push to a PR cancels that PR's running CI; a follow-up commit that changes only docs
