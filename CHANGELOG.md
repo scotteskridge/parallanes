@@ -77,6 +77,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   now reviews its own plans with copies of the reviewer that a test keeps equal to the payload.
 - `/next` for developing this repo: where the build stands and one recommended prompt
   (read-only; prototype for plan 07's installable `/next`).
+- `docs/survey-claude-code.md`: what Claude Code's own features already do or constrain, by plan,
+  with the decisions they contradict (30, 31, 35, 57) for the owner to revisit, and six backlog
+  items: lane settings on macOS/Linux, the permission decisions, lane session names and ports
+  through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
 - `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
