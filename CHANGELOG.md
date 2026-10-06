@@ -150,3 +150,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   blocker that names nothing, or the item itself, is reported by `kit next`.
 - The kit's name is `worklanes` (decision 73): `claude-` plugin names are reserved, and
   `laneguard` read too much like the existing `lanekeeper`.
+
+### Fixed
+- The git pre-commit hook drops a trailing `\r` from `.claude/kit/python-path`, as both launchers
+  already do: on macOS/Linux a python-path saved with CRLF made the hook fail to find Python.

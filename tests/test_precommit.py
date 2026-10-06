@@ -44,6 +44,18 @@ def test_clean_commit_goes_through(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_crlf_python_path_still_finds_python(tmp_path):
+    # Edited by hand on Windows, python-path ends in CRLF; a kept \r makes the interpreter path wrong.
+    # Git for Windows' sh drops the \r in $(...) by itself, so only macOS/Linux can catch a regression.
+    repo = make_repo(tmp_path)
+    install_hook(repo)
+    (repo / ".claude" / "kit" / "python-path").write_bytes(sys.executable.encode() + b"\r\n")
+    write(repo, "src/app.py", "x = 1\n")
+    git(repo, "add", "src/app.py", ".claude/kit.toml")
+    result = commit(repo)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_hook_script_has_lf_endings():
     # A CRLF shebang line breaks sh on every platform.
     assert b"\r\n" not in (KIT_OWNED / ".githooks" / "pre-commit").read_bytes()

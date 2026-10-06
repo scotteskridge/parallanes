@@ -7,7 +7,7 @@ root=$(git rev-parse --show-toplevel) || exit 1
 # The installer records the Python to use (a full path; on Windows `python` may be the Store alias).
 python=""
 if [ -f "$root/.claude/kit/python-path" ]; then
-    python=$(head -n 1 "$root/.claude/kit/python-path")
+    python=$(head -n 1 "$root/.claude/kit/python-path" | tr -d '\r')
 fi
 if [ -z "$python" ]; then
     python=$(command -v python3 || command -v python)
