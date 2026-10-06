@@ -145,10 +145,10 @@ Changes from the plan:
   `.claude/kit/python-path` (as the pre-commit hook does), because a kit-owned file can't hold a
   machine's interpreter path, and turns any failure into exit 2. This repo's copy of the agent
   points at `payload/kit-owned/.claude/kit/hook`, with a gitignored `python-path` beside it.
-- **The guard is stricter than "read-only git"** in two ways: it refuses `$`, backticks, `<` and `>`
-  anywhere (so `cd "..." && git diff` and `$(git merge-base ...)` are blocked; the agent is told to
-  use `git diff <base>...HEAD`), and it refuses `--output`, `--ext-diff` and `git grep -O`, which
-  write files or run programs from otherwise read-only commands.
+- **The guard is stricter than "read-only git"**: it refuses `$`, backticks, `<`, `>` and globs
+  outside quotes (so `$(git merge-base ...)` is blocked; the agent is told to use
+  `git diff <base>...HEAD`), a path before `git`, and `--output`, `--ext-diff` and `git grep -O`,
+  which write files or run programs from otherwise read-only commands. It allows `cd <folder>`.
 - **`AGENTS.md.tmpl` left as is:** its finishing step already says "an independent review", and
   the checklists are named where the reviewer and the owner read them (`WORKFLOW.md`,
   `CODE-STANDARDS.md`); the template's line budget is tight.
@@ -171,6 +171,12 @@ crash into exit 2, and the import fallback blocking for this hook).
   above). One question for the owner: `project.md.tmpl` promised that `/onboard` and `/wrap-up`
   propose `P` checks, which plan 07 hasn't decided; the promise is removed and the question is in
   §15 for plan 07.
+- *Round 2* (the fix commit, by this repo's own reviewer with the guard active; it ran in this repo
+  by accident when the scratch rebuild failed, and changed nothing): 4 🟡. Unquoted globs expand
+  after the check (a branch adding a file named `--output=AGENTS.md` plus `git diff main...HEAD *`
+  would overwrite it): now refused. The index lock isn't enforced, only instructed (recorded in
+  decision 57). This repo has no `docs/CODE-STANDARDS.md` (its `project.md` now says where the
+  standards are). A stale note here. The guard blocked one command it tried (`git check-attr`).
 - *From the live-check verifier:* the successful review ran before the folder was trusted, so the
   guard wasn't active, and the reviewer's own first commands began with `cd "<repo>" &&`, which the
   guard refused. `cd <folder>` is now allowed and the agent is told the shell starts at the root.
@@ -189,6 +195,10 @@ as the kit installs it, in a path with a space; script and outputs kept in the s
   accepted the trust dialog, the hook blocked `git checkout -b probe`, `git stash list`, a redirect
   and a `cd ... && ...; echo $?` with exit 2, allowed `git diff main...HEAD --stat`, and nothing in
   the repo changed. Recorded in ARCHITECTURE §15 for plans 08 and 11.
+- *Review with the guard active* (after the round 1 and 2 fixes, folder trusted, the debug log
+  shows "Registered 1 frontmatter hook(s) from agent 'reviewer'"): all five planted defects found
+  again, report in shape, repo status and HEAD unchanged. The guard blocked one call, the
+  reviewer's own `cat ... 2>/dev/null` (a redirect); it went on with Read.
 - *Discovery:* with the payload's copy temporarily renamed, only this repo's own `reviewer` was
   listed: Claude Code doesn't discover `payload/kit-owned/.claude/agents/`, so the two copies don't
   clash.

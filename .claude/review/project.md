@@ -1,7 +1,8 @@
 # Project checks (prefix P)
 
 Checks for the kit repo itself, beside the kit's `universal.md` (a copy of the payload's; a test
-keeps them equal).
+keeps them equal). This repo has no `docs/CODE-STANDARDS.md`: the standards the reviewer cites are
+the kit's own, in `payload/templates/docs/CODE-STANDARDS.md.tmpl`.
 
 P1. **Stdlib only where it's installed.** Nothing under `payload/` or `packs/` imports a package
     outside Python 3.11's standard library. Dev-only tools (pytest) stay in `tests/`.

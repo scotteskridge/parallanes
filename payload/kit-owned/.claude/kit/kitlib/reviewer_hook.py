@@ -24,7 +24,7 @@ ALLOWED_TEXT = "git with one of " + ", ".join(sorted(READ_ONLY))
 def reason(text: str) -> str | None:
     """Why text isn't a read-only git command (or a chain of them), or None if it is."""
     if found := _unquoted_specials(text):
-        return f"`{''.join(sorted(found))}` (substitution or redirect) is not allowed"
+        return f"`{''.join(sorted(found))}` (substitution, redirect or unquoted glob) is not allowed; quote patterns"
     segments = tokenize(_BRACE_REF.sub("@REF", text), "bash")
     if not segments:
         return "empty command"
@@ -39,7 +39,9 @@ def _unquoted_specials(text: str) -> set[str]:
     """Characters that would run or write something the words don't show.
 
     Inside single quotes nothing is special to bash; inside double quotes `$` and backticks still
-    substitute, but `<` and `>` are plain text (`--format='%H -> %s'` is fine).
+    substitute, but `<` and `>` are plain text (`--format='%H -> %s'` is fine). Unquoted globs
+    count too: bash expands them after this check, so a file the branch under review adds, named
+    `--output=AGENTS.md`, would reach git as an option.
     """
     found, quote, i = set(), None, 0
     while i < len(text):
@@ -56,7 +58,7 @@ def _unquoted_specials(text: str) -> set[str]:
                 found.add(char)
         elif char in "'\"":
             quote = char
-        elif char in "$`<>":
+        elif char in "$`<>*?[":
             found.add(char)
         i += 1
     return found

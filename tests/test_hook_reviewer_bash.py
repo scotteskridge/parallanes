@@ -44,6 +44,8 @@ ALLOWED = [
     "git log main@{upstream}..HEAD",
     "git --no-optional-locks status --short",
     "git.exe diff",
+    "git ls-files -- '*.py'",
+    "git grep -n \"TODO*\"",
     # Agents habitually start with `cd <project> &&`; changing folder reads nothing and writes nothing.
     "cd \"D:/my project\" && git diff main...HEAD",
     "cd lane && git status",
@@ -93,6 +95,12 @@ BLOCKED = [
     "git log \"$(rm x)\"",
     "git log \"`rm x`\"",
     "git show HEAD@{1}; rm x",
+    # Second review: bash expands an unquoted glob after the guard has read the words, so a file the
+    # branch adds (`--output=AGENTS.md`, `-Orm`) would become an option.
+    "git diff main...HEAD *",
+    "git grep TODO -- src/*.py",
+    "git ls-files ?",
+    "git log [a]",
     # cd only as `cd <one folder>`, never anything else.
     "cd",
     "cd a b && git diff",
