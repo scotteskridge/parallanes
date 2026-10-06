@@ -138,8 +138,14 @@ planted problems; scripts and outputs in the session scratchpad):
   without problems. No permission denials after the first audit turn, which had one refused
   compound shell command.
 - *Not shown live:* the owner approving the `DESIGN.md` prompt in an interactive session, a
-  project without lanes or without `DESIGN.md`, macOS/Linux. This run was before the reviews:
-  the `Explore` agents, the new names and the non-lane branch commands haven't run live.
+  project without lanes or without `DESIGN.md`, macOS/Linux, and (after the reviews) the
+  non-lane branch commands.
+- *`/code-health` re-run after the reviews,* on a fresh copy with `main` one commit ahead of the
+  `tools` lane: the transcript shows `lanes start health-2026-10-06-all` before any audit agent,
+  so the branch (and the audit) sat on `main`'s new commit; both area agents were `Explore` on
+  `sonnet`, in the foreground; it found the planted problems again, wrote
+  `docs/health/2026-10-06-tools-all.md` on `tools/health-2026-10-06-all` with the three items
+  picked, and `kit next` read them. No permission denials after the first turn.
 
 **Review** (by this repo's `reviewer`; every finding fixed, tests where a check is cheap; the
 `/design` order test passed before the fix, pinning behaviour already right):
