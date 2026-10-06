@@ -37,7 +37,8 @@ commands = [                        # agents may not run these (flags match in a
     "git commit --no-verify",
     "git commit -n",
 ]
-secrets = [".env", ".env.local", ".env.*.local"]  # agents may neither read nor edit these; add key files
+secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edit these; add key files.
+                                    # "!name" exempts a bare file name listed after the names it cancels
 # guard_kit = true                  # edits to the kit's own config need your approval (false: off)
 
 # Lanes: several agent sessions at once, each in its own git worktree with its own paths.

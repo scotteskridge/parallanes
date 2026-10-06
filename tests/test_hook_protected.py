@@ -1,4 +1,4 @@
-"""The protected-paths PreToolUse hook: blocks with exit 2, and fails closed (decisions 27, 30, 33, 34).
+"""The protected-paths PreToolUse hook: blocks with exit 2, and fails closed (decisions 27, 33, 34, 92).
 
 In PreToolUse only exit 2 blocks; exit 1 and timeouts let the call through. So every error path
 must exit 2, and no test here may accept any other non-zero code.
@@ -113,15 +113,16 @@ def test_shell_write_from_a_subfolder_resolves_against_cwd(repo):
 
 
 @pytest.mark.parametrize("rel", [".claude/kit.toml", ".claude/settings.json", ".githooks/pre-commit"])
-def test_kit_config_edits_blocked_only_in_bypass_mode(repo, rel):
-    assert_allowed(edit(repo, rel))
-    assert_allowed(edit(repo, rel, mode="acceptEdits"))
-    assert_blocked(edit(repo, rel, mode="bypassPermissions"), "bypassPermissions")
+@pytest.mark.parametrize("mode", ["default", "acceptEdits", "bypassPermissions"])
+def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
+    # Decision 92: Claude Code's ask rules prompt in every mode, bypassPermissions included.
+    assert_allowed(edit(repo, rel, mode=mode))
 
 
-def test_kit_config_guard_can_be_switched_off(tmp_path):
-    repo = make_repo(tmp_path, config=PROTECTED_TOML + "guard_kit = false\n")
-    assert_allowed(edit(repo, ".claude/kit.toml", mode="bypassPermissions"))
+def test_the_example_env_file_is_exempt_from_the_default_secrets(repo):
+    assert_allowed(edit(repo, ".env.example"))
+    assert_blocked(edit(repo, ".env.production"), "secrets")
+    assert_blocked(bash(repo, "echo X=1 > .env.production"), "secrets")
 
 
 @pytest.mark.parametrize(

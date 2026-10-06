@@ -16,7 +16,8 @@ from .globs import matches, normalize
 CHECK = "protected"
 ALLOW_VARIABLE = "KIT_ALLOW_PROTECTED"
 
-# The kit's own configuration: whoever can edit these can switch the protection off (decision 30).
+# The kit's own configuration: whoever can edit these can switch the protection off. Ask rules
+# guard them (decision 30); they prompt in every mode, bypassPermissions included (decision 92).
 KIT_GUARD = [".claude/settings.json", ".claude/kit.toml", ".claude/kit/**", ".githooks/**"]
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -74,36 +75,50 @@ def _inside(pattern: str, folder: str, glob: str | None = None) -> bool:
     return bool(_WILDCARD.search(entry)) or fnmatch.fnmatchcase(entry, glob)
 
 
-def path_reason(protected, path: str, bypass: bool, removes: bool = False) -> str | None:
+def path_reason(protected, path: str, removes: bool = False) -> str | None:
     """Why changing path is blocked, or None.
 
-    bypass: the session runs in bypassPermissions mode. removes: path is being deleted or moved
-    away, so a protected path anywhere inside it counts too.
+    removes: path is being deleted or moved away, so a protected path anywhere inside it counts too.
     """
     shown = normalize(path)
     for patterns, what, key in ((protected.paths, "is protected", "paths"), (protected.secrets, "holds secrets", "secrets")):
-        pattern = _matching(path, patterns)
+        pattern = _secret_matching(path, patterns) if key == "secrets" else _matching(path, patterns)
         if pattern:
             return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
-        pattern = _matching(path, patterns, removes=True) if removes else None
+        # Exemptions are bare names, which say nothing about a folder, so they play no part here.
+        positive = [pattern for pattern in patterns if not pattern.startswith("!")]
+        pattern = _matching(path, positive, removes=True) if removes else None
         if pattern:
             # The folder itself isn't protected; what's inside it is. Say so, or the reason misleads.
             return f"removing {shown} would delete protected files (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
-    if bypass and protected.guard_kit:
-        pattern = _matching(path, KIT_GUARD, removes)
-        if pattern:
-            return (
-                f"{normalize(path)} is the kit's own configuration, and edits to it need the owner's "
-                "approval, which bypassPermissions mode can't ask for"
-            )
     return None
+
+
+def _secret_matching(path: str, patterns) -> str | None:
+    """The secrets pattern path falls under, after exemptions, or None.
+
+    Matches Claude Code's deny rules (decision 92): a `!name` cancels the bare-name patterns listed
+    before it, never an anchored one (a pattern with a folder in it), and a later pattern can match
+    the path again.
+    """
+    anchored = bare = None
+    for pattern in patterns:
+        if pattern.startswith("!"):
+            if bare and _matching(path, [pattern[1:]]):
+                bare = None
+        elif _matching(path, [pattern]):
+            if "/" in normalize(pattern).rstrip("/"):
+                anchored = anchored or pattern
+            else:
+                bare = pattern
+    return anchored or bare
 
 
 def check(config, paths) -> list[Finding]:
     """Findings for changed paths that are protected or secret. Kit config changes are normal commits."""
     findings = []
     for path in paths:
-        reason = path_reason(config.protected, path, bypass=False)
+        reason = path_reason(config.protected, path)
         if reason:
             message = f"{reason}. If this change is intended, commit it with {ALLOW_VARIABLE}=1."
             findings.append(Finding(path=normalize(path), line=0, check=CHECK, message=message))
@@ -119,12 +134,11 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input") or {}
     cwd = Path(payload.get("cwd") or root)
-    bypass = payload.get("permission_mode") == "bypassPermissions"
     protected = config.protected
 
     if tool in FILE_TOOLS:
         file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
-        return _target_reason(protected, root, cwd, file_path, bypass) if file_path else None
+        return _target_reason(protected, root, cwd, file_path) if file_path else None
 
     shell = SHELL_TOOLS.get(tool)
     if shell is None:
@@ -139,20 +153,20 @@ def check_tool_call(payload: dict, root: Path, config) -> str | None:
         return f"`{offending}` matches the protected command {pattern!r} ([protected].commands, .claude/kit.toml)"
     git_bash = shell == "bash"
     for target in file_commands.write_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, bypass, git_bash=git_bash)
+        reason = _target_reason(protected, root, cwd, target, git_bash=git_bash)
         if reason:
             return reason
     for target in file_commands.removed_targets(text, shell):
-        reason = _target_reason(protected, root, cwd, target, bypass, removes=True, git_bash=git_bash)
+        reason = _target_reason(protected, root, cwd, target, removes=True, git_bash=git_bash)
         if reason:
             return reason
     return None
 
 
-def _target_reason(protected, root: Path, cwd: Path, target: str, bypass: bool, removes: bool = False,
+def _target_reason(protected, root: Path, cwd: Path, target: str, removes: bool = False,
                    git_bash: bool = True) -> str | None:
     rel = relative(root, cwd, target, git_bash)
-    return None if rel is None else path_reason(protected, rel, bypass, removes)
+    return None if rel is None else path_reason(protected, rel, removes)
 
 
 def native_path(target: str, windows: bool | None = None, git_bash: bool = True) -> str:

@@ -37,8 +37,8 @@ DEFAULT_COMMANDS = [
     "git commit --no-verify",
     "git commit -n",
 ]
-# File names, not `.env.*`: an allow rule can't carve `.env.example` out of a deny (decision 31).
-DEFAULT_SECRETS = [".env", ".env.local", ".env.*.local"]
+# Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).
+DEFAULT_SECRETS = [".env", ".env.*", "!.env.example"]
 # Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
 DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
                         "docs/design/decisions-log.md", "docs/health/**"]
@@ -238,7 +238,13 @@ def _protected(table) -> Protected:
     _check_table(table, where)
     _check_keys(table, _PROTECTED_KEYS, where)
     for key in ("paths", "secrets"):
+        bare_before = False
         for value in _strings(table, key, where):
+            if value.startswith("!"):
+                _exemption(key, value[1:], bare_before, where)
+                value = value[1:]
+            elif "/" not in value.replace("\\", "/").rstrip("/"):
+                bare_before = True
             # Patterns are project-relative: the same text becomes a root-anchored deny rule.
             if value.startswith(("//", "~")) or ".." in value.replace("\\", "/").split("/"):
                 _fail(f"{where}: {key!r}: {value!r} must be a path inside the project")
@@ -258,6 +264,23 @@ def _protected(table) -> Protected:
         secrets=list(table.get("secrets", defaults.secrets)),
         guard_kit=table.get("guard_kit", defaults.guard_kit),
     )
+
+
+def _exemption(key: str, name: str, bare_before: bool, where: str) -> None:
+    """A `!` exemption must be one Claude Code would honour (decision 92); one it ignores would
+    leave the owner believing a file is readable, or the hook and the deny rules disagreeing."""
+    pattern = f"!{name}"
+    if key != "secrets":
+        _fail(f"{where}: {key!r}: {pattern!r}: exemptions are allowed only in 'secrets'; "
+              "remove the path from 'paths' instead")
+    if not name.strip():
+        _fail(f"{where}: 'secrets': {pattern!r} names no file")
+    if "/" in name.replace("\\", "/"):
+        _fail(f"{where}: 'secrets': {pattern!r} must be a bare file name: Claude Code can't carve an "
+              "exemption out of a rule with a folder in it")
+    if not bare_before:
+        _fail(f"{where}: 'secrets': {pattern!r} has nothing before it to carve out of; list it after "
+              "a bare file name such as '.env.*'")
 
 
 def _strings(table: dict, key: str, where: str) -> list:

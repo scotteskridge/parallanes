@@ -1,4 +1,4 @@
-"""Permission rules generated from `[protected]` into `.claude/settings.json` (decisions 15, 29-31).
+"""Permission rules generated from `[protected]` into `.claude/settings.json` (decisions 15, 29-31, 82, 92).
 
 Deny rules are the primary protection: Claude Code enforces them for its own file tools and the
 shell commands it recognizes. `settings.json` has no comments to mark which rules are ours, so the
@@ -63,6 +63,21 @@ def _unique(items) -> list:
     return list(dict.fromkeys(items))
 
 
+def _misplaced(rules: list, expected: list) -> list:
+    """The kit's `!` exemptions listed before a kit rule they should carve from. Claude Code only
+    carves an exemption out of the rules listed before it in the same list (decision 92), so these
+    cancel nothing. A `Read(!x)` carves only from `Read` rules, so only those count."""
+    misplaced = []
+    for rule in expected:
+        tool, _, pattern = rule.partition("(")
+        if not pattern.startswith("!") or rule not in rules:
+            continue
+        positives = [other for other in expected if other.startswith(tool + "(") and "(!" not in other]
+        if any(other in rules and rules.index(other) > rules.index(rule) for other in positives):
+            misplaced.append(rule)
+    return misplaced
+
+
 def read_json(path: Path, what: str) -> dict:
     if not path.is_file():
         return {}
@@ -113,12 +128,13 @@ class Sync:
     record: dict
     added: dict = field(default_factory=dict)
     removed: dict = field(default_factory=dict)
+    moved: dict = field(default_factory=dict)
     style: Style = field(default_factory=Style)
     record_changed: bool = False
 
     @property
     def settings_changed(self) -> bool:
-        return any(self.added.values()) or any(self.removed.values())
+        return any(self.added.values()) or any(self.removed.values()) or any(self.moved.values())
 
     @property
     def changed(self) -> bool:
@@ -139,8 +155,12 @@ def plan_sync(root: Path, config) -> Sync:
         added = [rule for rule in expected[name] if rule not in kept]
         result.removed[name] = [rule for rule in current[name] if rule in stale]
         result.added[name] = added
-        if kept + added or name in permissions:
-            permissions[name] = kept + added
+        rules = kept + added
+        # Exemptions go last, keeping their order: owner rules move too, but only in position.
+        result.moved[name] = _misplaced(rules, expected[name])
+        rules = [rule for rule in rules if rule not in result.moved[name]] + result.moved[name]
+        if rules or name in permissions:
+            permissions[name] = rules
         # Only rules this kit wrote: a rule the owner already had stays theirs (decision 29).
         result.record[name] = [rule for rule in expected[name] if rule in recorded[name] or rule in added]
     # A stale record must be dropped even when settings.json needs nothing (the owner removed the
@@ -168,7 +188,7 @@ def write_json(path: Path, data: dict, style: Style) -> None:
 
 def describe(sync: Sync) -> str:
     lines = []
-    for verb, changes in (("added", sync.added), ("removed", sync.removed)):
+    for verb, changes in (("added", sync.added), ("removed", sync.removed), ("moved to the end", sync.moved)):
         for name in LISTS:
             lines += [f"  {SETTINGS_REL.as_posix()}: {verb} {name}: {rule}" for rule in changes.get(name, [])]
     if sync.record_changed and not sync.settings_changed:
@@ -193,4 +213,7 @@ def check(root: Path, config) -> list[Finding]:
             if rule not in expected[name] and rule in current[name]:
                 message = f"{name} rule {rule} is no longer in [protected]; run `kit settings sync`"
                 findings.append(Finding(path=where, line=0, check=CHECK, message=message))
+        for rule in _misplaced(current[name], expected[name]):
+            message = f"{name} rule {rule} comes before a rule it should carve from, so it cancels nothing; run `kit settings sync`"
+            findings.append(Finding(path=where, line=0, check=CHECK, message=message))
     return findings

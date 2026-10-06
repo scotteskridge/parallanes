@@ -136,7 +136,7 @@ def test_rendered_kit_toml_is_a_valid_config(tmp_path):
 def test_rendered_kit_toml_protects_with_the_documented_defaults(tmp_path):
     # The template spells the defaults out; they must equal the code's, and generate valid rules.
     from kitlib.config import DEFAULT_COMMANDS, DEFAULT_SECRETS, load
-    from kitlib.globs import matches_any
+    from kitlib.protected import path_reason
     from kitlib.settings import expected_rules
 
     entries = registry()
@@ -147,7 +147,7 @@ def test_rendered_kit_toml_protects_with_the_documented_defaults(tmp_path):
     assert protected.commands == DEFAULT_COMMANDS
     assert protected.secrets == DEFAULT_SECRETS
     assert protected.guard_kit is True
-    assert not matches_any(".env.example", protected.secrets)  # projects commit this one
+    assert path_reason(protected, ".env.example") is None  # projects commit this one
     rules = expected_rules(protected)
     assert "Read(.env)" in rules["deny"] and "Bash(git push --force *)" in rules["deny"]
 
