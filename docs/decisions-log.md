@@ -18,9 +18,11 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
       .githooks`, `Set-Content .claude/settings.json`), and the ask rules are `Edit` rules the docs
       don't say cover those; the live check used the Edit tool only. So the hook still blocks
       shell write and remove targets in kit config, and leaves file tools to the ask rules.
-      *Rounds 2-3:* `acceptEdits`, `auto`, `dontAsk` and allow-listed commands have the same gap,
-      but widening the block there also blocked everyday commands (`cp file .`, `git restore
-      --staged .`). Which modes it should cover is left to the owner (backlog
+      *Rounds 2-3:* `acceptEdits`, `auto`, `dontAsk` and allow-listed commands have the same gap.
+      Round 2 widened the block to those modes and counted a write into a folder as a write to
+      everything in it, which blocked everyday commands such as `cp file .`; both were undone.
+      (`git restore --staged .` is still blocked in bypass mode, as before this decision.) Which
+      modes the block should cover is left to the owner (backlog
       `kit-config-shell-guard-modes`); until then it stays as before this decision, and
       `protected-paths.md` lists the gap under Known misses.
     - An exemption is allowed only in `secrets`, only as a bare file name (no folder, no trailing

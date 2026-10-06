@@ -61,7 +61,6 @@ more than it is:
   you (`acceptEdits`, `auto`, `dontAsk`, or any mode with an allow rule for the command), and in
   any mode a copy into a folder that replaces a file there (`cp settings.json .claude/`). The ask
   rules cover Claude's file tools; the hook covers shell commands in `bypassPermissions` only.
-
 - Any script or program that opens files itself (`python fix.py`, `node build.js`).
 - Commands inside strings: `bash -c "git push --force"`, `pwsh -Command "..."`.
 - Git aliases (`git pf`), force pushes by refspec (`git push origin +main`), abbreviated options,
