@@ -15,8 +15,9 @@ PAYLOAD = ROOT / "payload"
 SKILLS = PAYLOAD / "kit-owned" / ".claude" / "skills"
 REPO_SKILLS = ROOT / ".claude" / "skills"
 
-EXPECTED = {"next", "plan-feature", "implement", "wrap-up"}
-CHANGES_THINGS = {"plan-feature", "implement", "wrap-up"}  # user-invoked only (decision 67)
+EXPECTED = {"next", "plan-feature", "implement", "wrap-up", "design", "code-health"}
+# User-invoked only (decision 67): they write files, or (code-health) start costly subagents.
+CHANGES_THINGS = {"plan-feature", "implement", "wrap-up", "design", "code-health"}
 KNOWN_FIELDS = {"name", "description", "model", "effort", "allowed-tools", "disable-model-invocation",
                 "argument-hint"}
 MODELS = {"opus", "sonnet", "haiku"}
@@ -199,7 +200,7 @@ def test_wrap_up_waits_for_the_reviewer():
     assert "in the foreground" in body(SKILLS / "wrap-up" / "SKILL.md")
 
 
-@pytest.mark.parametrize("skill", ["plan-feature", "implement", "wrap-up"])
+@pytest.mark.parametrize("skill", ["plan-feature", "implement", "wrap-up", "design", "code-health"])
 def test_skills_that_write_files_say_edit_or_write(skill):
     """Live run: agents changed files with heredocs, sed and `python -`, which the ownership hook
     (Edit|Write|MultiEdit|NotebookEdit) never sees."""
@@ -220,3 +221,41 @@ def test_implement_lists_every_default_shared_path():
     text = body(SKILLS / "implement" / "SKILL.md")
     for shared in DEFAULT_SHARED_PATHS:
         assert f"`{shared.removesuffix('**')}`" in text, f"/implement doesn't name {shared} as shared"
+
+
+# ---- plan 07b: /design and /code-health --------------------------------------------------------
+
+REPORT_TEMPLATE = SKILLS / "code-health" / "report-template.md"
+
+
+def test_code_health_report_template():
+    """Decisions 69, 79: the template sits in the skill's own folder and fixes the finding shape."""
+    text = REPORT_TEMPLATE.read_text(encoding="utf-8")
+    for part in ("\U0001f534", "\U0001f7e0", "\U0001f7e1", "check", "`path:line`"):
+        assert part in text, f"report template lacks {part!r}"
+    assert "report-template.md" in body(SKILLS / "code-health" / "SKILL.md")
+    assert b"\r\n" not in REPORT_TEMPLATE.read_bytes()
+
+
+def test_code_health_says_what_it_adds():
+    """Decision 78: not a diff review; the description steers Claude away from it for one."""
+    description = frontmatter(SKILLS / "code-health" / "SKILL.md")["description"]
+    for phrase in ("whole codebase", "dated report", "backlog"):
+        assert phrase in description, f"description lacks {phrase!r}"
+    assert "/code-review" in description
+
+
+def test_code_health_audits_in_parallel_on_sonnet_and_writes_on_a_branch():
+    text = body(SKILLS / "code-health" / "SKILL.md")
+    assert "in parallel" in text and "`sonnet`" in text  # decision 79
+    assert "docs/health/YYYY-MM-DD.md" in text and "health-YYYY-MM-DD" in text  # decision 80
+    assert "in the foreground" in text  # wait for every area before writing the report
+
+
+def test_design_follows_the_rules_file():
+    """`.claude/rules/design-docs.md` says how a point is settled; /design does exactly that."""
+    text = body(SKILLS / "design" / "SKILL.md")
+    assert "exact" in text and "`docs/design/DESIGN.md`" in text
+    assert "`docs/design/decisions-log.md`" in text
+    assert "changes no branches" in text  # decision 81
+    assert "never read it whole" in text.lower() or "one section" in text

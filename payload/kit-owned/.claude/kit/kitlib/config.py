@@ -41,7 +41,7 @@ DEFAULT_COMMANDS = [
 DEFAULT_SECRETS = [".env", ".env.local", ".env.*.local"]
 # Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
 DEFAULT_SHARED_PATHS = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
-                        "docs/design/decisions-log.md"]
+                        "docs/design/decisions-log.md", "docs/health/**"]
 _RULE_KEYS = {
     "id": (str, True),
     "pattern": (str, True),
