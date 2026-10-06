@@ -1,5 +1,6 @@
 """The live-check helper (tests/live/claude_run.py), against a stand-in `claude` that prints canned
 stream-json events. The real live checks are in tests/live/ and run only with `--live`."""
+
 import json
 import sys
 from pathlib import Path
@@ -9,20 +10,32 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))
 from claude_run import LiveCheckError, claude_config_path, is_trusted, run_claude  # noqa: E402
 
-STUB = '''
+STUB = """
 import json, os, sys
 with open(os.environ["STUB_ARGV"], "w", encoding="utf-8") as out:
     json.dump(sys.argv[1:], out)
 sys.stdout.write(open(os.environ["STUB_EVENTS"], encoding="utf-8").read())
 sys.exit(int(os.environ.get("STUB_EXIT", "0")))
-'''
+"""
 
-INIT = {"type": "system", "subtype": "init", "session_id": "s", "claude_code_version": "2.1.291",
-        "permissionMode": "acceptEdits", "skills": ["next", "wrap-up"], "agents": ["reviewer", "Explore"],
-        "plugins": [{"name": "kit", "path": "/p"}]}
+INIT = {
+    "type": "system",
+    "subtype": "init",
+    "session_id": "s",
+    "claude_code_version": "2.1.291",
+    "permissionMode": "acceptEdits",
+    "skills": ["next", "wrap-up"],
+    "agents": ["reviewer", "Explore"],
+    "plugins": [{"name": "kit", "path": "/p"}],
+}
 HOOK = {"type": "system", "subtype": "hook_started", "hook_name": "PreToolUse:Bash", "hook_event": "PreToolUse"}
-RESULT = {"type": "result", "subtype": "success", "is_error": False, "result": "done",
-          "permission_denials": [{"tool_name": "Edit", "tool_input": {"file_path": "x"}}]}
+RESULT = {
+    "type": "result",
+    "subtype": "success",
+    "is_error": False,
+    "result": "done",
+    "permission_denials": [{"tool_name": "Edit", "tool_input": {"file_path": "x"}}],
+}
 
 
 @pytest.fixture
@@ -51,21 +64,33 @@ def test_every_setting_that_decides_what_loads_is_passed_explicitly(stub, tmp_pa
     run(stub(INIT, RESULT), tmp_path, allowed_tools=["Read"], disallowed_tools=["Write"])
     argv = stub.argv()
     assert argv[:2] == ["-p", "do it"]
-    pairs = {flag: argv[argv.index(flag) + 1] for flag in
-             ("--output-format", "--setting-sources", "--permission-mode", "--model", "--max-budget-usd")}
-    assert pairs == {"--output-format": "stream-json", "--setting-sources": "project,local",
-                     "--permission-mode": "acceptEdits", "--model": "haiku", "--max-budget-usd": "1.0"}
+    pairs = {
+        flag: argv[argv.index(flag) + 1]
+        for flag in ("--output-format", "--setting-sources", "--permission-mode", "--model", "--max-budget-usd")
+    }
+    assert pairs == {
+        "--output-format": "stream-json",
+        "--setting-sources": "project,local",
+        "--permission-mode": "acceptEdits",
+        "--model": "haiku",
+        "--max-budget-usd": "1.0",
+    }
     assert "--verbose" in argv and "--include-hook-events" in argv
     assert argv[argv.index("--allowedTools") + 1] == "Read"
     assert argv[argv.index("--disallowedTools") + 1] == "Write"
 
 
 def test_several_tools_turns_and_extra_flags_reach_claude(stub, tmp_path):
-    run(stub(INIT, RESULT), tmp_path, disallowed_tools=["Bash", "PowerShell", "Write"], max_turns=10,
-        extra_args=["--effort", "low"])
+    run(
+        stub(INIT, RESULT),
+        tmp_path,
+        disallowed_tools=["Bash", "PowerShell", "Write"],
+        max_turns=10,
+        extra_args=["--effort", "low"],
+    )
     argv = stub.argv()
     at = argv.index("--disallowedTools")
-    assert argv[at + 1:at + 4] == ["Bash", "PowerShell", "Write"]
+    assert argv[at + 1 : at + 4] == ["Bash", "PowerShell", "Write"]
     assert argv[argv.index("--max-turns") + 1] == "10"
     assert argv[-2:] == ["--effort", "low"]
 
@@ -96,11 +121,23 @@ def test_returns_the_init_event_the_result_and_the_denials(stub, tmp_path):
 
 def test_what_the_check_relies_on_must_have_loaded(stub, tmp_path):
     command = stub(INIT, HOOK, RESULT)
-    run(command, tmp_path, expect_skills=["next"], expect_agents=["reviewer"], expect_plugins=["kit"],
-        expect_hooks=["PreToolUse:Bash"])
+    run(
+        command,
+        tmp_path,
+        expect_skills=["next"],
+        expect_agents=["reviewer"],
+        expect_plugins=["kit"],
+        expect_hooks=["PreToolUse:Bash"],
+    )
     with pytest.raises(LiveCheckError) as error:
-        run(command, tmp_path, expect_skills=["next", "design"], expect_agents=["auditor"],
-            expect_plugins=["kit", "other"], expect_hooks=["SessionStart", "PreToolUse:Edit"])
+        run(
+            command,
+            tmp_path,
+            expect_skills=["next", "design"],
+            expect_agents=["auditor"],
+            expect_plugins=["kit", "other"],
+            expect_hooks=["SessionStart", "PreToolUse:Edit"],
+        )
     message = str(error.value)
     # Only what's missing is named.
     assert "skills not loaded: design\n" in message
@@ -126,12 +163,15 @@ def test_a_failed_run_fails_loudly(stub, tmp_path):
         run(stub(INIT, RESULT, exit_code=1), tmp_path)
 
 
-@pytest.mark.parametrize("ending", [
-    [],  # the stream stopped after init
-    [{"type": "result", "subtype": "error_max_budget_usd", "is_error": True}],
-    [{"type": "result", "subtype": "error_max_turns", "is_error": False}],
-    [{"type": "result", "subtype": "success", "is_error": True, "result": "API error"}],
-])
+@pytest.mark.parametrize(
+    "ending",
+    [
+        [],  # the stream stopped after init
+        [{"type": "result", "subtype": "error_max_budget_usd", "is_error": True}],
+        [{"type": "result", "subtype": "error_max_turns", "is_error": False}],
+        [{"type": "result", "subtype": "success", "is_error": True, "result": "API error"}],
+    ],
+)
 def test_a_run_that_didnt_finish_its_work_fails(stub, tmp_path, ending):
     # Review round 1: a check with only "nothing changed" assertions would pass on such a run.
     with pytest.raises(LiveCheckError, match="didn't finish"):
@@ -205,8 +245,24 @@ def test_live_checks_are_skipped_unless_asked_for(markers):
     import subprocess
 
     root = Path(__file__).resolve().parent.parent
-    done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:xdist", "-p", "no:cacheprovider",
-                           "-o", "addopts=-ra --strict-markers", *markers, "tests/live"],
-                          cwd=root, capture_output=True, text=True)
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:xdist",
+            "-p",
+            "no:cacheprovider",
+            "-o",
+            "addopts=-ra --strict-markers",
+            *markers,
+            "tests/live",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
     assert done.returncode == 0, done.stdout
     assert " passed" not in done.stdout and "skipped" in done.stdout, done.stdout

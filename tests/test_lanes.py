@@ -1,4 +1,5 @@
 """`kit lanes create / status / remove` on throwaway repos with a bare origin (decisions 35-39, 42, 43)."""
+
 import json
 import os
 
@@ -27,6 +28,7 @@ def head(folder):
 
 
 # ---- create ------------------------------------------------------------------------------------
+
 
 def test_create_makes_detached_worktrees_at_the_integration_tip(repo):
     result = create(repo)
@@ -127,10 +129,14 @@ def test_create_excludes_the_main_checkouts_instructions(repo):
 
 def test_exclusion_merges_with_existing_settings_and_keeps_style(repo):
     write(repo, ".worktreeinclude", ".claude/settings.local.json\n")
-    write(repo, ".claude/settings.local.json", '{\r\n    "claudeMdExcludes": ["/elsewhere/CLAUDE.md"],\r\n    "x": 1\r\n}\r\n')
+    write(
+        repo,
+        ".claude/settings.local.json",
+        '{\r\n    "claudeMdExcludes": ["/elsewhere/CLAUDE.md"],\r\n    "x": 1\r\n}\r\n',
+    )
     assert create(repo, "core").returncode == 0
     raw = (lane_dir(repo, "core") / ".claude/settings.local.json").read_bytes()
-    assert b"\r\n    \"x\": 1" in raw
+    assert b'\r\n    "x": 1' in raw
     data = json.loads(raw)
     assert data["claudeMdExcludes"][0] == "/elsewhere/CLAUDE.md"
     assert len(data["claudeMdExcludes"]) == 4
@@ -146,7 +152,9 @@ def test_unreadable_local_settings_are_left_alone_and_reported(repo):
 
 
 def test_sibling_root_with_project_placeholder(tmp_path):
-    config = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{project}-lanes"')
+    config = LANES_TOML.replace(
+        'integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{project}-lanes"'
+    )
     repo = lanes_repo(tmp_path, config=config)
     assert create(repo, "core").returncode == 0
     folder = tmp_path / "demo-lanes" / "core"
@@ -179,6 +187,7 @@ def test_create_without_lanes_says_so(tmp_path):
 
 # ---- lane lookup -------------------------------------------------------------------------------
 
+
 def test_current_lane_from_main_lane_and_subfolder(repo):
     assert create(repo).returncode == 0
     config = load(repo)
@@ -203,6 +212,7 @@ def test_a_folder_that_is_not_a_lane(tmp_path, repo):
 
 
 # ---- remove ------------------------------------------------------------------------------------
+
 
 def test_remove_deletes_the_worktree(repo):
     assert create(repo, "core").returncode == 0
@@ -242,6 +252,7 @@ def test_remove_refuses_the_lane_it_runs_in(repo):
 
 
 # ---- status ------------------------------------------------------------------------------------
+
 
 def status(repo, *args, env=None, cwd=None):
     return run_cli(cwd or repo, "lanes", "status", *args, env=env or no_gh_env(repo))
@@ -363,7 +374,9 @@ def test_status_shows_an_open_pr_whose_head_is_not_fetched(tmp_path, repo):
     git(folder, "switch", "-q", "-c", "core/login")
     commit(folder, "src/core/b.py", "y = 1\n")
     pr = {"number": 5, "state": "OPEN", "url": "u5", "headRefOid": "c" * 40, "baseRefName": "main"}
-    assert "PR #5 OPEN (head not fetched)" in lane_line(status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core")
+    assert "PR #5 OPEN (head not fetched)" in lane_line(
+        status(repo, env=fake_gh(tmp_path / "bin", [pr])).stdout, "core"
+    )
 
 
 def test_status_shows_a_pr_the_lane_has_added_commits_to(tmp_path, repo):
@@ -428,6 +441,7 @@ def test_status_from_inside_a_lane_marks_it(repo):
 
 def test_status_with_a_lane_folder_removed_by_hand(repo):
     import shutil
+
     assert create(repo, "core").returncode == 0
     shutil.rmtree(lane_dir(repo, "core"))
     result = status(repo)
@@ -446,6 +460,7 @@ def test_lanes_commands_report_a_broken_config(tmp_path):
 
 
 # ---- from the first review ---------------------------------------------------------------------
+
 
 def test_local_mode_creates_from_the_local_branch(tmp_path):
     config = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nmerge_mode = "local"')

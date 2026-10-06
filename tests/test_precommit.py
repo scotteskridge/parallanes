@@ -1,4 +1,5 @@
 """The git pre-commit hook blocks a commit with a violation and lets a clean one through."""
+
 import shutil
 import stat
 import subprocess

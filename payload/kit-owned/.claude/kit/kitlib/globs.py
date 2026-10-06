@@ -4,6 +4,7 @@ Paths are relative to the project root and use `/`. A pattern without a slash ma
 at any depth (`*.py`); a pattern with a slash is anchored at the root (`src/*.py`). `**` crosses
 folders, `*` and `?` don't, and a trailing `/` means everything inside that folder.
 """
+
 import functools
 import re
 

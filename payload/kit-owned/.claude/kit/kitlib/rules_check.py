@@ -1,4 +1,5 @@
 """Forbidden-pattern rules from `[[checks.rules]]` in kit.toml, applied line by line."""
+
 import posixpath
 
 from .comments import split_lines, strip_comments

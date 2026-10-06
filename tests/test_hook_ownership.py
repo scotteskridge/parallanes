@@ -1,4 +1,5 @@
 """The ownership PreToolUse hook: out-of-lane edits ask the user; it fails open (decision 41)."""
+
 import json
 import os
 
@@ -16,10 +17,16 @@ SHARED_TOML = LANES_TOML.replace(
 
 def pre_tool_use(cwd, target, tool="Edit", mode="default"):
     key = "notebook_path" if tool == "NotebookEdit" else "file_path"
-    return json.dumps({
-        "session_id": "t", "cwd": str(cwd), "hook_event_name": "PreToolUse", "permission_mode": mode,
-        "tool_name": tool, "tool_input": {key: str(target)},
-    })
+    return json.dumps(
+        {
+            "session_id": "t",
+            "cwd": str(cwd),
+            "hook_event_name": "PreToolUse",
+            "permission_mode": mode,
+            "tool_name": tool,
+            "tool_input": {key: str(target)},
+        }
+    )
 
 
 def hook(cwd, target, tool="Edit"):
@@ -57,7 +64,9 @@ def test_shared_path_is_allowed(lane):
 
 @pytest.mark.parametrize("tool", ["Edit", "Write", "MultiEdit", "NotebookEdit"])
 def test_out_of_lane_path_asks_with_the_reason(lane, tool):
-    assert_asks(hook(lane, lane / "src/api/routes.py", tool), "src/api/routes.py", "'core'", "src/core/**", "docs/plans/**")
+    assert_asks(
+        hook(lane, lane / "src/api/routes.py", tool), "src/api/routes.py", "'core'", "src/core/**", "docs/plans/**"
+    )
 
 
 def test_relative_path_from_a_subfolder(lane):
@@ -87,8 +96,10 @@ def test_main_checkout_is_not_judged(lane):
 
 
 def test_ownership_off(tmp_path):
-    repo = lanes_repo(tmp_path, config=LANES_TOML.replace(
-        'integration_branch = "main"', 'integration_branch = "main"\nownership = "off"'))
+    repo = lanes_repo(
+        tmp_path,
+        config=LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nownership = "off"'),
+    )
     assert run_cli(repo, "lanes", "create", "core").returncode == 0
     lane = lane_dir(repo, "core")
     assert_allowed(hook(lane, lane / "src/api/x.py"))
@@ -121,6 +132,7 @@ def test_broken_config_fails_open(lane):
 
 # ---- from the first review ---------------------------------------------------------------------
 
+
 def test_editing_the_main_checkout_or_another_lane_asks(lane):
     main = lane.parents[2]
     assert_asks(hook(lane, main / "src/core/x.py"), "main checkout")
@@ -132,8 +144,9 @@ def test_owned_path_in_another_case_is_allowed(lane):
     assert_allowed(hook(lane, lane / "SRC/Core/x.py"))
 
 
-@pytest.mark.parametrize("name, event", [("ownership", "PreToolUse"), ("lane-router", "SessionStart"),
-                                         ("rules-check", "PreToolUse")])
+@pytest.mark.parametrize(
+    "name, event", [("ownership", "PreToolUse"), ("lane-router", "SessionStart"), ("rules-check", "PreToolUse")]
+)
 def test_kit_that_cannot_import_fails_open_for_the_lane_hooks(tmp_path, name, event):
     # Only the protected guard fails closed on an old Python (decisions 9, 33, 40, 41).
     import subprocess
@@ -144,11 +157,22 @@ def test_kit_that_cannot_import_fails_open_for_the_lane_hooks(tmp_path, name, ev
     fake = tmp_path / "fakes"
     fake.mkdir()
     (fake / "tomllib.py").write_text("raise ImportError('simulated: no tomllib')\n", encoding="utf-8")
-    payload = json.dumps({"cwd": str(tmp_path), "hook_event_name": event, "tool_name": "Edit",
-                          "tool_input": {"file_path": str(tmp_path / "a.py")}})
+    payload = json.dumps(
+        {
+            "cwd": str(tmp_path),
+            "hook_event_name": event,
+            "tool_name": "Edit",
+            "tool_input": {"file_path": str(tmp_path / "a.py")},
+        }
+    )
     result = subprocess.run(
-        [sys.executable, str(CLI), "hook", name], cwd=tmp_path, input=payload, capture_output=True,
-        text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+        [sys.executable, str(CLI), "hook", name],
+        cwd=tmp_path,
+        input=payload,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=dict(os.environ, PYTHONPATH=str(fake)),
     )
     assert result.returncode == 1, result
     assert "simulated: no tomllib" in result.stderr

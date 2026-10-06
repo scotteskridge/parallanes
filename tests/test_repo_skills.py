@@ -4,6 +4,7 @@
 still prompt. So the grant list is what must stay read-only: a wildcard like `git branch *` would
 silently pre-approve `git branch -D`.
 """
+
 import re
 from pathlib import Path
 

@@ -1,4 +1,5 @@
 """`kit lanes start <task>`: a fresh task branch, only once the previous one is proved merged (decisions 46, 47, 51)."""
+
 import subprocess
 
 import pytest
@@ -44,6 +45,7 @@ def land_on_origin(repo, rel="src/api/other.py"):
 
 
 # ---- the new branch ------------------------------------------------------------------------------
+
 
 def test_start_between_tasks_creates_the_branch_at_the_fetched_tip(pr_lane, tmp_path):
     repo, lane = pr_lane
@@ -114,6 +116,7 @@ def test_a_branch_that_is_not_a_task_branch_is_left_alone(pr_lane, tmp_path):
 
 
 # ---- the previous branch -------------------------------------------------------------------------
+
 
 def test_previous_branch_merged_by_ancestry_is_deleted(pr_lane, tmp_path):
     repo, lane = pr_lane
@@ -219,6 +222,7 @@ def test_works_from_a_subfolder_of_the_lane(pr_lane, tmp_path):
 
 # ---- from the first review -----------------------------------------------------------------------
 
+
 def test_detached_commits_are_not_orphaned(pr_lane, tmp_path):
     _, lane = pr_lane
     orphan = commit(lane, "src/core/loose.py", "l = 1\n", "made between tasks")  # lane is detached
@@ -265,6 +269,7 @@ def test_merged_pr_whose_head_is_newer_than_the_local_tip_counts(pr_lane, tmp_pa
 
 # ---- from the second review ----------------------------------------------------------------------
 
+
 def test_a_name_freed_on_origin_can_be_used_again(pr_lane, tmp_path):
     """GitHub's "automatically delete head branches": the stale remote-tracking ref is pruned."""
     repo, lane = pr_lane
@@ -305,6 +310,7 @@ def test_merged_pr_head_only_on_the_pull_ref_is_fetched(pr_lane, tmp_path):
 
 # ---- from the third review -----------------------------------------------------------------------
 
+
 def test_a_pr_merged_into_another_branch_does_not_count(pr_lane, tmp_path):
     """A stacked PR merged into its parent branch hasn't reached the integration branch yet."""
     _, lane = pr_lane
@@ -341,11 +347,14 @@ def test_an_unreachable_pull_ref_makes_no_claim(pr_lane, tmp_path, monkeypatch):
 
 # ---- from the fourth review ----------------------------------------------------------------------
 
+
 def test_a_stacked_pr_does_not_hide_one_merged_into_main(pr_lane, tmp_path):
     _, lane = pr_lane
     work = on_task_with_work(lane)
-    prs = [{"number": 8, "state": "MERGED", "headRefOid": work, "url": "u8", "baseRefName": "main"},
-           {"number": 6, "state": "MERGED", "headRefOid": work, "url": "u6", "baseRefName": "core/parent"}]
+    prs = [
+        {"number": 8, "state": "MERGED", "headRefOid": work, "url": "u8", "baseRefName": "main"},
+        {"number": 6, "state": "MERGED", "headRefOid": work, "url": "u6", "baseRefName": "core/parent"},
+    ]
     result = start(lane, "second", env=scripted_gh(tmp_path / "gh", prs=prs))
     assert result.returncode == 0, result.stderr
     assert "#8" in result.stdout

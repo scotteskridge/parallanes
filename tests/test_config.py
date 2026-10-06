@@ -60,7 +60,7 @@ def test_missing_required_key_is_reported(tmp_path):
 
 
 def test_duplicate_rule_ids_are_reported(tmp_path):
-    rule = RULES_TOML[RULES_TOML.index("[[checks.rules]]"):]
+    rule = RULES_TOML[RULES_TOML.index("[[checks.rules]]") :]
     assert "duplicate" in config_error(tmp_path, RULES_TOML + rule).lower()
 
 
@@ -107,6 +107,7 @@ def test_config_without_rules_is_valid(tmp_path):
 
 # ---- [protected] (plan 03) ----------------------------------------------------------------------
 
+
 def test_protected_defaults_apply_without_the_table(tmp_path):
     # A project that never wrote [protected] still gets the dangerous-command and secrets defaults.
     protected = load(make_repo(tmp_path)).protected
@@ -127,13 +128,16 @@ def test_exemptions_after_a_name_they_can_cancel_load(tmp_path, secrets):
 
 
 def test_protected_table_loads(tmp_path):
-    text = RULES_TOML + '''
+    text = (
+        RULES_TOML
+        + """
 [protected]
 paths = ["vendor/**", "docs/originals/"]
 commands = ["git push --force"]
 secrets = []
 guard_kit = false
-'''
+"""
+    )
     protected = load(make_repo(tmp_path, config=text)).protected
     assert protected.paths == ["vendor/**", "docs/originals/"]
     assert protected.commands == ["git push --force"]
@@ -146,13 +150,13 @@ guard_kit = false
     [
         ('pathes = ["x"]', "pathes"),
         ('paths = "vendor/**"', "paths"),
-        ('paths = [1]', "paths"),
+        ("paths = [1]", "paths"),
         ('paths = ["a[]b"]', "paths"),
         ('paths = ["../outside/**"]', "paths"),
         ('paths = ["//c/abs/**"]', "paths"),
         ('paths = ["~/home/**"]', "paths"),
         ('commands = ["  "]', "commands"),
-        ("commands = [\"git push '--force\"]", "commands"),
+        ('commands = ["git push \'--force"]', "commands"),
         ('secrets = [""]', "secrets"),
         # Exemptions (decision 92): bare names only, in secrets only, after a bare name they can cancel.
         ('secrets = [".env.*", "!config/.env.example"]', "bare file name"),

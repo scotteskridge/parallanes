@@ -5,6 +5,7 @@ a deny rule and one neither. The deny rule shows the project settings loaded; a 
 Edit shows hooks loaded (`--bare` would skip it); the control run without the ask rule shows the
 ask rule is what stops the edit.
 """
+
 import json
 
 import pytest
@@ -13,8 +14,10 @@ from claude_run import run_claude, scratch_project
 
 pytestmark = pytest.mark.live
 
-PROMPT = ("Read free.txt, guarded.txt and denied.txt, then use the Edit tool to replace 'original' with "
-          "'changed' in each, one Edit call per file. Do not use any other way to change them.")
+PROMPT = (
+    "Read free.txt, guarded.txt and denied.txt, then use the Edit tool to replace 'original' with "
+    "'changed' in each, one Edit call per file. Do not use any other way to change them."
+)
 EDIT_HOOK = {"PreToolUse": [{"matcher": "Edit", "hooks": [{"type": "command", "command": "exit 0"}]}]}
 
 
@@ -23,16 +26,22 @@ def project(name: str, ask: bool):
     (folder / ".claude").mkdir(exist_ok=True)
     permissions = {"deny": ["Edit(/denied.txt)"], **({"ask": ["Edit(/guarded.txt)"]} if ask else {})}
     (folder / ".claude" / "settings.json").write_text(
-        json.dumps({"permissions": permissions, "hooks": EDIT_HOOK}), encoding="utf-8")
+        json.dumps({"permissions": permissions, "hooks": EDIT_HOOK}), encoding="utf-8"
+    )
     for file in ("free", "guarded", "denied"):
         (folder / f"{file}.txt").write_text("original\n", encoding="utf-8")
     return folder
 
 
 def edit_all(folder, mode):
-    return run_claude(folder, PROMPT, permission_mode=mode, max_turns=10,
-                      disallowed_tools=["Bash", "PowerShell", "Write", "NotebookEdit"],
-                      expect_hooks=["PreToolUse:Edit"])
+    return run_claude(
+        folder,
+        PROMPT,
+        permission_mode=mode,
+        max_turns=10,
+        disallowed_tools=["Bash", "PowerShell", "Write", "NotebookEdit"],
+        expect_hooks=["PreToolUse:Edit"],
+    )
 
 
 def changed(folder, name):

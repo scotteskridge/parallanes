@@ -1,4 +1,5 @@
 """Protected paths: the shared path logic and `kit check protected` (pre-commit and CI)."""
+
 import os
 
 import pytest
@@ -8,17 +9,32 @@ from kitlib.config import Protected
 from kitlib.protected import path_reason
 from test_precommit import commit, install_hook
 
-PROTECTED_TOML = RULES_TOML + """
+PROTECTED_TOML = (
+    RULES_TOML
+    + """
 [protected]
 paths = ["vendor/**", "docs/originals/", "*.lock"]
 """
+)
 
 
 @pytest.mark.parametrize(
     "path",
-    ["vendor/lib.py", "vendor/deep/x.c", "vendor", "vendor/", "vendor\\lib.py", "docs/originals/a.md",
-     "poetry.lock", "sub/poetry.lock", ".env", "app/.env.local", "x/.env.test.local", ".env.production",
-     "app/.env.staging"],
+    [
+        "vendor/lib.py",
+        "vendor/deep/x.c",
+        "vendor",
+        "vendor/",
+        "vendor\\lib.py",
+        "docs/originals/a.md",
+        "poetry.lock",
+        "sub/poetry.lock",
+        ".env",
+        "app/.env.local",
+        "x/.env.test.local",
+        ".env.production",
+        "app/.env.staging",
+    ],
 )
 def test_protected_and_secret_paths_are_reported(path):
     protected = Protected(paths=["vendor/**", "docs/originals/", "*.lock"])
@@ -33,7 +49,9 @@ def test_other_paths_are_not(path):
     assert path_reason(protected, path) is None
 
 
-@pytest.mark.parametrize("path", [".claude/settings.json", ".claude/kit.toml", ".claude/kit/cli.py", ".githooks/pre-commit"])
+@pytest.mark.parametrize(
+    "path", [".claude/settings.json", ".claude/kit.toml", ".claude/kit/cli.py", ".githooks/pre-commit"]
+)
 def test_kit_config_is_left_to_the_ask_rules(path):
     # Decision 92: ask rules prompt in every mode, bypassPermissions included, so the hook adds nothing.
     assert path_reason(Protected(), path) is None
@@ -64,6 +82,7 @@ def test_reason_names_the_pattern_and_where_it_lives():
 
 
 # ---- kit check protected ------------------------------------------------------------------------
+
 
 def committed_repo(tmp_path):
     repo = make_repo(tmp_path, config=PROTECTED_TOML)

@@ -5,6 +5,7 @@ compound commands, quotes, `FOO=bar` prefixes, wrappers (`env`, `sudo`, `timeout
 options (`git -C dir`), flags in any order and short-flag clusters (`-xdf`). It does not follow
 `bash -c "..."` strings, aliases, `+refspec` pushes or scripts; the docs list those as misses.
 """
+
 import ntpath
 import re
 from dataclasses import dataclass
@@ -164,7 +165,7 @@ def matches(command: Command, pattern: Pattern) -> bool:
     if command.args[: len(pattern.words)] != pattern.words:
         return False
     present = set()
-    for arg in command.args[len(pattern.words):]:
+    for arg in command.args[len(pattern.words) :]:
         if arg == "--":
             break  # after `--`, words are operands (`grep -- --force` names a pattern)
         present |= _expand(arg)
@@ -218,7 +219,7 @@ def _sets_allow_variable(words: list[str]) -> bool:
         i += 1
     if i >= len(words):
         return False
-    first, args = words[i].lower(), [word.lower() for word in words[i + 1:]]
+    first, args = words[i].lower(), [word.lower() for word in words[i + 1 :]]
     if first.startswith("$env:" + _ALLOW_NAME):  # `$env:X = 1`, `$env:X='1'`
         return "=" in first or bool(args) and args[0].startswith("=")
     if first in _DECLARERS:  # `export X=1`, `set X=1`, `setx X 1`

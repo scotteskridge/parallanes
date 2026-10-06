@@ -3,6 +3,7 @@
 It sits in the reviewer agent's own frontmatter as a PreToolUse hook. In PreToolUse only exit 2
 blocks; exit 1 and timeouts let the call through, so every error path must exit 2.
 """
+
 import json
 import os
 import shutil
@@ -18,9 +19,9 @@ ALLOWED = [
     "git diff",
     "git diff main...HEAD",
     "git diff --stat abc123",
-    "git -C \"D:/my project/lane\" diff --name-only main...HEAD",
+    'git -C "D:/my project/lane" diff --name-only main...HEAD',
     "git --no-pager log --oneline -5",
-    "git log -p -- \"src/a file.py\"",
+    'git log -p -- "src/a file.py"',
     "git show HEAD:docs/plan.md",
     "git status --short",
     "git merge-base main HEAD",
@@ -38,19 +39,19 @@ ALLOWED = [
     "git grep 'foo$'",
     "git grep -e '<script'",
     "git log --format='%H -> %s'",
-    "git log \"--format=%H <%ae>\"",
+    'git log "--format=%H <%ae>"',
     "git show HEAD@{1}",
     "git rev-parse @{u}",
     "git log main@{upstream}..HEAD",
     "git --no-optional-locks status --short",
     "git.exe diff",
     "git ls-files -- '*.py'",
-    "git grep -n \"TODO*\"",
+    'git grep -n "TODO*"',
     "git diff -- \\*.py",
     "git cat-file -p HEAD^{tree}",
     "git rev-parse HEAD^{commit}",
     # Agents habitually start with `cd <project> &&`; changing folder reads nothing and writes nothing.
-    "cd \"D:/my project\" && git diff main...HEAD",
+    'cd "D:/my project" && git diff main...HEAD',
     "cd lane && git status",
 ]
 
@@ -86,7 +87,7 @@ BLOCKED = [
     "",
     # Review findings: `-O` takes its program attached, alone or in a short-flag cluster.
     "git grep -Omkdir TODO",
-    "git grep \"-Omkdir pwned\" hello",
+    'git grep "-Omkdir pwned" hello',
     "git grep -nOecho TODO",
     "git grep -Orm TODO",
     # A file named git is not git: it could be a script the branch under review added.
@@ -95,8 +96,8 @@ BLOCKED = [
     "C:/tools/git.exe log",
     "/usr/bin/git diff",
     # Substitution still runs inside double quotes; a brace ref doesn't hide a second command.
-    "git log \"$(rm x)\"",
-    "git log \"`rm x`\"",
+    'git log "$(rm x)"',
+    'git log "`rm x`"',
     "git show HEAD@{1}; rm x",
     # Second review: bash expands an unquoted glob after the guard has read the words, so a file the
     # branch adds (`--output=AGENTS.md`, `-Orm`) would become an option.
@@ -128,18 +129,22 @@ def test_the_reason_fits_the_character():
 
 
 def pre_tool_use(cwd, tool, tool_input):
-    return json.dumps({
-        "session_id": "test",
-        "cwd": str(cwd),
-        "hook_event_name": "PreToolUse",
-        "tool_name": tool,
-        "tool_input": tool_input,
-    })
+    return json.dumps(
+        {
+            "session_id": "test",
+            "cwd": str(cwd),
+            "hook_event_name": "PreToolUse",
+            "tool_name": tool,
+            "tool_input": tool_input,
+        }
+    )
 
 
 @pytest.mark.slow
 def test_hook_blocks_with_exit_2_and_says_why(tmp_path):
-    result = run_cli(tmp_path, "hook", "reviewer-bash", stdin=pre_tool_use(tmp_path, "Bash", {"command": "git commit -m x"}))
+    result = run_cli(
+        tmp_path, "hook", "reviewer-bash", stdin=pre_tool_use(tmp_path, "Bash", {"command": "git commit -m x"})
+    )
     assert result.returncode == 2
     assert "read-only" in result.stderr
     assert "git with one of" in result.stderr and " diff," in result.stderr  # says what is allowed
@@ -184,8 +189,9 @@ def test_launcher_runs_the_hook_and_keeps_exit_2(tmp_path):
     shutil.copytree(LAUNCHER.parent, kit, ignore=shutil.ignore_patterns("__pycache__", "python-path"))
     (kit / "python-path").write_text(sys.executable + "\n", encoding="utf-8")
     stdin = pre_tool_use(tmp_path, "Bash", {"command": "git checkout main"})
-    result = subprocess.run(["sh", (kit / "hook").as_posix(), "reviewer-bash"], input=stdin,
-                            capture_output=True, text=True, cwd=tmp_path)
+    result = subprocess.run(
+        ["sh", (kit / "hook").as_posix(), "reviewer-bash"], input=stdin, capture_output=True, text=True, cwd=tmp_path
+    )
     assert result.returncode == 2, result.stderr
     assert "read-only" in result.stderr
 
@@ -197,8 +203,9 @@ def test_launcher_fails_closed_without_python(tmp_path):
     kit.mkdir(parents=True)
     shutil.copy(LAUNCHER, kit / "hook")
     (kit / "python-path").write_text(str(tmp_path / "no-such-python") + "\n", encoding="utf-8")
-    result = subprocess.run(["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}",
-                            capture_output=True, text=True, cwd=tmp_path)
+    result = subprocess.run(
+        ["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}", capture_output=True, text=True, cwd=tmp_path
+    )
     assert result.returncode == 2
 
 
@@ -211,8 +218,9 @@ def test_launcher_turns_a_crash_into_a_block(tmp_path):
     shutil.copy(LAUNCHER, kit / "hook")
     (kit / "cli.py").write_text("raise SystemExit(1)\n", encoding="utf-8")
     (kit / "python-path").write_text(sys.executable + "\n", encoding="utf-8")
-    result = subprocess.run(["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}",
-                            capture_output=True, text=True, cwd=tmp_path)
+    result = subprocess.run(
+        ["sh", (kit / "hook").as_posix(), "reviewer-bash"], input="{}", capture_output=True, text=True, cwd=tmp_path
+    )
     assert result.returncode == 2
     assert "failed (exit 1)" in result.stderr
 
@@ -227,8 +235,12 @@ def test_kit_that_cannot_import_blocks(tmp_path):
 
     result = subprocess.run(
         [sys.executable, str(CLI), "hook", "reviewer-bash"],
-        cwd=tmp_path, input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "git diff"}}),
-        capture_output=True, text=True, encoding="utf-8", env=dict(os.environ, PYTHONPATH=str(fake)),
+        cwd=tmp_path,
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "git diff"}}),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=dict(os.environ, PYTHONPATH=str(fake)),
     )
     assert result.returncode == 2, result.stderr
     assert "simulated: no tomllib" in result.stderr

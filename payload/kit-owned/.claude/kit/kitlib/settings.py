@@ -5,6 +5,7 @@ shell commands it recognizes. `settings.json` has no comments to mark which rule
 rules the kit wrote are recorded in `.claude/kit/generated-rules.json`; sync only adds rules and
 removes recorded ones, and never touches a rule the owner wrote.
 """
+
 import json
 import os
 import re
@@ -88,8 +89,9 @@ def _misplaced(rules: list, expected: list) -> list:
             continue
         before, after = _around(rule, expected)
         at = rules.index(rule)
-        if any(other in rules and rules.index(other) > at for other in before) or \
-                any(other in rules and rules.index(other) < at for other in after):
+        if any(other in rules and rules.index(other) > at for other in before) or any(
+            other in rules and rules.index(other) < at for other in after
+        ):
             misplaced.append(rule)
     return misplaced
 
@@ -104,8 +106,11 @@ def _place(kept: list, added: list, expected: list) -> tuple[list, list]:
     """
     rules = list(kept)
     for rule in added:
-        targets = [other for other in rules if _is_exemption(other) and other in expected
-                   and rule in _around(other, expected)[0]]
+        targets = [
+            other
+            for other in rules
+            if _is_exemption(other) and other in expected and rule in _around(other, expected)[0]
+        ]
         if targets and not _is_exemption(rule):
             rules.insert(min(rules.index(other) for other in targets), rule)
         else:
@@ -151,6 +156,7 @@ def _rule_lists(data: dict, what: str) -> dict:
 @dataclass(frozen=True)
 class Style:
     """How the owner's settings.json is formatted, so a sync changes only the rules."""
+
     indent: str | int = 2
     newline: str = "\n"
     bom: bool = False
@@ -256,7 +262,9 @@ def check(root: Path, config) -> list[Finding]:
                 message = f"{name} rule {rule} is no longer in [protected]; run `kit settings sync`"
                 findings.append(Finding(path=where, line=0, check=CHECK, message=message))
         for rule in _misplaced(current[name], expected[name]):
-            message = (f"{name} rule {rule} is out of order with the rules [protected].secrets puts around it, "
-                       "so it cancels the wrong ones; run `kit settings sync`")
+            message = (
+                f"{name} rule {rule} is out of order with the rules [protected].secrets puts around it, "
+                "so it cancels the wrong ones; run `kit settings sync`"
+            )
             findings.append(Finding(path=where, line=0, check=CHECK, message=message))
     return findings

@@ -1,12 +1,26 @@
 """`kit lanes create` and `kit lanes remove`: making and removing lane worktrees (decisions 35, 39, 45)."""
+
 import filecmp
 import os
 import shutil
 import subprocess
 from pathlib import Path
 
-from .lanes import (LaneError, find_lane, git, integration_tip, is_nested, is_registered, lane_folder, locate, main_checkout,
-                    registered_worktrees, same_path, toplevel, worktree_root)
+from .lanes import (
+    LaneError,
+    find_lane,
+    git,
+    integration_tip,
+    is_nested,
+    is_registered,
+    lane_folder,
+    locate,
+    main_checkout,
+    registered_worktrees,
+    same_path,
+    toplevel,
+    worktree_root,
+)
 from .settings import SettingsError, Style, read_json, style_of, write_json
 
 LOCAL_SETTINGS_REL = Path(".claude") / "settings.local.json"
@@ -24,6 +38,7 @@ class PartialCreate(LaneError):
 
 
 # ---- create ------------------------------------------------------------------------------------
+
 
 def _selected(config, names) -> list:
     if not config.lanes:
@@ -45,8 +60,7 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
         # A folder that isn't ignored shows up as an untracked nested repository in every `git status`.
         if _not_ignored(main, f"{rel}/x"):
             raise LaneError(
-                f"{rel}/ is not gitignored. Add this line to .gitignore, commit it, then run this again:\n"
-                f"  {rel}/"
+                f"{rel}/ is not gitignored. Add this line to .gitignore, commit it, then run this again:\n  {rel}/"
             )
 
     registered = registered_worktrees(main)
@@ -63,15 +77,19 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
             if not exists and folder.exists():
                 raise LaneError(f"{folder} exists but is not this lane's worktree; move it away first")
             if dry_run:
-                lines.append(f"{lane.name}: " + (f"already created at {folder}" if exists else
-                                                 f"would create {folder}, detached at {tip}"))
+                lines.append(
+                    f"{lane.name}: "
+                    + (f"already created at {folder}" if exists else f"would create {folder}, detached at {tip}")
+                )
                 continue
             if not exists:
                 git(main, "worktree", "add", "--detach", str(folder), tip)
                 _check_traceable(main, folder)
             # Reported once the worktree exists: a later step's failure is an error of its own.
-            lines.append(f"{lane.name}: " + (f"already created at {folder}" if exists else
-                                             f"created {folder}, detached at {tip}"))
+            lines.append(
+                f"{lane.name}: "
+                + (f"already created at {folder}" if exists else f"created {folder}, detached at {tip}")
+            )
             # On a rerun this copies only what is missing (a failed run's leftovers), never overwriting.
             _copy(main, folder, include)
             if is_nested(main, folder):
@@ -136,8 +154,11 @@ def _worktreeinclude_files(main: Path, root: Path) -> list[str]:
     if not listed:
         return []
     result = subprocess.run(
-        ["git", "check-ignore", "-z", "--stdin"], cwd=main, input="\0".join(listed).encode("utf-8"),
-        capture_output=True, timeout=60,
+        ["git", "check-ignore", "-z", "--stdin"],
+        cwd=main,
+        input="\0".join(listed).encode("utf-8"),
+        capture_output=True,
+        timeout=60,
     )
     if result.returncode not in (0, 1):
         raise LaneError(f"git check-ignore failed: {result.stderr.decode('utf-8', 'replace').strip()}")
@@ -156,7 +177,9 @@ def exclude_main_instructions(main: Path, folder: Path) -> None:
     try:
         data = read_json(path, what)
     except SettingsError as error:
-        raise LaneError(f"{error}. The lane was created; add claudeMdExcludes by hand (docs/ai/parallel-lanes.md)") from None
+        raise LaneError(
+            f"{error}. The lane was created; add claudeMdExcludes by hand (docs/ai/parallel-lanes.md)"
+        ) from None
     excludes = data.get("claudeMdExcludes", [])
     if not isinstance(excludes, list):
         raise LaneError(f"{what}: 'claudeMdExcludes' must be a list; left untouched")
@@ -174,6 +197,7 @@ def main_instruction_excludes(main: Path) -> list[str]:
 
 
 # ---- remove ------------------------------------------------------------------------------------
+
 
 def remove(start: Path, config, name: str, force: bool = False) -> str:
     lane = find_lane(config, name)
@@ -235,10 +259,7 @@ def _same_content(mine: Path, original: Path) -> bool:
         return original.is_file() and _identical_files(mine, original)
     if not mine.is_dir() or not original.is_dir():
         return False
-    return all(
-        path.is_dir() or _same_content(path, original / path.relative_to(mine))
-        for path in mine.rglob("*")
-    )
+    return all(path.is_dir() or _same_content(path, original / path.relative_to(mine)) for path in mine.rglob("*"))
 
 
 def _identical_files(a: Path, b: Path) -> bool:

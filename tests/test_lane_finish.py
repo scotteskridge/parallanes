@@ -1,4 +1,5 @@
 """`kit lanes finish`: sync, run the tests, then open a PR or fast-forward (decisions 49, 50)."""
+
 import subprocess
 import sys
 
@@ -28,6 +29,7 @@ def remote_branch(repo, name):
 
 
 # ---- PR mode -------------------------------------------------------------------------------------
+
 
 @pytest.fixture
 def pr_lane(tmp_path):
@@ -74,7 +76,9 @@ def test_body_from_stdin_reaches_gh(pr_lane, tmp_path):
     assert result.returncode == 0, result.stderr
     call = next(call for call in gh_calls(gh) if call[:2] == ["pr", "create"])
     assert call[call.index("--body-file") + 1] == "-"
-    assert (gh / "gh-stdin.txt").read_bytes() == body.encode("utf-8")  # exact bytes: no carriage returns added on Windows
+    assert (gh / "gh-stdin.txt").read_bytes() == body.encode(
+        "utf-8"
+    )  # exact bytes: no carriage returns added on Windows
 
 
 def test_empty_stdin_body_is_refused_before_anything_happens(pr_lane, tmp_path):
@@ -176,6 +180,7 @@ def test_missing_test_command_is_refused(tmp_path):
 
 # ---- local mode ----------------------------------------------------------------------------------
 
+
 @pytest.fixture
 def local_lane(tmp_path):
     repo, lane = cycle_repo(tmp_path, mode="local")
@@ -205,8 +210,13 @@ def test_local_mode_accepts_a_stdin_body_and_lands(local_lane, tmp_path):
 def test_a_stdin_body_that_is_not_utf8_is_refused_before_anything_happens(local_lane, tmp_path):
     repo, lane, work = local_lane
     before = rev(repo, "main")
-    result = subprocess.run([sys.executable, str(CLI), "lanes", "finish", "--body-file", "-"], cwd=lane,
-                            input="Café\n".encode("cp1252"), capture_output=True, env=no_gh_env(tmp_path))
+    result = subprocess.run(
+        [sys.executable, str(CLI), "lanes", "finish", "--body-file", "-"],
+        cwd=lane,
+        input="Café\n".encode("cp1252"),
+        capture_output=True,
+        env=no_gh_env(tmp_path),
+    )
     assert result.returncode == 2, result.stderr
     assert b"UTF-8" in result.stderr and b"Traceback" not in result.stderr
     assert recorded_test_runs(tmp_path) == []
@@ -246,6 +256,7 @@ def test_local_mode_failing_tests_leave_main_alone(local_lane, tmp_path):
 
 
 # ---- from the first review -----------------------------------------------------------------------
+
 
 def test_outside_a_lane_or_between_tasks_is_refused(pr_lane, tmp_path):
     repo, lane = pr_lane
@@ -311,6 +322,7 @@ def test_local_mode_refuses_while_another_lane_holds_main(local_lane, tmp_path):
 
 # ---- from the second review ----------------------------------------------------------------------
 
+
 def test_untracked_reports_from_the_tests_do_not_block(pr_lane, tmp_path):
     repo, lane = pr_lane
     (tmp_path / "REPORT").write_text("", encoding="utf-8")
@@ -354,6 +366,7 @@ def test_local_mode_non_race_push_failure_is_not_retried(local_lane, tmp_path):
 
 # ---- from the third review -----------------------------------------------------------------------
 
+
 def test_local_mode_names_a_gone_worktree_that_still_holds_main(local_lane, tmp_path):
     import shutil
 
@@ -368,6 +381,7 @@ def test_local_mode_names_a_gone_worktree_that_still_holds_main(local_lane, tmp_
 
 
 # ---- untracked files: tracked changes refuse, untracked ones are a note (owner's call) ------------
+
 
 def test_test_reports_do_not_block_the_next_finish(pr_lane, tmp_path):
     repo, lane = pr_lane

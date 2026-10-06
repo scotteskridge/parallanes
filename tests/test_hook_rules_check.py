@@ -1,4 +1,5 @@
 """Hook mode: Claude Code sends PostToolUse JSON on stdin; exit 2 feeds stderr back to Claude."""
+
 import json
 
 from helpers import RULES_TOML, hook_payload, make_repo, run_cli, write
@@ -83,8 +84,11 @@ def test_notebook_edits_use_notebook_path(tmp_path):
     text = RULES_TOML.replace('paths = ["src/**/*.py"]', 'paths = ["**/*.ipynb"]')
     repo = make_repo(tmp_path, config=text)
     write(repo, "nb/a.ipynb", '{"source": "print(1)"}\n')
-    payload = json.dumps({
-        "cwd": str(repo), "tool_name": "NotebookEdit",
-        "tool_input": {"notebook_path": str(repo / "nb" / "a.ipynb")},
-    })
+    payload = json.dumps(
+        {
+            "cwd": str(repo),
+            "tool_name": "NotebookEdit",
+            "tool_input": {"notebook_path": str(repo / "nb" / "a.ipynb")},
+        }
+    )
     assert hook(repo, payload).returncode == 2

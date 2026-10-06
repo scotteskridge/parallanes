@@ -1,4 +1,5 @@
 """Which files to check, and their text: from disk, from the git index, or changed since a base."""
+
 import subprocess
 from pathlib import Path
 

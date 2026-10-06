@@ -3,6 +3,7 @@
 Each task branch writes its own fragment so parallel lanes never edit the same file (decision 13).
 Fragments use Keep a Changelog headings; anything else is rejected before any file is touched.
 """
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,8 +30,7 @@ def fragment_files(root: Path) -> list[Path]:
     if not folder.is_dir():
         return []
     return sorted(
-        path for path in folder.glob("*.md")
-        if path.name.lower() != "readme.md" and not path.name.startswith("_")
+        path for path in folder.glob("*.md") if path.name.lower() != "readme.md" and not path.name.startswith("_")
     )
 
 

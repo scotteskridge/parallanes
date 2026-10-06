@@ -1,4 +1,5 @@
 """The plans index and the plan files must agree, so the plan trail stays trustworthy."""
+
 import re
 from pathlib import Path
 

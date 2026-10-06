@@ -3,6 +3,7 @@
 It guards against mistakes, not adversaries: the cases below are the forms an agent plausibly
 writes. The documented misses are pinned too, so a change in behaviour is a visible decision.
 """
+
 import pytest
 
 from kitlib import commands, file_commands
@@ -124,6 +125,7 @@ def test_unbalanced_quotes_in_a_command_do_not_crash():
 
 # ---- write targets (plan 03, question 1) --------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "text, expected",
     [
@@ -178,6 +180,7 @@ def test_bash_write_targets(text, expected):
 
 # ---- the agent switching the checks off (question 8) --------------------------------------------
 
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -195,7 +198,9 @@ def test_turning_the_checks_off_is_caught(text):
     assert commands.disables_checks(text, shell), text
 
 
-@pytest.mark.parametrize("text", ["git config --get core.hooksPath", "git config core.autocrlf false", "git commit -m x"])
+@pytest.mark.parametrize(
+    "text", ["git config --get core.hooksPath", "git config core.autocrlf false", "git commit -m x"]
+)
 def test_reading_hook_config_is_allowed(text):
     assert commands.disables_checks(text, "bash") is None
 
@@ -249,9 +254,12 @@ def test_mentioning_the_allow_variable_is_not_disabling(text):
 
 @pytest.mark.parametrize(
     "text, shell",
-    [("set KIT_ALLOW_PROTECTED=1", "bash"), ("Set-Item env:KIT_ALLOW_PROTECTED 1", "powershell"),
-     ("[Environment]::SetEnvironmentVariable('KIT_ALLOW_PROTECTED', '1')", "powershell"),
-     ("env KIT_ALLOW_PROTECTED=1 git commit -m x", "bash")],
+    [
+        ("set KIT_ALLOW_PROTECTED=1", "bash"),
+        ("Set-Item env:KIT_ALLOW_PROTECTED 1", "powershell"),
+        ("[Environment]::SetEnvironmentVariable('KIT_ALLOW_PROTECTED', '1')", "powershell"),
+        ("env KIT_ALLOW_PROTECTED=1 git commit -m x", "bash"),
+    ],
 )
 def test_other_ways_of_setting_the_allow_variable_are_caught(text, shell):
     assert commands.disables_checks(text, shell)
@@ -264,7 +272,7 @@ def test_other_ways_of_setting_the_allow_variable_are_caught(text, shell):
         ('git commit -m "docs: commit with KIT_ALLOW_PROTECTED=1 when intended"', "bash"),
         ('gh pr edit 5 --body "Setting KIT_ALLOW_PROTECTED+=1 slipped past"', "bash"),
         ('grep -c "KIT_ALLOW_PROTECTED=1" docs/ai/protected-paths.md', "bash"),
-        ('[[ $KIT_ALLOW_PROTECTED == 1 ]] && echo set', "bash"),
+        ("[[ $KIT_ALLOW_PROTECTED == 1 ]] && echo set", "bash"),
         ("Write-Host 'run with $env:KIT_ALLOW_PROTECTED = 1'", "powershell"),
         ('Select-String -Pattern "KIT_ALLOW_PROTECTED=1" -Path docs/*.md', "powershell"),
     ],

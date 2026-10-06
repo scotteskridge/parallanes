@@ -4,6 +4,7 @@ Where this folder is, every lane, the open plans and the backlog. Read-only. The
 not in the skill's prose, so they can be tested. A file that can't be read is listed under
 Problems, never skipped silently; problems don't fail the command, since `/next` passes them on.
 """
+
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,8 +54,7 @@ def _docs(folder: Path) -> list[Path]:
     if not folder.is_dir():
         return []
     return sorted(
-        path for path in folder.glob("*.md")
-        if path.name.lower() != "readme.md" and not path.name.startswith("_")
+        path for path in folder.glob("*.md") if path.name.lower() != "readme.md" and not path.name.startswith("_")
     )
 
 
@@ -161,8 +161,17 @@ def backlog(root: Path, lane_names: list) -> tuple[list, list]:
             problems.append(f"{rel}: blocked_by names the item itself")
         elif blocker and blocker not in done and blocker not in pending:
             problems.append(f"{rel}: blocked_by {blocked_by!r} names no backlog item or plan")
-        found.append(Item(path.stem, _title(text, path.stem), fields["status"], fields["lane"], fields["size"],
-                          blocked_by, blocker in done))
+        found.append(
+            Item(
+                path.stem,
+                _title(text, path.stem),
+                fields["status"],
+                fields["lane"],
+                fields["size"],
+                blocked_by,
+                blocker in done,
+            )
+        )
     found.sort(key=lambda item: (ITEM_STATUSES.index(item.status), item.slug))
     return found, problems
 

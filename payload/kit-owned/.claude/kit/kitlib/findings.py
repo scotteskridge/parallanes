@@ -1,4 +1,5 @@
 """What a check found, and how it is shown to people and agents."""
+
 from dataclasses import dataclass
 
 

@@ -1,4 +1,5 @@
 """Shared test helpers: throwaway git repos with a kit config, and running the kit CLI."""
+
 import json
 import re
 import shutil
@@ -25,9 +26,7 @@ message = "Use the logger, not print()."
 
 
 def git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=repo, capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True)
     return result.stdout
 
 

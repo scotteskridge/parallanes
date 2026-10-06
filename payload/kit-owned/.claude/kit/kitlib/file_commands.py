@@ -5,6 +5,7 @@ Covers common file commands (`rm`, `mv`, `cp`, `touch`; PowerShell's `Set-Conten
 are ignored; a script that opens files itself is invisible here. Native Windows has no sandbox, so
 this is the only thing between PowerShell cmdlets and a protected path there.
 """
+
 import re
 
 from .commands import Command, normalize, tokenize
@@ -13,24 +14,63 @@ _REDIRECT = re.compile(r"^(?:\d+|\*)?>[>|]?(?!&)(.*)$")  # `>`, `>>`, `>|`, `2>`
 
 
 _PS_CMDLETS = {
-    "set-content": "first", "add-content": "first", "clear-content": "first", "out-file": "first",
-    "new-item": "first", "rename-item": "first", "tee-object": "first",
-    "remove-item": "all", "move-item": "first-two", "copy-item": "second",
+    "set-content": "first",
+    "add-content": "first",
+    "clear-content": "first",
+    "out-file": "first",
+    "new-item": "first",
+    "rename-item": "first",
+    "tee-object": "first",
+    "remove-item": "all",
+    "move-item": "first-two",
+    "copy-item": "second",
 }
 _PS_ALIASES = {
-    "sc": "set-content", "ac": "add-content", "clc": "clear-content", "ni": "new-item",
-    "ren": "rename-item", "rni": "rename-item", "tee": "tee-object",
-    "rm": "remove-item", "del": "remove-item", "erase": "remove-item", "rd": "remove-item",
-    "ri": "remove-item", "rmdir": "remove-item", "mv": "move-item", "move": "move-item",
-    "mi": "move-item", "cp": "copy-item", "copy": "copy-item", "cpi": "copy-item",
+    "sc": "set-content",
+    "ac": "add-content",
+    "clc": "clear-content",
+    "ni": "new-item",
+    "ren": "rename-item",
+    "rni": "rename-item",
+    "tee": "tee-object",
+    "rm": "remove-item",
+    "del": "remove-item",
+    "erase": "remove-item",
+    "rd": "remove-item",
+    "ri": "remove-item",
+    "rmdir": "remove-item",
+    "mv": "move-item",
+    "move": "move-item",
+    "mi": "move-item",
+    "cp": "copy-item",
+    "copy": "copy-item",
+    "cpi": "copy-item",
 }
 # In match order: `-pa` is -Path, `-d` is -Destination (PowerShell accepts unique prefixes).
 _PS_PATH_PARAMETERS = ("path", "literalpath", "pspath", "lp", "filepath", "destination")
 _PS_SWITCHES = {
-    "force", "recurse", "append", "noclobber", "nonewline", "passthru", "whatif", "confirm",
-    "verbose", "debug", "asbytestream", "stream",
+    "force",
+    "recurse",
+    "append",
+    "noclobber",
+    "nonewline",
+    "passthru",
+    "whatif",
+    "confirm",
+    "verbose",
+    "debug",
+    "asbytestream",
+    "stream",
 }
-_BASH_COMMANDS = {"rm": "all", "rmdir": "all", "touch": "all", "truncate": "all", "mv": "all", "cp": "last", "ln": "last"}
+_BASH_COMMANDS = {
+    "rm": "all",
+    "rmdir": "all",
+    "touch": "all",
+    "truncate": "all",
+    "mv": "all",
+    "cp": "last",
+    "ln": "last",
+}
 _BASH_VALUE_OPTIONS = {"-s", "-S", "-t", "--suffix", "--target-directory", "--size", "--reference"}
 
 
@@ -103,7 +143,7 @@ def _powershell_targets(command: Command) -> list[str]:
     destinations = [value for full, value in named if full == "destination"]
     if which == "second":
         # Copy-Item changes only its destination, never its source (-Path or the first positional).
-        return positional[0 if path_named else 1:][:1] + destinations
+        return positional[0 if path_named else 1 :][:1] + destinations
     if path_named:
         chosen = positional[:1] if which == "first-two" and not destinations else []
     else:
@@ -188,7 +228,7 @@ def _git_targets(command: Command) -> tuple[list[str], list[str]]:
         # Only after `--` are the words certainly paths (`git checkout main` switches branches);
         # `.` can't be a branch. Restoring a folder overwrites what's inside it, so the paths
         # also go through the folder check, like deletes.
-        paths = args[args.index("--") + 1:] if "--" in args else [arg for arg in args if arg == "."]
+        paths = args[args.index("--") + 1 :] if "--" in args else [arg for arg in args if arg == "."]
         return paths, paths
     if subcommand not in ("rm", "mv", "restore"):
         return [], []

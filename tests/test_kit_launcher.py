@@ -4,6 +4,7 @@ Skills are kit-owned, so they can't hold `{{kit_command}}` or this machine's int
 launcher takes Python from python-path, like the hook launcher (decision 57), but passes every exit
 code through unchanged: these are commands, not guards.
 """
+
 import shutil
 import subprocess
 import sys
@@ -19,8 +20,9 @@ needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="needs sh (Git 
 
 def install_kit(repo, python=sys.executable):
     kit = repo / ".claude" / "kit"
-    shutil.copytree(LAUNCHER.parent, kit, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("__pycache__", "python-path"))
+    shutil.copytree(
+        LAUNCHER.parent, kit, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "python-path")
+    )
     (kit / "python-path").write_text(str(python) + "\n", encoding="utf-8")
     return kit
 

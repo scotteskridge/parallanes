@@ -1,4 +1,5 @@
 """Repo-level checks that keep the kit honest before any feature code exists."""
+
 import sys
 from pathlib import Path
 

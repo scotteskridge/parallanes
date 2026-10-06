@@ -3,6 +3,7 @@
 Both work out the lane from the hook input's `cwd` and read that worktree's own `kit.toml`
 (decisions 36, 37); `CLAUDE_PROJECT_DIR` isn't relied on.
 """
+
 import os
 from pathlib import Path
 
@@ -57,12 +58,16 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
     if branch is None:
         warnings.append("No task branch: between tasks. Start one with `kit lanes start <task>` before editing.")
     elif not branch.startswith(lane.name + "/"):
-        warnings.append(f"Branch {branch!r} is not a {lane.name}/<task> branch. Check with the user before working on it.")
+        warnings.append(
+            f"Branch {branch!r} is not a {lane.name}/<task> branch. Check with the user before working on it."
+        )
     if tip is None:
         warnings.append(f"Integration branch {integration!r} not found; ahead/behind unknown.")
     else:
         if branch and _merged(root, branch, tip):
-            warnings.append(f"Branch {branch!r} is already merged into {tip}: start a new task instead of adding to it.")
+            warnings.append(
+                f"Branch {branch!r} is already merged into {tip}: start a new task instead of adding to it."
+            )
         _, behind = lanes.ahead_behind(root, tip)
         if behind:
             warnings.append(
@@ -77,12 +82,15 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
             )
     changed, untracked = lanes.changes(root)
     if changed:
-        warnings.append(f"{changed} uncommitted change(s) to tracked files, maybe from an earlier session: "
-                        "look at them before new work.")
+        warnings.append(
+            f"{changed} uncommitted change(s) to tracked files, maybe from an earlier session: "
+            "look at them before new work."
+        )
     if untracked:
         # Not unfinished work (decision 52): test runners leave reports. Only the task's own files land.
-        warnings.append(f"{len(untracked)} untracked file(s): commit the ones that belong to your task; "
-                        "the rest won't land.")
+        warnings.append(
+            f"{len(untracked)} untracked file(s): commit the ones that belong to your task; the rest won't land."
+        )
     return warnings
 
 
@@ -160,7 +168,10 @@ def _matches(rel: str, patterns) -> bool:
 def _elsewhere(root: Path, main: Path, cwd: Path, target: str, config, lane) -> str | None:
     """An edit outside this lane's folder: another lane's folder or the main checkout asks too."""
     for other in config.lanes:
-        if other.name != lane.name and relative(lanes.lane_folder(main, config, other), cwd, target, git_bash=False) is not None:
+        if (
+            other.name != lane.name
+            and relative(lanes.lane_folder(main, config, other), cwd, target, git_bash=False) is not None
+        ):
             return (
                 f"{target} is in the folder of lane {other.name!r}, not this lane's ({lane.name!r}). Edit "
                 "files in this lane's own folder; another session may be working there."

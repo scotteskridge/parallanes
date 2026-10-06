@@ -1,4 +1,5 @@
 """Every project-owned template must render cleanly, stay in budget and link correctly."""
+
 import posixpath
 import re
 import tomllib
@@ -142,7 +143,9 @@ def test_rendered_kit_toml_protects_with_the_documented_defaults(tmp_path):
     entries = registry()
     values = {name: entry["example"] for name, entry in entries.items()}
     (tmp_path / ".claude").mkdir()
-    (tmp_path / ".claude" / "kit.toml").write_text(render(read(".claude/kit.toml"), values, set(entries)), encoding="utf-8")
+    (tmp_path / ".claude" / "kit.toml").write_text(
+        render(read(".claude/kit.toml"), values, set(entries)), encoding="utf-8"
+    )
     protected = load(tmp_path).protected
     assert protected.commands == DEFAULT_COMMANDS
     assert protected.secrets == DEFAULT_SECRETS
@@ -173,4 +176,8 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
     settings = config.lane_settings
     # The commented values are documented as the defaults: they must be.
     assert (settings.merge_mode, settings.worktree_root, settings.ownership, settings.shared_paths) == (
-        defaults.merge_mode, defaults.worktree_root, defaults.ownership, defaults.shared_paths)
+        defaults.merge_mode,
+        defaults.worktree_root,
+        defaults.ownership,
+        defaults.shared_paths,
+    )

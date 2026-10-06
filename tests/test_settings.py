@@ -1,4 +1,5 @@
 """Deny and ask rules generated from [protected] into .claude/settings.json (decisions 29-31, 82, 92)."""
+
 import json
 
 import pytest
@@ -7,12 +8,15 @@ from helpers import RULES_TOML, make_repo, run_cli, write
 from kitlib.config import Protected
 from kitlib.settings import RECORD_REL, expected_rules
 
-PROTECTED_TOML = RULES_TOML + """
+PROTECTED_TOML = (
+    RULES_TOML
+    + """
 [protected]
 paths = ["vendor/**", "docs/originals/", "*.lock", "build/"]
 commands = ["git push --force"]
 secrets = [".env", "config/keys/*"]
 """
+)
 
 
 def test_paths_are_root_anchored_and_keep_their_meaning():
@@ -35,14 +39,21 @@ def test_secret_exemptions_follow_the_names_they_cancel():
     # Claude Code carves a `!` rule out of the rules listed before it in the same list (decision 92).
     rules = expected_rules(Protected(commands=[]))
     assert rules["deny"] == [
-        "Read(.env)", "Edit(.env)", "Read(.env.*)", "Edit(.env.*)", "Read(!.env.example)", "Edit(!.env.example)",
+        "Read(.env)",
+        "Edit(.env)",
+        "Read(.env.*)",
+        "Edit(.env.*)",
+        "Read(!.env.example)",
+        "Edit(!.env.example)",
     ]
 
 
 def test_only_rule_kinds_claude_code_consults_are_written():
     # Path rules for Write, NotebookEdit, MultiEdit or Glob are accepted but never consulted.
     rules = expected_rules(Protected(paths=["vendor/**", "*.lock"], commands=["git push --force"]))
-    path_rules = [rule for rules_list in rules.values() for rule in rules_list if not rule.startswith(("Bash(", "PowerShell("))]
+    path_rules = [
+        rule for rules_list in rules.values() for rule in rules_list if not rule.startswith(("Bash(", "PowerShell("))
+    ]
     assert path_rules and all(rule.startswith(("Read(", "Edit(")) for rule in path_rules), path_rules
 
 
@@ -53,7 +64,12 @@ def test_commands_cover_bash_and_powershell():
 
 def test_kit_config_gets_ask_rules_unless_switched_off():
     asks = expected_rules(Protected())["ask"]
-    assert asks == ["Edit(/.claude/settings.json)", "Edit(/.claude/kit.toml)", "Edit(/.claude/kit/**)", "Edit(/.githooks/**)"]
+    assert asks == [
+        "Edit(/.claude/settings.json)",
+        "Edit(/.claude/kit.toml)",
+        "Edit(/.claude/kit/**)",
+        "Edit(/.githooks/**)",
+    ]
     assert expected_rules(Protected(guard_kit=False))["ask"] == []
 
 
@@ -192,7 +208,7 @@ def test_sync_keeps_the_owners_formatting(tmp_path):
     (repo / ".claude" / "settings.json").write_bytes(b"\xef\xbb\xbf" + original.encode())
     assert sync(repo).returncode == 0
     raw = (repo / ".claude" / "settings.json").read_bytes()
-    assert raw.startswith(b"\xef\xbb\xbf{\r\n    \"model\"")
+    assert raw.startswith(b'\xef\xbb\xbf{\r\n    "model"')
     assert b"\n" not in raw.replace(b"\r\n", b"")
 
 
@@ -213,7 +229,7 @@ def test_record_forgets_a_stale_rule_even_when_settings_need_no_change(tmp_path)
     assert "Edit(/vendor/**)" in read_settings(repo)["permissions"]["deny"]
 
 
-EXEMPT_TOML = RULES_TOML + '\n[protected]\ncommands = []\n'
+EXEMPT_TOML = RULES_TOML + "\n[protected]\ncommands = []\n"
 
 
 def test_sync_puts_new_names_before_an_exemption_already_there(tmp_path):
@@ -272,7 +288,8 @@ def test_sync_restores_order_for_two_exemptions_reordered_by_hand(tmp_path):
     sync(repo)
     settings = read_settings(repo)
     settings["permissions"]["deny"] = ["Read(b.key)", "Read(*.key)", "Read(!c.key)", "Read(!a.key)"] + [
-        rule for rule in settings["permissions"]["deny"] if rule.startswith("Edit(")]
+        rule for rule in settings["permissions"]["deny"] if rule.startswith("Edit(")
+    ]
     write(repo, ".claude/settings.json", json.dumps(settings))
     assert run_cli(repo, "check", "settings").returncode == 1
     assert "moved" in sync(repo).stdout
