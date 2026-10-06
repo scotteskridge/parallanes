@@ -37,7 +37,7 @@ _SKIP_NAMES = {"python-path"}
 
 # In .gitattributes later lines win, so a block after the owner's rules would override them (and
 # `* text=auto eol=lf` would renormalize a CRLF repo). When the owner has rules, the kit adds only
-# what its own scripts need (review round 1; the owner's call, flagged in the PR).
+# what its own scripts need (review round 1; owner's OK, decision 100).
 OWNER_GITATTRIBUTES_BODY = """\
 # The kit's shell scripts must keep LF line endings, whatever the rest of the repository uses.
 .claude/kit/hook text eol=lf

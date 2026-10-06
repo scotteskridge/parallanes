@@ -25,7 +25,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      *Refined in review round 1:* a `.kit-new` is offered once per kit version (one already there
      is never overwritten; one the owner deleted isn't offered again); a broken manifest stops the
      install, since it is what keeps a re-run from replacing the owner's files; a kit hook group is
-     found by its command, so an owner's edit to it isn't duplicated. **Needs the owner's OK:** when
+     found by its command, so an owner's edit to it isn't duplicated. **Owner's OK (2026-10-06):** when
      the owner already has a `.gitattributes`, the kit's block holds only `eol=lf` for its own
      scripts, not `* text=auto eol=lf`, because later lines win there and that line would override
      the owner's rules and renormalize a CRLF repository. That choice is made on the first install

@@ -133,8 +133,8 @@ they already had is overwritten, and `--dry-run` shows the whole file list first
   offered once, a broken manifest stops, hook groups found by command, the launcher fails open on a
   missing `cli.py`, `.gitignore` covers bytecode and `*.kit-new`, the dry run lists every file, BOM
   and mixed endings kept, the kit repo itself refused as a target, next steps read the files.
-  `.gitattributes` with the owner's rules gets only the kit's `eol=lf` lines (decision 100, flagged
-  for the owner).
+  `.gitattributes` with the owner's rules gets only the kit's `eol=lf` lines (decision 100; the
+  owner approved it after the merge).
 - **Review round 2** (no 🔴): a `.kit-new` the owner was told to delete never came back; the
   `.gitattributes` variant flipped on re-runs (now chosen once and kept); a missing drive hung; a
   pre-commit "yes" was saved for questions nobody was asked (now saved only once given, so a folder
