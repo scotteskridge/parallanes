@@ -3,6 +3,26 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Small changes don't wait on CI twice
+
+95. **A new push to a PR cancels that PR's running CI; a follow-up commit that changes only docs
+    merges on local evidence, without waiting for a new CI run.** Owner's call, on Claude's
+    recommendation, after waiting about 5 minutes of CI for a one-line doc fix (PR 23):
+    - *Cancel superseded runs:* `concurrency` in `tests.yml`. A PR's runs share a group (its ref)
+      and only `pull_request` runs are cancelled. Each push to `main` gets a group of its own (its
+      run id): in a shared group GitHub keeps one pending run and cancels the rest even with
+      `cancel-in-progress` off, so back-to-back lane merges would lose results (review round 1, 🔴).
+      A test checks the block.
+    - *Docs-only follow-ups:* the commit changes only `.md` files outside `payload/`, `packs/` and
+      `.claude/` (those are installed or dogfooded product). It qualifies when CI was green on the
+      commit just before it, and the full suite and both ruff commands pass locally on it.
+      Everything else, including a comment-only edit to code (`# noqa` changes what ruff reports),
+      waits for CI.
+    - *Not a path filter in CI:* tests read docs and templates (the plan index, `payload/*.tmpl`),
+      so skipping CI for `.md` changes could let a broken doc through.
+    - Nothing here is installed into projects; plan 09 (the CI template) can reuse the
+      `concurrency` block.
+
 ## 2026-10-06: Ruff lints and formats the kit's own code
 
 94. **Ruff, pinned to one version, checks and formats the kit's Python in a CI `lint` job; line

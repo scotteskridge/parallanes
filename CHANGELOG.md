@@ -6,6 +6,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The kit's own CI cancels a PR's older run when a new commit is pushed; every push to `main` still
+  gets a full run (decision 95). Dev-only; nothing is installed.
 - Ruff lints and formats the kit's own Python (decision 94): `ruff check` and `ruff format --check`
   run in a CI `lint` job, with the version pinned in `pyproject.toml`'s dev extras and line length
   120. The one-off reformat is listed in `.git-blame-ignore-revs`. Dev-only; nothing is installed.

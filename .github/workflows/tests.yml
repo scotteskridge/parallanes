@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a PR cancels that PR's older run, which no longer tests anything we'd merge. Each
+# push to main gets its own group (its run id), because in a shared group GitHub keeps only one
+# pending run and cancels the others even with cancel-in-progress off, so back-to-back merges would
+# lose results. Every merge commit gets a full run (decision 95).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Once, on one OS: ruff's results don't depend on the platform (decision 94).
   lint:
