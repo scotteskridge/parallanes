@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+
 from kitlib.render import placeholders_in, render
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -19,6 +19,10 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
 
+# The kit's own modules and the test helpers, so they sort in their own group after pytest.
+[tool.ruff.lint.isort]
+known-first-party = ["kitlib", "helpers", "lane_helpers", "claude_run", "test_precommit"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # -n auto: tests run in parallel (pytest-xdist). Each test uses its own temp folders, so they can.

@@ -1,6 +1,7 @@
 """`kit next`: the facts `/next` words (decision 63): where this folder is, lanes, plans, backlog."""
 
 import pytest
+
 from helpers import git, make_repo, run_cli, write
 from kitlib import next_facts
 from kitlib.config import load

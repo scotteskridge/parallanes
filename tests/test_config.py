@@ -1,4 +1,5 @@
 import pytest
+
 from helpers import RULES_TOML, make_repo
 from kitlib.config import DEFAULT_COMMANDS, DEFAULT_SECRETS, ConfigError, ConfigMissing, find_root, load
 

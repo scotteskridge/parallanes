@@ -8,6 +8,7 @@ import json
 import os
 
 import pytest
+
 from helpers import RULES_TOML, git, make_repo, run_cli, write
 
 PROTECTED_TOML = (

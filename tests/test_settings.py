@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from helpers import RULES_TOML, make_repo, run_cli, write
 from kitlib.config import Protected
 from kitlib.settings import RECORD_REL, expected_rules

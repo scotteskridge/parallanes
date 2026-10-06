@@ -35,5 +35,6 @@ def test_ruff_is_pinned_and_ci_runs_both_checks():
     assert project["tool"]["ruff"]["line-length"] == 120
     workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
     assert f'pip install "{pins[0]}"' in workflow
-    assert "ruff check" in workflow
-    assert "ruff format --check" in workflow
+    # Whole step lines, so a commented-out step doesn't count.
+    assert re.search(r"^\s*- run: ruff check \.$", workflow, re.M)
+    assert re.search(r"^\s*- run: ruff format --check \.$", workflow, re.M)
