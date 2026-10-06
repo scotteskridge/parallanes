@@ -19,6 +19,9 @@ jobs:
           - { os: ubuntu-latest, python: "3.13", marks: "not slow" }
     name: pytest (${{ matrix.os }}, ${{ matrix.python }}${{ matrix.marks && ', fast set' || ', full' }})
     runs-on: ${{ matrix.os }}
+    # A hung job otherwise holds a runner for GitHub's 6-hour default. The slowest job (Windows
+    # full) takes ~4 minutes, so 10 leaves room for a slow runner without waiting long on a hang.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
