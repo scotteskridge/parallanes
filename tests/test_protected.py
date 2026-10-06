@@ -1,6 +1,7 @@
 """Protected paths: the shared path logic and `kit check protected` (pre-commit and CI)."""
 
 import os
+import subprocess
 
 import pytest
 
@@ -186,7 +187,6 @@ def test_precommit_blocks_a_protected_change(tmp_path):
     install_hook(repo)
     write(repo, "vendor/lib.py", "x = 2\n")
     git(repo, "add", "vendor/lib.py")
-    import subprocess
 
     result = subprocess.run(["git", "commit", "-q", "-m", "x"], cwd=repo, capture_output=True, text=True)
     assert result.returncode != 0

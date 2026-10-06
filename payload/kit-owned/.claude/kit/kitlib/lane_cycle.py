@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from kitlib import lane_merged, lane_pr, lanes
-from kitlib.lanes import LaneError, Unfinished  # noqa: F401 - lane_cli catches lane_cycle.Unfinished
+from kitlib.lanes import LaneError, Unfinished
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,49}$")  # the lane-name pattern, at most 50 characters
 IN_PROGRESS = {

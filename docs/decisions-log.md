@@ -6,7 +6,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 ## 2026-10-06: Ruff lints and formats the kit's own code
 
 94. **Ruff, pinned to one version, checks and formats the kit's Python in a CI `lint` job; line
-    length 120, rules `E F W I B UP`, default (double) quotes; no pre-commit hook.**
+    length 120, rules `E F W I B UP BLE RUF100`, default (double) quotes; no pre-commit hook.**
     Settled on Claude's recommendation (backlog `lint-and-format-in-ci`):
     - *120, not 100:* measured on the codebase, 100 leaves 151 comment and string lines to wrap by
       hand and doubles the reformat; 120 leaves 5. Prose and comments stay wrapped near 100 by
@@ -19,6 +19,10 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
     - *Review rounds 1–2:* the CI test matches whole step lines, not text a comment could hold;
       ruff's `src` points at the kit's module folders so local imports sort apart from pytest
       without a hand-kept module list.
+    - *BLE and RUF100* (owner-asked follow-up): the code already had `# noqa: BLE001` reasons on
+      every broad `except`, for a rule nobody had turned on. BLE makes a new broad `except` give a
+      reason (AGENTS.md: never swallow an exception); RUF100 fails on a `noqa` that suppresses
+      nothing, which caught two stale ones (F401, E402).
     - Dev-only: nothing ruff-related is installed into projects (stdlib-only rule unaffected).
 
 ## 2026-10-06: Live checks say what they load

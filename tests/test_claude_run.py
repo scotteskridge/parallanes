@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "live"))
-from claude_run import LiveCheckError, claude_config_path, is_trusted, run_claude  # noqa: E402
+from claude_run import LiveCheckError, claude_config_path, is_trusted, run_claude
 
 STUB = """
 import json, os, sys

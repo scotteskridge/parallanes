@@ -20,7 +20,9 @@ target-version = "py311"
 src = ["tests", "tests/live", "payload/kit-owned/.claude/kit"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
+# BLE: a broad except must carry a noqa saying why (AGENTS.md: never swallow an exception);
+# RUF100: a noqa that no longer suppresses anything is an error, so the reasons stay true.
+select = ["E", "F", "W", "I", "B", "UP", "BLE", "RUF100"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
