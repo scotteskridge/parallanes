@@ -12,3 +12,5 @@ delivery. Splitting plan 07 into 07 and 07b was a step this way. An owner's call
 **Done when:** the owner has decided whether to change anything (for example a cap on open
 questions per plan, or one review round by default for small plans), and the outcome is in the
 decisions log.
+
+Done 2026-10-05: decision 79.

@@ -83,6 +83,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- A plan for v0.1 (decisions 77–82): a small kit that works first, built only where Claude Code
+  has no built-in. Seven steps in `docs/plans/README.md`. The plugin, plan 07b, the Unity pack,
+  evals and per-lane ports move to v0.2. The installer copies files for now. Process gets lighter
+  (at most three open questions per plan, each with a recommended answer). The secrets default
+  is to become `.env.*` with an `.env.example` exemption, in the fix batch. The backlog statuses follow the plan, and
+  `/kit-next` follows the build order.
 - `docs/design/decisions-log.md` is shared by every lane by default; new lanes get the machine's
   `.claude/kit/python-path` through `.worktreeinclude`. This repo's own `/next` is now `/kit-next`.
 - `lanes status` and the lane router's warning count changed and untracked files apart ("N changed ·

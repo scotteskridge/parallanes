@@ -1,8 +1,7 @@
 ---
-status: later
+status: next
 lane: any
 size: S
-blocked_by: plan 12
 ---
 # Say in the README what the kit adds over Claude Code's built-ins
 

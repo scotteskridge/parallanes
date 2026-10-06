@@ -12,6 +12,9 @@ skills. Companion to [survey-lanekeeper.md](survey-lanekeeper.md).
 
 ## Decisions to revisit (owner's call)
 
+Settled since, on Claude's recommendation: 30 and 31 by decision 82; 57 by decision 78 (the plugin
+waits for v0.2); 35 is checked in the v0.1 fix batch (`lane-settings-cross-platform`).
+
 | Decision | What the docs say | Suggested action |
 | --- | --- | --- |
 | 30: kit config gets ask rules, plus a hook block only in `bypassPermissions`, because "ask rules don't prompt in bypass mode" | ✓ Claude Code "doesn't auto-approve the following in any mode, including `bypassPermissions`: Tools matched by an explicit ask rule" ([permission-modes](https://code.claude.com/docs/en/permission-modes.md)). The reason no longer holds | Live-check once, then drop the bypass hook block or restate the reason. Also answers ARCHITECTURE §15 "do ask rules prompt in acceptEdits?": yes |
