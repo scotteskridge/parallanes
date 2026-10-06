@@ -6,6 +6,20 @@ on:
   pull_request:
 
 jobs:
+  # Once, on one OS: ruff's results don't depend on the platform (decision 94).
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      # Same pin as pyproject.toml's dev extras (a test keeps them equal), so CI formats as a local run does.
+      - run: python -m pip install "ruff==0.16.10"
+      - run: ruff check .
+      - run: ruff format --check .
+
   pytest:
     strategy:
       fail-fast: false

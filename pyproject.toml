@@ -8,7 +8,16 @@ requires-python = ">=3.11"
 authors = [{ name = "Scott Eskridge" }]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-xdist>=3"]
+# ruff is pinned exactly: its formatting changes between versions, and CI must agree with a local run.
+dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
+
+# Dev-only (decision 94): lints and formats the kit's own code; nothing here is installed.
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

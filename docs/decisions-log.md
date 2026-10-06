@@ -3,6 +3,20 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Ruff lints and formats the kit's own code
+
+94. **Ruff, pinned to one version, checks and formats the kit's Python in a CI `lint` job; line
+    length 120, rules `E F W I B UP`, default (double) quotes; no pre-commit hook.**
+    Settled on Claude's recommendation (backlog `lint-and-format-in-ci`):
+    - *120, not 100:* measured on the codebase, 100 leaves 151 comment and string lines to wrap by
+      hand and doubles the reformat; 120 leaves 5. Prose and comments stay wrapped near 100 by
+      habit, which the formatter never touches.
+    - *Pinned:* ruff's output changes between versions, so CI and a local run must use the same
+      one (`dev` extras); a test checks the pin and the CI commands.
+    - *CI only:* the item asks for CI, and this repo has no pre-commit setup for its own code.
+    - The reformat is one commit listed in `.git-blame-ignore-revs`, so `git blame` skips it.
+    - Dev-only: nothing ruff-related is installed into projects (stdlib-only rule unaffected).
+
 ## 2026-10-06: Live checks say what they load
 
 93. **Live checks are pytest tests under `tests/live/`, marked `live` and run only with `--live`;
