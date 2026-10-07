@@ -69,6 +69,7 @@ def test_kit_config_gets_ask_rules_unless_switched_off():
         "Edit(/.claude/kit.toml)",
         "Edit(/.claude/kit/**)",
         "Edit(/.githooks/**)",
+        "Edit(/.github/workflows/**)",
     ]
     assert expected_rules(Protected(guard_kit=False))["ask"] == []
 

@@ -74,7 +74,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
 ## 8. Verification and CI
 - **MVP** Configurable test command, used by skills and `lanes finish` ("evidence, not claims")
-- **MVP** GitHub Actions template for installed projects: tests and all checks on every push and PR
+- **MVP** GitHub Actions template for installed projects: tests and all checks on every push and PR. *Done in plan 09.*
 - **v0.2** Evals (about five, decision 80): scenario tests that drive real `claude -p` sessions on the trial project (on demand / nightly)
 - **Later** Optional test-count and coverage report
 

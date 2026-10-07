@@ -26,6 +26,12 @@ def test_escaped_braces_survive():
     assert out == "Write {{project_name}} in a template."
 
 
+def test_escaped_braces_around_anything_survive():
+    # GitHub Actions expressions (plan 09's workflow) aren't placeholder names but must keep their braces.
+    out = render(r"if: $\{{ github.event_name == 'push' }}", {}, REGISTRY)
+    assert out == "if: ${{ github.event_name == 'push' }}"
+
+
 def test_values_are_inserted_literally():
     # A value that looks like a placeholder or contains backslashes must not be re-expanded.
     out = render("{{project_name}}", {"project_name": r"{{test_command}} C:\x"}, REGISTRY)

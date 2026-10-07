@@ -128,7 +128,60 @@ def normalize(words: list[str]) -> Command | None:
                 value = args.pop(0)
             if name == "-c":
                 git_config.append(value)
+    elif program == "gh":
+        args = _gh_args(args)
     return Command(program, tuple(args), tuple(git_config))
+
+
+def _gh_args(args: list[str]) -> list[str]:
+    """gh's args without the repo option given before the first subcommand word (plan 09 review).
+
+    `gh -R o/r pr edit` would otherwise read `o/r` as the first word. Further on it needs no
+    stripping: gh finds its subcommand words past options anyway (see `_gh_words`), and `-R` there
+    may be another option's value (`--title -R`, review round 2).
+    """
+    rest = list(args)
+    while rest and rest[0].startswith("-") and rest[0] != "--":
+        arg = rest.pop(0)
+        if arg in ("-R", "--repo"):
+            rest = rest[1:]  # its value
+    return rest
+
+
+def _gh_words(args: tuple, words: tuple) -> bool:
+    """Whether gh would run the subcommand `words` (review round 3).
+
+    gh (cobra) finds a subcommand by skipping options, so `gh pr --add-label x edit 12` runs
+    `gh pr edit`. Which options take a value isn't known here, so the later words need only appear
+    in order among the non-option words: wider than gh, never narrower. `gh pr new` is gh's own
+    name for `gh pr create`.
+    """
+    plain = []
+    for arg in args:
+        if arg == "--":
+            break
+        if not arg.startswith("-"):
+            # Anywhere after `pr`: an option's value may sit between (`gh pr -R o/r new`, round 4).
+            plain.append("create" if plain[:1] == ["pr"] and arg == "new" else arg)
+    if not words:
+        return True
+    if not plain or plain[0] != words[0]:
+        return False
+    found = iter(plain[1:])
+    return all(word in found for word in words[1:])  # `in` on an iterator consumes it: in order
+
+
+# gh's short options that take a value: in a cluster, the rest of the word is that value, so
+# `-tlogin` is a title, not `-l` (review round 4). Wider than any one command's set, on purpose.
+_GH_VALUE_LETTERS = set("BHtbRarmTFplLjqsSeAM")
+
+
+def _gh_cluster(letters: str) -> str:
+    """The options in a gh cluster: each letter up to and including the first that takes a value."""
+    for index, letter in enumerate(letters):
+        if letter in _GH_VALUE_LETTERS:
+            return letters[: index + 1]
+    return letters
 
 
 def _expand(arg: str) -> set[str]:
@@ -162,13 +215,29 @@ def parse_pattern(text: str) -> Pattern:
 def matches(command: Command, pattern: Pattern) -> bool:
     if command.program != pattern.program:
         return False
-    if command.args[: len(pattern.words)] != pattern.words:
+    gh = command.program == "gh"
+    if gh:
+        if not _gh_words(command.args, pattern.words):
+            return False
+        options = command.args  # gh's options may sit before and among its subcommand words
+    elif command.args[: len(pattern.words)] != pattern.words:
         return False
+    else:
+        options = command.args[len(pattern.words) :]
     present = set()
-    for arg in command.args[len(pattern.words) :]:
+    for arg in options:
         if arg == "--":
             break  # after `--`, words are operands (`grep -- --force` names a pattern)
+        if arg.startswith("-") and "=" in arg:
+            arg = arg.partition("=")[0]  # `--label=x` and `-l=x` are `--label x` and `-l x`
         present |= _expand(arg)
+        # A short option joined to its value, `-lvalue` (one word with no space: a separate value
+        # like `-m "-n removed"` is text). gh clusters options before it, `-dlvalue` (review round 3);
+        # elsewhere only the first letter counts, so `git commit -mnote` isn't `-n`.
+        joined = re.match(r"-([A-Za-z]+)\S*$", arg) if re.fullmatch(r"-[A-Za-z]\S+", arg) else None
+        if joined:
+            letters = _gh_cluster(joined[1]) if gh else joined[1][0]
+            present |= {f"-{letter}" for letter in letters}
     return pattern.flags <= present
 
 

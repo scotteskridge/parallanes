@@ -15,7 +15,7 @@ authors = [{ name = "Scott Eskridge" }]
 
 [project.optional-dependencies]
 # ruff is pinned exactly: its formatting changes between versions, and CI must agree with a local run.
-dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
+dev = ["pytest>=8", "pytest-xdist>=3", "pyyaml>=6", "ruff==0.16.10"]
 
 # No packages: the kit isn't distributed as one (the installer copies files into a project), so
 # `pip install -e ".[dev]"` only needs the dev extras. Without this, setuptools' auto-discovery

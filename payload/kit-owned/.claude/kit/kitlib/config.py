@@ -46,6 +46,15 @@ DEFAULT_COMMANDS = [
     "git clean -f",
     "git commit --no-verify",
     "git commit -n",
+    # Putting the CI override label on a PR is a human's call (decision 105); a PR is an issue to gh.
+    "gh pr edit --add-label",
+    "gh issue edit --add-label",
+    "gh pr create --label",
+    "gh pr create -l",
+    "gh label edit",
+    "gh alias set",  # an alias would hide any of the above from the hook
+    "gh alias import",
+    "gh pr merge --admin",  # merges past red required checks
 ]
 # Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).
 DEFAULT_SECRETS = [".env", ".env.*", "!.env.example"]

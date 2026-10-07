@@ -1,0 +1,65 @@
+# Installed by claude-code-lanes-starter (plan 09). This file is yours: edit it freely, the kit never
+# overwrites it. Make both jobs required checks on {{integration_branch}} (branch protection) so
+# nothing merges red: docs/ai/protected-paths.md, "The server".
+name: kit
+
+on:
+  push:
+    branches: ["{{integration_branch}}"]
+  pull_request:
+    # labeled/unlabeled: adding or removing the kit:protected-change label re-runs the checks;
+    # edited: a PR moved to another base branch is judged against the new one.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+# A new push to a PR cancels that PR's older run. Each push to {{integration_branch}} gets a group
+# of its own: in a shared group GitHub keeps one pending run and cancels the others.
+concurrency:
+  group: $\{{ github.workflow }}-$\{{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: $\{{ github.event_name == 'pull_request' }}
+
+jobs:
+  # The kit's checks: rules, protected paths, settings drift and lane boundaries. Nothing here
+  # depends on the project's stack; the kit only needs Python 3.11+.
+  kit-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # the diff against the PR's base needs the base's history
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      # A PR is judged on its change; a lane branch (<lane>/<task>) also on the lane's paths. A push
+      # checks the whole project: the protected and lane checks ran on the PR, and judging the
+      # merged change again would turn {{integration_branch}} red after a reviewed, labelled merge.
+      - name: kit check all
+        env:
+          # The label lets protected paths through (never added secret files), and only on the run a
+          # person starts by adding it: the label stays on the PR, so every later run (a push, an
+          # edit, a reopen, another label) is judged without it until they add it again (decision
+          # 106). The agent's gh commands that add it are protected.
+          KIT_ALLOW_PROTECTED: $\{{ github.event.action == 'labeled' && github.event.label.name == 'kit:protected-change' && 'paths' || '' }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            python .claude/kit/cli.py check all --diff "origin/$GITHUB_BASE_REF"
+          else
+            python .claude/kit/cli.py check all
+          fi
+
+  # The project's tests: test_command in .claude/kit.toml.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6  # the kit reads kit.toml with it; keep it even if your stack isn't Python
+        with:
+          python-version: "3.13"
+      # ---- Set up your stack here: its runtime and dependencies. For example: ----
+      # Python:  - run: python -m pip install -e ".[dev]"
+      # Node:    - uses: actions/setup-node@v5
+      #            with: { node-version: 22, cache: npm }
+      #          - run: npm ci
+      # ---------------------------------------------------------------------------
+      - run: python .claude/kit/cli.py test

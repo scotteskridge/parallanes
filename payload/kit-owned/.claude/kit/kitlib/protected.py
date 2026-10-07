@@ -16,12 +16,15 @@ from .globs import WILDCARD, is_bare, matches, normalize
 
 CHECK = "protected"
 ALLOW_VARIABLE = "KIT_ALLOW_PROTECTED"
+LABEL = "kit:protected-change"  # the pull request label CI turns into KIT_ALLOW_PROTECTED=paths
+KINDS = ("paths", "secrets")  # the [protected] keys a changed file can fall under
 
 # The kit's own configuration: whoever can edit these can switch the protection off. Ask rules
 # guard them (decision 30) and prompt in every mode, bypassPermissions included; but they are Edit
 # rules, not documented to cover `rm` or PowerShell cmdlets, so in bypass mode the hook still
 # blocks shell writes to these (decision 92). Other modes: backlog `kit-config-shell-guard-modes`.
-KIT_GUARD = [".claude/settings.json", ".claude/kit.toml", ".claude/kit/**", ".githooks/**"]
+# The CI workflow too (plan 09): a PR runs its own copy, so editing it can switch CI off.
+KIT_GUARD = [".claude/settings.json", ".claude/kit.toml", ".claude/kit/**", ".githooks/**", ".github/workflows/**"]
 
 FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 SHELL_TOOLS = {"Bash": "bash", "PowerShell": "powershell"}
@@ -83,14 +86,22 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
 
     removes: path is being deleted or moved away, so a protected path anywhere inside it counts too.
     """
+    found = _reason_and_key(protected, path, removes)
+    return found[0] if found else None
+
+
+def _reason_and_key(protected, path: str, removes: bool = False, keys=KINDS) -> tuple[str, str] | None:
+    """(why, the [protected] key it falls under), looking only at keys, or None."""
     shown = normalize(path)
     for patterns, what, key in (
         (protected.paths, "is protected", "paths"),
         (protected.secrets, "holds secrets", "secrets"),
     ):
+        if key not in keys:
+            continue
         pattern = _secret_matching(path, patterns) if key == "secrets" else _matching(path, patterns)
         if pattern:
-            return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
+            return f"{shown} {what} (matches {pattern!r} in [protected].{key}, .claude/kit.toml)", key
         # Only what a folder holds: path itself was decided above, exemptions included (review
         # round 1: `rm .env.example` was blocked while editing it was allowed).
         positive = [pattern for pattern in patterns if not pattern.startswith("!")]
@@ -100,7 +111,7 @@ def path_reason(protected, path: str, removes: bool = False) -> str | None:
             return (
                 f"removing {shown} would delete protected files "
                 f"(matches {pattern!r} in [protected].{key}, .claude/kit.toml)"
-            )
+            ), key
     return None
 
 
@@ -124,19 +135,43 @@ def _secret_matching(path: str, patterns) -> str | None:
     return anchored or bare
 
 
-def check(config, paths) -> list[Finding]:
-    """Findings for changed paths that are protected or secret. Kit config changes are normal commits."""
+def check(config, paths, keys=KINDS, deleted=frozenset()) -> list[Finding]:
+    """Findings for changed paths that are protected or secret (only those under keys).
+
+    Kit config changes are normal commits. The remedy differs in CI, where a person's label on the
+    pull request is the override: it lets a secret file go (deleted), never arrive (decision 106).
+    A secret is reported as one first there, so the remedy fits (review round 2).
+    """
+    in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
+    order = ("secrets", "paths") if in_ci else KINDS
     findings = []
     for path in paths:
-        reason = path_reason(config.protected, path)
-        if reason:
-            message = f"{reason}. If this change is intended, commit it with {ALLOW_VARIABLE}=1."
-            findings.append(Finding(path=normalize(path), line=0, check=CHECK, message=message))
+        found = next(
+            (hit for key in order if key in keys and (hit := _reason_and_key(config.protected, path, keys=(key,)))),
+            None,
+        )
+        if found:
+            reason, key = found
+            if not in_ci:
+                remedy = f"If this change is intended, commit it with {ALLOW_VARIABLE}=1."
+            elif key == "paths":
+                remedy = f"If this change is intended, a person adds the label {LABEL} to the pull request."
+            elif path in deleted:
+                remedy = f"Removing it is right: a person adds the label {LABEL} to the pull request."
+            else:
+                remedy = "A secret file never lands through a pull request: take it out of the change."
+            findings.append(Finding(path=normalize(path), line=0, check=CHECK, message=f"{reason}. {remedy}"))
     return sorted(findings)
 
 
+def override() -> str | None:
+    """What KIT_ALLOW_PROTECTED waives: "all" (1, a person at a terminal), "paths" (CI's label: never
+    secrets, decision 106), or None."""
+    return {"1": "all", "paths": "paths"}.get(os.environ.get(ALLOW_VARIABLE, ""))
+
+
 def allowed_by_human() -> bool:
-    return os.environ.get(ALLOW_VARIABLE) == "1"
+    return override() == "all"
 
 
 def check_tool_call(payload: dict, root: Path, config) -> str | None:

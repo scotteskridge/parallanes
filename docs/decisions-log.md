@@ -3,6 +3,51 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: The CI template (plan 09)
+
+106. **Plan 09's review round 1 (owner's OK on Claude's recommendations).**
+     - *`.github/workflows/**` joins the kit's guarded files* (ask rules, and the bypass-mode shell
+       guard). *Why:* a pull request runs its own copy of the workflow, so an agent editing it could
+       switch CI off for that PR. No CI job can defend against the PR it runs from; a person reading
+       changes to the kit's folders is the server-side check, and the docs say so.
+     - *The label counts only on the run that adding it starts* (`action == 'labeled'` for this
+       label). Every later run, a push, a new base (`edited`, now a trigger), a reopen or another
+       label's change, is judged without it until a person labels again. *Why:* the label then
+       means "I read this exact change"; it costs a re-label per late push. Review round 2 found
+       the first version (honouring `unlabeled` and `reopened` while the label was on) let an
+       agent's `gh pr close` and `reopen` turn an unread push green.
+     - *The label waives protected paths and the removal of a committed secret, never an added
+       secret file.* CI sets `KIT_ALLOW_PROTECTED=paths`; `1` (a person at a terminal) still waives
+       everything. *Why:* committing `.env` through a PR is never the intended change; deleting one
+       committed by mistake is the fix.
+     - *A push keeps checking the whole project.* A rule added later must pass project-wide before
+       it merges; the docs say how to see that. *Why:* running every rule over the whole project on
+       each PR would block every PR on old code.
+     - Also from the reviews: `gh -R`/`--repo` before the subcommand, `gh pr new`, `--opt=value` and
+       `-ovalue` forms (gh's options before its subcommand and clustered too, round 3), `gh alias
+       set`/`import` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
+       approval a solo owner can't give.
+
+105. **Plan 09's three answers (owner's OK on Claude's recommendations).**
+     - *A PR label, `kit:protected-change`, lets an intended protected change through CI.* The
+       workflow re-runs on `labeled`/`unlabeled` and sets `KIT_ALLOW_PROTECTED=1` for the protected
+       check only. `gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label`/`-l`
+       and `gh label edit` join the default `[protected].commands` (`gh label list` stays free).
+       *Why:* adding a label needs write access and a human; a commit trailer would be written by
+       the agent it is meant to check. Refines decision 34 ("CI has no override") for protected
+       paths only; a cross-lane change still needs a non-lane branch. `gh api` is a stated miss.
+     - *A PR is judged on its change (`--diff origin/<base>`); a push to the integration branch on
+       the whole project (`check all`).* *Why:* judging the merged change again would turn the
+       branch red after every reviewed, labelled protected change; branch protection keeps direct
+       pushes out. Found while building, not one of the three questions.
+     - *CI runs `kit test`, a new command that runs `test_command` from `kit.toml`.* *Why:* a copy of
+       the command in the workflow would drift from the one `lanes finish` uses.
+     - *`CODEOWNERS` and branch protection are documented, not generated, for v0.1.* *Why:* the kit
+       doesn't know the owner's GitHub handle; generating it joins `codeowners-from-lanes`.
+     - *Two jobs: `kit-checks` (fully known) and `tests` (the project's `test_command` after a
+       marked setup step).* An empty `test_command` fails the job. *Why:* the kit can't know how to
+       install a non-Python stack, and a green run that tested nothing would be a false claim.
+
 ## 2026-10-07: After the two-lane trial
 
 104. **Two answers from the trial (owner's OK on Claude's recommendations, PR #34).**

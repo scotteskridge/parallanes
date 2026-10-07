@@ -1,4 +1,4 @@
-"""The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit next`, `kit settings`, `kit changelog`.
+"""The kit's command line: `kit check`, `hook`, `lanes`, `next`, `test`, `settings` and `changelog`.
 
 Run from the project root as `sh .claude/kit/kit <command>`, which takes Python from python-path
 (decision 99). Exit codes. CLI: 0 clean, 1 findings (for `lanes`: unfinished, something is mid-way), 2 usage
@@ -13,6 +13,7 @@ from __future__ import annotations  # so this file still loads on an old Python 
 import argparse
 import datetime
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -134,6 +135,9 @@ def build_parser() -> argparse.ArgumentParser:
     upcoming.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
     upcoming.set_defaults(run=run_next)
 
+    tests = commands.add_parser("test", help="run [project] test_command from the project root (CI runs this)")
+    tests.set_defaults(run=run_test)
+
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
     perms_commands = perms.add_subparsers(title="settings commands")
     sync = perms_commands.add_parser("sync", help="write the deny and ask rules [protected] needs")
@@ -193,7 +197,26 @@ def touched_paths(root: Path, args) -> list[str] | None:
 
 def check_protected(root: Path, config, args) -> list:
     paths = touched_paths(root, args)
-    findings = protected.check(config, paths) if paths else []
+    if not paths:
+        return []
+    # What the change deletes, from git: the disk can differ from the index (review round 3).
+    if args.staged:
+        deleted = frozenset(gitfiles.deleted_staged(root))
+    elif args.diff:
+        deleted = frozenset(gitfiles.deleted_since(root, args.diff))
+    else:
+        deleted = frozenset()  # named files exist (explicit_paths checks), so none is deleted
+    findings = protected.check(config, paths, deleted=deleted)
+    if protected.override() == "paths":
+        # CI's label: protected paths pass, and a secret file may leave, never arrive (decision 106).
+        kept = protected.check(config, [path for path in paths if path not in deleted], keys=("secrets",))
+        if len(findings) > len(kept):
+            print(
+                f"kit: {len(findings) - len(kept)} protected change(s) allowed by the "
+                f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); added secret files never are.",
+                file=sys.stderr,
+            )
+        return kept
     return allowed(findings, protected.allowed_by_human(), "protected path", protected.ALLOW_VARIABLE)
 
 
@@ -318,6 +341,30 @@ def run_next(args) -> int:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
     print(next_facts.format_facts(result))
+    return OK
+
+
+# ---- kit test ----------------------------------------------------------------------------------
+
+
+def run_test(args) -> int:
+    """CI's tests job runs this, so the command lives in kit.toml only and can't drift from a copy."""
+    try:
+        root = find_root(Path.cwd())
+        command = load(root).project.get("test_command", "").strip()
+    except ConfigError as error:
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    if not command:
+        # A green run that tested nothing would be a false claim (decision 105).
+        print("kit: no test_command in [project] in .claude/kit.toml: set it, then run this again", file=sys.stderr)
+        return USAGE
+    print(f"Running the tests: {command}", flush=True)
+    # Through the shell, as `lanes finish` runs it: real test commands chain (`npm ci && npm test`).
+    result = subprocess.run(command, shell=True, cwd=root)
+    if result.returncode != 0:
+        print(f"kit: the tests failed (exit {result.returncode})", file=sys.stderr)
+        return FINDINGS
     return OK
 
 

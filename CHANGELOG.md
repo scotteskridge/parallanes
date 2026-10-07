@@ -6,6 +6,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The CI template (plan 09, decision 105): `.github/workflows/kit.yml` runs `kit check all` (a PR
+  judged on its change, a push on the whole project) and the project's tests on every pull request
+  and push to the integration branch. The PR label `kit:protected-change` lets an intended
+  protected change through, or a committed secret file out (never one in), and only on the run
+  adding it starts (decision 106); the `gh` commands that add it, `gh alias set`/`import` and
+  `gh pr merge --admin` join the default `[protected].commands`, matched with gh's `-R`/`--repo`
+  and `--opt=value` or `-ovalue` forms. Edits to
+  `.github/workflows/` ask first, like the kit's other config. `protected-paths.md` gains "The
+  server": required checks for a solo owner or a team, `CODEOWNERS`, and what CI can't catch.
+- `kit test` runs `[project] test_command` from the project root, so CI has no copy of it to drift;
+  an empty one fails.
+- `\{{` keeps literal braces in a template whatever follows, so GitHub expressions survive.
 - Dependency hints for lanes (decision 103): `kit lanes create` ends each new lane's lines with its
   install command, read from the lockfile at the lane's root (`npm ci`, `pnpm install
   --frozen-lockfile`, `uv sync`, ...), or says it's the owner's call when there's a manifest but
