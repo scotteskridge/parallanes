@@ -16,7 +16,8 @@ for _path in (KIT_CODE, ROOT):
 
 # A human override exported in a developer's shell, or the PR branch name in the kit's own CI, would
 # change what the lane and protected checks decide in every CLI test that inherits os.environ.
-for _name in ("KIT_ALLOW_PROTECTED", "KIT_ALLOW_CROSS_LANE", "GITHUB_HEAD_REF"):
+# GITHUB_ACTIONS changes the protected check's advice (plan 09); tests that want CI set it.
+for _name in ("KIT_ALLOW_PROTECTED", "KIT_ALLOW_CROSS_LANE", "GITHUB_HEAD_REF", "GITHUB_ACTIONS"):
     os.environ.pop(_name, None)
 
 

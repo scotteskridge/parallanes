@@ -1,7 +1,7 @@
 # 09 — CI template
 
-**Status:** Approved
-**Branch / PR:** `plan/09-ci-template` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/09-ci-template` · https://github.com/scotteskridge/claude-code-lanes-starter/pull/37
 **Builds on:** plans 02, 03, 04 and 08 (Done); decisions 25, 32, 34, 95, 96; ARCHITECTURE §4, §7
 and the §15 row owned by plan 09
 
@@ -83,10 +83,10 @@ check required (branch protection) and how a human lets an intended protected-pa
 | installing over an existing `kit.yml` keeps it and reports it | decision 7: never overwrite |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Live check: the three runs on a real GitHub repo, linked from the PR
-- [ ] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Live check: the three runs on a real GitHub repo, linked from the PR
+- [x] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation
 - **A push checks the whole project**, not `--diff github.event.before`: judging the merged change
