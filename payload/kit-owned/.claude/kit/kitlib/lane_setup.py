@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import lane_deps
 from .lanes import (
     LaneError,
     find_lane,
@@ -65,7 +66,7 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
 
     registered = registered_worktrees(main)
     include = [] if dry_run else _worktreeinclude_files(main, root)
-    lines, errors = [], []
+    lines, errors, hinted = [], [], []
     # Every lane is attempted and reported, so a rerun after a fix finishes the job.
     for lane in selected:
         folder = lane_folder(main, config, lane)
@@ -90,12 +91,20 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
                 f"{lane.name}: "
                 + (f"already created at {folder}" if exists else f"created {folder}, detached at {tip}")
             )
+            if not exists:
+                # Decision 103: a new lane has nothing installed; an existing one is warned by status.
+                hints = lane_deps.install_hints(folder)
+                lines += [f"  install in this lane: {hint}" for hint in hints]
+                if hints:
+                    hinted.append(is_nested(main, folder) and lane_deps.uses_node(folder))
             # On a rerun this copies only what is missing (a failed run's leftovers), never overwriting.
             _copy(main, folder, include)
             if is_nested(main, folder):
                 exclude_main_instructions(main, folder)
         except LaneError as error:
             errors.append(f"{lane.name}: {error}")
+    if hinted:  # why, once
+        lines.append(lane_deps.WHY_NESTED if any(hinted) else lane_deps.WHY)
     if errors:
         raise PartialCreate("\n".join(errors), lines)
     return lines

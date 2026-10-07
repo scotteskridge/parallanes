@@ -5,7 +5,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-07: After the two-lane trial
 
-103. **Two answers from the trial (owner's OK on Claude's recommendations, PR #34).**
+104. **Two answers from the trial (owner's OK on Claude's recommendations, PR #34).**
      - *The decisions log stays one file; `/wrap-up` enforces ARCHITECTURE §8.* A task adds at most
        one entry, and a top-of-file conflict is merged newest first (backlog
        `decision-log-fragments`, option c). *Why:* it keeps decision 13 and §8's readability choice.
@@ -13,6 +13,32 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      - *The trial repo is published at launch.* Plan 12 makes it public and the README links its
        plans, review reports and lane merges (ROADMAP's MVP line). *Why:* a recruiter or a new user
        can then check the claims in `docs/trial/two-lane-trial.md` against the real history.
+
+## 2026-10-07: Installing dependencies in a lane
+
+103. **`lanes create` prints each new lane's install command; `lanes status` and the lane-router
+     warn about a Node lane without `node_modules`.** Owner's OK on Claude's recommendations
+     (backlog `lane-dependency-hint`, trial findings F3 and F4). The command comes from the lane's
+     root: the first lockfile in lanekeeper's table (`docs/survey-lanekeeper.md`), plus Bun's
+     `bun.lock`/`bun.lockb`, so a Bun project isn't told it has no lockfile; a manifest without a
+     lockfile says the install is the owner's call; no manifest prints nothing. A line says why,
+     once per run: lanes sit inside the main checkout and Node looks for packages in parent
+     folders, so a lane that never installs silently runs the main checkout's packages. *Why:*
+     in the trial no agent noticed, because nothing failed. Only Node is warned about later,
+     because its install folder is fixed; Poetry, Pipenv and Bundler often install outside the
+     project, so a warning there would be a guess. Only the root is read: workspace tools install
+     from there. `create` never runs the install itself: it takes time and network and can run
+     scripts. *Refined while building:* the router's two closing lines became one, so the
+     briefing stays under ~15 lines with every warning showing. *Refined in review round 1:* a
+     `node_modules` holding only dot-entries (Vite's `.vite`, babel-loader's `.cache`, written
+     while running the main checkout's packages) isn't an install unless a package manager's
+     marker file is there; Yarn 1's lockfile gets `yarn install --frozen-lockfile`, since the
+     table's `--immutable` is Yarn 2+; `.pnp.js` counts as Plug'n'Play like `.pnp.cjs`; the
+     parent-folder warning is said only to a nested lane that uses Node, and a lane outside the
+     main checkout is told its imports fail instead. Dry runs and lanes already created get no
+     install line: `status` covers those. *Refined in review round 2:* a `package.json` that
+     declares no packages (scripts only) isn't warned about, because npm then makes no
+     `node_modules` and the warning could never clear; one that doesn't parse still is.
 
 ## 2026-10-06: Switching the kit's hooks off
 

@@ -13,7 +13,7 @@ surfaced the conflict while syncing, and the agent's hand merge kept every entry
 one third, breaking newest-first. One task (`web/read-toggle`) had also added two entries, against
 the one-entry rule, because nothing checks it.
 
-**Decided (decision 103): option (c).** The options were, each reversing or tightening a settled
+**Decided (decision 104): option (c).** The options were, each reversing or tightening a settled
 choice:
 - **(a) Fragments, like the changelog.** This reverses §8's readability choice; a `kit` command
   could build the readable log.

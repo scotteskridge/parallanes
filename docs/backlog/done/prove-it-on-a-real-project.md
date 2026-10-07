@@ -26,7 +26,7 @@ kit caught, and the README can show a real two-lane run.
 reading-list app, with a write-up of what the kit caught and the friction found:
 [docs/trial/two-lane-trial.md](../../trial/two-lane-trial.md).
 
-**Decided (decision 103): the trial repo is published at launch.** "The README can show a real
+**Decided (decision 104): the trial repo is published at launch.** "The README can show a real
 two-lane run" is met only in that the material now exists. ROADMAP's MVP line wants the run in the
 README "with its plan, review report and lane merges", but the trial repo is local only
 (`D:\1 office\worklanes-trial`). Plan 12 publishes it (with `readme-builtins-comparison`) and links

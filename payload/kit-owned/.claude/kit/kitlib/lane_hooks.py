@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import lane_owners, lanes
+from . import lane_deps, lane_owners, lanes
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -23,7 +23,7 @@ def router_text(cwd: Path) -> str:
         return ""
     if not config.lanes:
         return ""
-    lane = lanes.current_lane(root, config)
+    lane, _, main = lanes.find_current(root, config)
     if lane is None:
         names = ", ".join(item.name for item in config.lanes)
         return (
@@ -42,20 +42,20 @@ def router_text(cwd: Path) -> str:
         lines.append("Resources: " + ", ".join(f"{key} = {value}" for key, value in lane.resources.items()))
     branch = lanes.branch_of(root)
     lines.append(f"Branch: {branch or 'none (detached HEAD)'}")
-    warnings = drift(root, config, lane, branch)
+    warnings = drift(root, config, lane, branch, main)
     if warnings:
         lines.append("Warnings:")
         lines += [f"- {warning}" for warning in warnings]
+    # One closing line, not two: the briefing stays under ~15 lines with every warning (decision 103).
+    closing = "Stay inside the owned and shared paths; edits elsewhere ask the user."
     if len(config.lanes) > 1:
         # Decision 97: a broad lane (`src/**`) must not assume a nested lane's files are its own.
-        lines.append(
-            f"A file another lane's more specific pattern matches is that lane's; `{ROUTER_COMMAND}` lists them."
-        )
-    lines.append(f"Stay inside the owned and shared paths; edits elsewhere ask the user. More: {ROUTER_COMMAND}.")
+        closing += " A file another lane's more specific pattern matches is that lane's."
+    lines.append(f"{closing} More: {ROUTER_COMMAND}.")
     return "\n".join(lines)
 
 
-def drift(root: Path, config, lane, branch: str | None) -> list[str]:
+def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]:
     """Local-only drift checks: no fetch, so it is fast and works offline (decision 40)."""
     warnings = []
     tip = lanes.integration_tip(root, config)
@@ -85,6 +85,9 @@ def drift(root: Path, config, lane, branch: str | None) -> list[str]:
                 f".claude/kit.toml differs from {tip}'s copy: lane definitions may have changed. "
                 "This session uses this folder's copy; the next task starts from the new one."
             )
+    install = lane_deps.missing_node_modules(root, lanes.is_nested(main, root))
+    if install:
+        warnings.append(install)
     changed, untracked = lanes.changes(root)
     if changed:
         warnings.append(

@@ -25,6 +25,10 @@ owns = ["src/api/**"]
 )
 
 
+# A package.json that makes an install create node_modules (a scripts-only one doesn't, decision 103).
+PACKAGE_JSON = '{"dependencies": {"express": "^4.21.0"}}\n'
+
+
 _TEMPLATES: dict = {}  # (config, origin, ignore) -> built repo, under helpers.cache_root()
 
 
