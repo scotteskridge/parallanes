@@ -3,6 +3,24 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-06: Switching the kit's hooks off
+
+102. **`[hooks]` in `kit.toml` switches the rules-check and lane-router hooks off; the protected
+     hook has no switch.** Owner's OK on Claude's recommendation (backlog `hook-opt-out`, found in
+     plan 08's review, PR #28). The installer leaves a switched-off hook out of `settings.json` and
+     removes the kit's unedited copy; an owner-edited copy stays and the run says it still runs. A
+     kit hook the owner only deleted comes back, and the run says so. *Why:* the switch is explicit,
+     shows in a diff, and `kit.toml` is already behind the `guard_kit` ask rules, so an agent can't
+     flip it quietly; a deletion alone can't be told apart from a group lost in a merge. The
+     protected hook is the backstop behind the deny rules and the only guard on shell writes to the
+     kit's config in `bypassPermissions` (decision 92), so putting it back is the safe failure; what
+     it guards is narrowed in `[protected]`. *Refined while building:* `[hooks]` has no `ownership`
+     key, because `[project] ownership = "off"` already switches that hook off, and works without a
+     re-run; two switches for one behaviour could disagree. Only the installer applies `[hooks]`
+     for now, so a change takes effect on the next run. Owner's OK on both refinements (2026-10-07,
+     PR #31's review): the ownership hook stays out of `[hooks]`, and `kit check settings` doesn't
+     read `[hooks]` until the trial shows a need.
+
 ## 2026-10-06: Plan 08 questions (the installer)
 
 101. **The installer asks five values, each with a detected default, plus one yes/no.** Project

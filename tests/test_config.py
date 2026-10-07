@@ -108,6 +108,32 @@ def test_config_without_rules_is_valid(tmp_path):
 # ---- [protected] (plan 03) ----------------------------------------------------------------------
 
 
+def test_hooks_are_all_on_without_the_table(tmp_path):
+    assert load(make_repo(tmp_path)).hooks.switched_off == set()
+
+
+def test_hooks_table_switches_hooks_off(tmp_path):
+    text = f"{RULES_TOML}\n[hooks]\nrules_check = false\nlane_router = true\n"
+    assert load(make_repo(tmp_path, config=text)).hooks.switched_off == {"rules-check"}
+
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        # The protected hook is the security backstop: no switch, and the error says what to do instead.
+        ("protected = false", "can't be switched off"),
+        ("protected = true", "can't be switched off"),
+        # Ownership already has a switch that works without a re-run; one switch per behaviour.
+        ("ownership = false", 'ownership = "off"'),
+        ("rules-check = false", "rules-check"),
+        ('lane_router = "no"', "lane_router"),
+    ],
+)
+def test_hooks_errors_name_the_key(tmp_path, body, expected):
+    message = config_error(tmp_path, f"{RULES_TOML}\n[hooks]\n{body}\n")
+    assert "[hooks]" in message and expected in message
+
+
 def test_protected_defaults_apply_without_the_table(tmp_path):
     # A project that never wrote [protected] still gets the dangerous-command and secrets defaults.
     protected = load(make_repo(tmp_path)).protected

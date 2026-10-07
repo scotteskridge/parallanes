@@ -174,10 +174,21 @@ def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
         text = next(w.data for w in files.writes if w.rel == ".claude/kit.toml").decode("utf-8")
     for rel in (kit_settings.SETTINGS_REL, kit_settings.RECORD_REL):
         plan.check_path(target, rel.as_posix())
-    sync = kit_settings.plan_sync(target, kit_config.parse(text))
+    config = kit_config.parse(text)
+    sync = kit_settings.plan_sync(target, config)
     before = json.dumps(kit_settings.read_json(target / kit_settings.SETTINGS_REL, "settings.json"), sort_keys=True)
     old_record = previous.get("hooks", [])
-    record = settings_hooks.merge(sync.settings, old_record)
+    off = config.hooks.switched_off
+    settings_hooks.check(sync.settings.get("hooks", {}), old_record)  # before the notes read them
+    added = settings_hooks.missing(sync.settings, off)
+    announced = added if previous else []
+    # Unrecorded also covers a copy the owner wrote, so only a hook with a switch can have been
+    # switched back on (second review of PR 31).
+    was_recorded = settings_hooks.recorded_names(old_record)
+    switched_on = [n for n in announced if n not in was_recorded and n in kit_config.SWITCHABLE_HOOKS]
+    was_running = settings_hooks.still_running(sync.settings, off)
+    record = settings_hooks.merge(sync.settings, old_record, off)
+    running = settings_hooks.still_running(sync.settings, off)
     changed = json.dumps(sync.settings, sort_keys=True) != before
     writes_record = sync.record_changed or sync.settings_changed
 
@@ -191,7 +202,13 @@ def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
         "changed": changed,
         "writes_record": writes_record,
         "rules": sum(len(added) for added in sync.added.values()),
-        "added_hooks": len([entry for entry in record if entry not in old_record]),
+        "added_hooks": len(added),
+        # A first install adds them all; nothing to explain. Only a hook the owner deleted gets the
+        # "to keep it out" advice; one switched back on (so no longer recorded) doesn't.
+        "readded_hooks": [name for name in announced if name not in switched_on],
+        "switched_on_hooks": switched_on,
+        "removed_hooks": [name for name in was_running if name not in running],
+        "still_running": running,
         "hooks": record,
         "apply": apply,
     }

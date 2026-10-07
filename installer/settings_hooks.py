@@ -2,7 +2,9 @@
 
 Like the permission rules (decision 29), the hook groups the kit wrote are recorded, in the
 manifest: a re-run adds what's missing and removes only groups it wrote that are no longer
-expected. A group the owner wrote is never touched, even an identical one.
+expected. A group the owner wrote is never touched, even an identical one. `[hooks]` in kit.toml
+switches rules-check or lane-router off; a kit hook the owner only deleted comes back, said aloud
+(decision 102).
 
 Commands go through `.claude/kit/hook`, which takes Python from the gitignored `python-path`, so the
 committed settings never hold a machine's interpreter. The `command` form with `sh` is the one the
@@ -22,15 +24,27 @@ WIRING = [
 ]
 
 
+# The security backstop behind the deny rules: kit.toml can't switch it off (decision 102).
+ALWAYS_ON = "protected"
+
+
+def _command(name: str) -> str:
+    return f'sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" {name}'
+
+
 def _group(matcher, name: str) -> dict:
-    hook = {"type": "command", "command": f'sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" {name}', "timeout": TIMEOUT}
+    hook = {"type": "command", "command": _command(name), "timeout": TIMEOUT}
     return {"matcher": matcher, "hooks": [hook]} if matcher else {"hooks": [hook]}
 
 
-def expected() -> dict:
+def expected(off=frozenset()) -> dict:
+    """The kit's groups by event, without the hooks `[hooks]` in kit.toml switched off."""
+    if ALWAYS_ON in off:
+        raise ValueError(f"the {ALWAYS_ON} hook can't be switched off")
     groups = {}
     for event, matcher, name in WIRING:
-        groups.setdefault(event, []).append(_group(matcher, name))
+        if name not in off:
+            groups.setdefault(event, []).append(_group(matcher, name))
     return groups
 
 
@@ -42,7 +56,7 @@ def _commands(group: dict) -> set:
     return {hook.get("command") for hook in group.get("hooks", []) if isinstance(hook, dict)}
 
 
-def _check(hooks, recorded) -> None:
+def check(hooks, recorded) -> None:
     if not isinstance(hooks, dict) or not all(
         isinstance(groups, list) and all(isinstance(group, dict) for group in groups) for groups in hooks.values()
     ):
@@ -54,15 +68,16 @@ def _check(hooks, recorded) -> None:
         raise HooksError('.claude/kit/manifest.json: "hooks" must be a list of {"event", "group"} entries')
 
 
-def merge(settings: dict, recorded: list) -> list:
+def merge(settings: dict, recorded: list, off=frozenset()) -> list:
     """Update settings in place; return the new record of groups the kit wrote.
 
     A kit group is found by its command, so one the owner edited (a longer timeout) still counts as
-    present and isn't added again. Only an unedited copy of a group the kit no longer wants is removed.
+    present and isn't added again. Only an unedited copy of a group the kit no longer wants (or that
+    `off` switches off) is removed.
     """
     hooks = settings.get("hooks", {})
-    _check(hooks, recorded)
-    wanted = expected()
+    check(hooks, recorded)
+    wanted = expected(off)
     wanted_keys = {(event, command) for event, groups in wanted.items() for g in groups for command in _commands(g)}
     for entry in recorded:
         event, group = entry["event"], entry["group"]
@@ -87,3 +102,39 @@ def merge(settings: dict, recorded: list) -> list:
     if hooks:
         settings["hooks"] = hooks
     return record
+
+
+def recorded_names(recorded: list) -> set:
+    """The kit hooks the record holds. merge drops a switched-off hook from it but keeps one the
+    owner only deleted, so a missing hook that isn't recorded was switched back on (or is new).
+    Known gap: a switchable hook kept as the owner's edited copy while off isn't recorded either, so
+    deleting it later reads as switched on; telling them apart would need the old `off` set."""
+    commands = {command for entry in recorded for command in _commands(entry["group"])}
+    return {name for _, _, name in WIRING if _command(name) in commands}
+
+
+def _running(settings: dict) -> set:
+    return {
+        command for groups in settings.get("hooks", {}).values() for group in groups for command in _commands(group)
+    }
+
+
+def missing(settings: dict, off=frozenset()) -> list:
+    """The kit hooks merge will add: none of the groups under their event runs their command.
+
+    Checked per event, as merge does. On a re-run each one is said aloud, recorded or not, so a
+    deleted hook coming back isn't a surprise; the way out is `[hooks]` in kit.toml (rules-check
+    and lane-router only).
+    """
+    hooks = settings.get("hooks", {})
+    return [
+        name
+        for event, _, name in WIRING
+        if name not in off and not any(_command(name) in _commands(group) for group in hooks.get(event, []))
+    ]
+
+
+def still_running(settings: dict, off) -> list:
+    """Switched-off hooks settings.json still runs: a copy the owner edited or wrote stays theirs."""
+    running = _running(settings)
+    return [name for _, _, name in WIRING if name in off and _command(name) in running]

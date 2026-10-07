@@ -87,6 +87,97 @@ def test_the_installed_kit_runs_and_its_settings_agree(tmp_path):
 
 
 @pytest.mark.slow
+def test_a_rerun_honours_hooks_switched_off_and_brings_back_the_protected_hook(tmp_path):
+    """Decision 102: [hooks] switches rules-check and lane-router off; the protected hook always returns."""
+    repo = new_repo(tmp_path)
+    setup(repo)
+    toml = repo / ".claude" / "kit.toml"
+    toml.write_text(toml.read_text(encoding="utf-8") + "\n[hooks]\nrules_check = false\n", encoding="utf-8")
+    path = repo / ".claude" / "settings.json"
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    settings["hooks"]["PreToolUse"] = [g for g in settings["hooks"]["PreToolUse"] if "protected" not in json.dumps(g)]
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+    result = setup(repo)
+
+    commands = json.dumps(json.loads(path.read_text(encoding="utf-8"))["hooks"])
+    assert 'hook\\" protected' in commands
+    assert "rules-check" not in commands
+    assert "+1 hooks" in result.stdout  # the plan line agrees with the notes (review round 1)
+    assert "the protected hook isn't in .claude/settings.json and is added" in result.stdout
+    assert "the rules-check hook is switched off in .claude/kit.toml and is removed" in result.stdout
+    again = setup(repo)  # settled: nothing to add or remove the second time
+    assert "isn't in .claude/settings.json" not in again.stdout and "is removed" not in again.stdout
+    # On again: the note mustn't blame the owner for a removal the kit made (review round 2).
+    toml.write_text(toml.read_text(encoding="utf-8").replace("rules_check = false", ""), encoding="utf-8")
+    back_on = setup(repo)
+    # The owner asked for it back: no advice on keeping it out (review of PR 31).
+    assert "the rules-check hook is on in .claude/kit.toml and is added to .claude/settings.json" in back_on.stdout
+    assert "isn't in .claude/settings.json" not in back_on.stdout
+    assert "missing" not in back_on.stdout
+
+
+def _drop_hook(repo, name):
+    path = repo / ".claude" / "settings.json"
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    for event, groups in list(settings["hooks"].items()):
+        settings["hooks"][event] = [g for g in groups if f'hook\\" {name}' not in json.dumps(g)]
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+
+@pytest.mark.slow
+def test_a_deleted_switchable_hook_comes_back_with_the_way_to_keep_it_out(tmp_path):
+    """Second review of PR 31: the advice itself had no test."""
+    repo = new_repo(tmp_path)
+    setup(repo)
+    _drop_hook(repo, "lane-router")
+    result = setup(repo)
+    assert (
+        "the lane-router hook isn't in .claude/settings.json and is added; "
+        "to keep it out, set it false under [hooks] in .claude/kit.toml"
+    ) in result.stdout
+
+
+@pytest.mark.slow
+def test_an_unrecorded_protected_hook_deleted_later_is_still_called_the_backstop(tmp_path):
+    """Second review of PR 31: the owner's own copy of the protected hook is never recorded, so
+    "not recorded" alone can't mean "switched back on"; protected has no switch."""
+    repo = new_repo(tmp_path)
+    command = 'sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" protected'
+    own = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": command}]}]}}
+    (repo / ".claude").mkdir(exist_ok=True)
+    (repo / ".claude" / "settings.json").write_text(json.dumps(own, indent=2) + "\n", encoding="utf-8")
+    setup(repo)
+    _drop_hook(repo, "protected")
+    result = setup(repo)
+    assert "is on in .claude/kit.toml" not in result.stdout
+    assert (
+        "the protected hook isn't in .claude/settings.json and is added; it is the security backstop" in result.stdout
+    )
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "key, name, event",
+    [("rules_check", "rules-check", "PostToolUse"), ("lane_router", "lane-router", "SessionStart")],
+)
+def test_a_switched_off_hook_the_owner_edited_is_kept_and_reported(tmp_path, key, name, event):
+    repo = new_repo(tmp_path)
+    setup(repo)
+    path = repo / ".claude" / "settings.json"
+    settings = json.loads(path.read_text(encoding="utf-8"))
+    settings["hooks"][event][0]["hooks"][0]["timeout"] = 90
+    path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    toml = repo / ".claude" / "kit.toml"
+    toml.write_text(toml.read_text(encoding="utf-8") + f"\n[hooks]\n{key} = false\n", encoding="utf-8")
+
+    result = setup(repo)
+
+    assert name in json.dumps(json.loads(path.read_text(encoding="utf-8"))["hooks"])
+    assert f"the {name} hook is switched off" in result.stdout and "still runs your copy" in result.stdout
+
+
+@pytest.mark.slow
 def test_install_into_a_new_folder(tmp_path):
     target = tmp_path / "brand new" / "app"
     result = setup(target)

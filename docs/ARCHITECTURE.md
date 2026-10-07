@@ -61,7 +61,7 @@ my-project/
 ├── AGENTS.md                      P  universal rules for any coding agent
 ├── CLAUDE.md                      P  "@AGENTS.md" + Claude-specific parts, under ~100 lines
 ├── .claude/
-│   ├── kit.toml                   P  project config: test command, lanes, checks, protected paths
+│   ├── kit.toml                   P  project config: test command, lanes, checks, protected paths, hooks
 │   ├── settings.json              P  permissions (deny rules generated from kit.toml) + hook wiring
 │   ├── rules/*.md                 P  path-scoped rules (`paths:` frontmatter)
 │   ├── skills/<name>/SKILL.md     K  /plan-feature /implement /wrap-up /code-health /design /next /onboard
@@ -354,6 +354,9 @@ install.ps1 / install.sh
 Hooks in `settings.json` run `sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" <name>`: the launcher reads
 `python-path`, so the committed file holds no machine path. Only `protected` and `reviewer-bash`
 fail closed through it. Everyone, agents and people, runs the kit as `sh .claude/kit/kit` [99].
+A re-run puts back a kit hook the owner deleted, and says so. `[hooks]` in `kit.toml`
+(`rules_check = false`, `lane_router = false`) keeps one out; `protected` has no switch, and
+ownership's is `[project] ownership = "off"` [102].
 
 ## 11. Packs
 
