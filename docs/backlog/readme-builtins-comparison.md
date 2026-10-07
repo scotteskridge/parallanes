@@ -27,4 +27,5 @@ blocks a merge, so the kit's checks stay the gate.
 
 **Done when:** the README has a short "Claude Code does / the kit adds" table and one honest line
 on lanekeeper, checked against the current docs at release time, with links, plus what the trial
-caught (`prove-it-on-a-real-project`), and a first-time reader gets the point in about two minutes.
+caught ([the write-up](../trial/two-lane-trial.md)), linked to the published trial repo's plans,
+reviews and merges (decision 104), and a first-time reader gets the point in about two minutes.

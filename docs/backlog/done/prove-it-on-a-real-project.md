@@ -26,11 +26,11 @@ kit caught, and the README can show a real two-lane run.
 reading-list app, with a write-up of what the kit caught and the friction found:
 [docs/trial/two-lane-trial.md](../../trial/two-lane-trial.md).
 
-**Needs the owner:** "the README can show a real two-lane run" is met only in that the material
-now exists. ROADMAP's MVP line wants the run in the README "with its plan, review report and lane
-merges", but the trial repo is local only (`D:\1 office\worklanes-trial`). Recommendation: publish
-it at launch (plan 12, with `readme-builtins-comparison`) and link its commits, plans and review
-reports from the write-up and the README.
+**Decided (decision 104): the trial repo is published at launch.** "The README can show a real
+two-lane run" is met only in that the material now exists. ROADMAP's MVP line wants the run in the
+README "with its plan, review report and lane merges", but the trial repo is local only
+(`D:\1 office\worklanes-trial`). Plan 12 publishes it (with `readme-builtins-comparison`) and links
+its commits, plans and review reports from the write-up and the README.
 Friction became `installer-dry-run-prompts`, `local-mode-setup-hints`, `decision-log-fragments` and
 `lane-guide-trial-notes`, and extended `lane-dependency-hint`, `ownership-fix-hint` and
 `lane-resources-env`. Build order step 5's companions (`lanes-and-worktree-flag`,

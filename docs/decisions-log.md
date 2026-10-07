@@ -3,6 +3,17 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: After the two-lane trial
+
+104. **Two answers from the trial (owner's OK on Claude's recommendations, PR #34).**
+     - *The decisions log stays one file; `/wrap-up` enforces ARCHITECTURE §8.* A task adds at most
+       one entry, and a top-of-file conflict is merged newest first (backlog
+       `decision-log-fragments`, option c). *Why:* it keeps decision 13 and §8's readability choice.
+       The trial's conflict was small; what went wrong was an unchecked rule and the merge order.
+     - *The trial repo is published at launch.* Plan 12 makes it public and the README links its
+       plans, review reports and lane merges (ROADMAP's MVP line). *Why:* a recruiter or a new user
+       can then check the claims in `docs/trial/two-lane-trial.md` against the real history.
+
 ## 2026-10-07: Installing dependencies in a lane
 
 103. **`lanes create` prints each new lane's install command; `lanes status` and the lane-router
