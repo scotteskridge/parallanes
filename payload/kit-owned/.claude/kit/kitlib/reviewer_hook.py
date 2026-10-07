@@ -1,4 +1,4 @@
-"""`worklanes hook reviewer-bash`: the reviewer agent may run read-only git commands and nothing else (57).
+"""`parallanes hook reviewer-bash`: the reviewer agent may run read-only git commands and nothing else (57).
 
 An allowlist, unlike the protected-paths guard's denylist: every simple command in the text must
 be git with a read-only subcommand (or a plain `cd <folder>`). Like `commands.py`, it guards against

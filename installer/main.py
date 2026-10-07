@@ -41,7 +41,7 @@ def main(argv=None) -> int:
         previous = read_manifest(target)
     except (ManifestError, plan.PlanError) as error:
         return _stop(error)
-    print(f"Installing worklanes into {target}")
+    print(f"Installing parallanes into {target}")
     print(f"Python: {sys.executable}")
     repo = report.repo_root(target)
     answers = values.detect(target, previous.get("values", {}))
@@ -105,7 +105,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _stop(error) -> int:
-    print(f"worklanes setup: stopped, nothing written: {error}", file=sys.stderr)
+    print(f"parallanes setup: stopped, nothing written: {error}", file=sys.stderr)
     return 2
 
 

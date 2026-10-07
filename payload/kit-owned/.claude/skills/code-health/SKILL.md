@@ -4,7 +4,7 @@ description: "Audit the whole codebase by area against the project's own rules, 
 model: opus
 disable-model-invocation: true
 argument-hint: "[optional: one area or folder to audit]"
-allowed-tools: Bash(sh .claude/kit/worklanes next) Bash(sh .claude/kit/worklanes next *) Bash(git status *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/parallanes next) Bash(sh .claude/kit/parallanes next *) Bash(git status *) Read Grep Glob
 ---
 Code health audit. $ARGUMENTS
 
@@ -12,7 +12,7 @@ You find and report; you fix nothing. Findings the owner picks become backlog it
 through the normal loop (`/plan-feature` or a small task).
 
 ## 0. Lane check
-Run `sh .claude/kit/worklanes next --offline`. Its first line says where this folder is:
+Run `sh .claude/kit/parallanes next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: audit the whole project (the lane's own checkout); the report is written on
   a task branch in this lane.
 - `Here: main checkout` (or `a worktree that isn't a lane`): nothing can be written from here. Say
@@ -27,7 +27,7 @@ Before the audit, so it reads exactly the code the report will land on, and so a
 start a task stops before any subagent runs. Names: `<area>` is the argument's area as a slug
 (lowercase letters, digits and hyphens: `src/payments` → `src-payments`), or `all`; add `-2`, `-3`
 if a branch of that name exists. The branch is `health-YYYY-MM-DD-<area>` (today's date):
-- in a lane: `sh .claude/kit/worklanes lanes start health-YYYY-MM-DD-<area>` (the lane's `<lane>/`
+- in a lane: `sh .claude/kit/parallanes lanes start health-YYYY-MM-DD-<area>` (the lane's `<lane>/`
   prefix is added). If it refuses (say, the previous task isn't merged), show why and offer an
   audit-only run instead;
 - `Here: not a lane` (no lanes), as `/plan-feature` does: with `merge_mode = "pr"`,

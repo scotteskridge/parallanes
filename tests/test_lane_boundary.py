@@ -172,7 +172,7 @@ def test_a_missing_base_is_an_error_not_a_clean_result(tmp_path):
     commit(repo, "src/api/c.py", "z = 1\n")
     result = check(repo, "--diff", "origin/no-such-branch")
     assert result.returncode == 2
-    assert "worklanes:" in result.stderr
+    assert "parallanes:" in result.stderr
 
 
 @pytest.mark.slow

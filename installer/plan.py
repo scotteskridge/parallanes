@@ -31,7 +31,7 @@ REGISTRY = PAYLOAD / "placeholders.toml"
 
 BLOCK_FILES = {".gitignore", ".gitattributes", ".worktreeinclude"}
 VERSION_REL = ".claude/kit/VERSION"
-LAUNCHER_REL = ".claude/kit/worklanes"
+LAUNCHER_REL = ".claude/kit/parallanes"
 OLD_LAUNCHER_REL = ".claude/kit/kit"
 # Never shipped: bytecode, and this machine's interpreter (python-path is written per install).
 _SKIP_PARTS = {"__pycache__"}
@@ -43,7 +43,7 @@ _SKIP_NAMES = {"python-path"}
 OWNER_GITATTRIBUTES_BODY = """\
 # The kit's shell scripts must keep LF line endings, whatever the rest of the repository uses.
 .claude/kit/hook text eol=lf
-.claude/kit/worklanes text eol=lf
+.claude/kit/parallanes text eol=lf
 .githooks/* text eol=lf
 """
 
@@ -150,7 +150,7 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
             plan.kept.append(rel)  # project-owned: rendered once, then the project's
         else:
             _offer(plan, target, rel, data, None, offered, "exists; yours is kept")
-    # The installer never deletes a file, so a project installed before decision 108 keeps its old
+    # The installer never deletes a file, so a project installed before decision 109 keeps its old
     # launcher, and its own files that call it keep working.
     if (target / OLD_LAUNCHER_REL).is_file():
         plan.notes.append(

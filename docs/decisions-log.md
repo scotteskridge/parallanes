@@ -3,6 +3,20 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: The kit is named `parallanes`
+
+109. **The kit's name is `parallanes`, not `worklanes`** (owner's choice on Claude's
+     recommendation; replaces decision 73's name, keeps its reasons). *Why:* plan 12's pre-launch
+     check found a published Claude Code plugin named `worklanes` (Deploy Forward's board plugin,
+     v0.5.4, created 2026-10-02, three days before decision 73's check), and a US trademark filing
+     for "WORKLANE" on software services with a Notice of Allowance. Plugin IDs carry their
+     marketplace, so both could install, but people searching would find two unrelated
+     `worklanes`. `parallanes` ("parallel lanes") was free on PyPI, npm, GitHub repos, plugin
+     manifests and a web search on 2026-10-07, doesn't start with `claude-`, and can't be confused
+     with lanekeeper. Decision 108's scope stands with the new name: the command is
+     `sh .claude/kit/parallanes`. The command was never released as `worklanes`, so a block or
+     launcher by that name is not looked for.
+
 ## 2026-10-07: Plan 12 questions (launch)
 
 108. **Plan 12's three answers (owner's OK on Claude's recommendations).**

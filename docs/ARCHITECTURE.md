@@ -153,7 +153,7 @@ resources = { dev_port = 8002 }
 `resources` is free-form: the lane router tells the agent each value, and packs give some of them
 meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 
-### Commands (`worklanes lanes ...`), all usable by a human or an agent
+### Commands (`parallanes lanes ...`), all usable by a human or an agent
 
 | Command | Does |
 | --- | --- |
@@ -181,7 +181,7 @@ checkout's instruction files in their `settings.local.json` (decision 35).
 
 ### Ownership
 
-A PreToolUse hook (`worklanes hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
+A PreToolUse hook (`parallanes hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
 file with the lane's `owns` plus `shared_paths` (default: changelog fragments, backlog, plans),
 by the rule below for a file two lanes claim. It
 fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
@@ -197,8 +197,8 @@ two different patterns that still tie on a file leave it with no owner, which `l
 `lanes status` list as a problem (with the files each nested lane wins, as notes). The hook, the
 boundary check and those lists all use one function (`kitlib/lane_owners.py`).
 
-The **lane-boundary check** backs the hook up when work lands, and fails closed [96]. `worklanes check
-lanes` (in `check all`, so pre-commit and CI run it) and `worklanes lanes finish`, before the tests,
+The **lane-boundary check** backs the hook up when work lands, and fails closed [96]. `parallanes check
+lanes` (in `check all`, so pre-commit and CI run it) and `parallanes lanes finish`, before the tests,
 refuse a lane's change to another lane's files (by the rule above), to a path no lane owns, or
 to `.claude/kit.toml` (the policy belongs to no lane). The lane comes from `--lane`, else the `<lane>/<task>` branch
 (`GITHUB_HEAD_REF` in CI); other branches aren't lane work and aren't judged. A rename counts for
@@ -227,12 +227,12 @@ kitlib (config, glob matching, comment stripping, reporting)
    ├── rules_check       ─┐
    ├── protected_paths    ├─  each exposes: check(paths or command) → findings
    ├── ownership          │   (hook only: asks at the edit)
-   └── lane_boundary     ─┘   (check only: `worklanes check lanes`, and `lanes finish`) [96]
+   └── lane_boundary     ─┘   (check only: `parallanes check lanes`, and `lanes finish`) [96]
           │
-          ├── hook mode:   worklanes hook <name>        reads Claude Code JSON on stdin, answers in hook protocol
-          ├── CLI mode:    worklanes check <name> [--staged | --diff BASE | FILES]   exit 0 clean, 1 findings
-          └── git mode:    .githooks/pre-commit → worklanes check all --staged       (opt-in; sets core.hooksPath)
-CI runs:   worklanes check all --diff origin/<base> on a PR; worklanes check all on a push   (plan 09)
+          ├── hook mode:   parallanes hook <name>        reads Claude Code JSON on stdin, answers in hook protocol
+          ├── CLI mode:    parallanes check <name> [--staged | --diff BASE | FILES]   exit 0 clean, 1 findings
+          └── git mode:    .githooks/pre-commit → parallanes check all --staged       (opt-in; sets core.hooksPath)
+CI runs:   parallanes check all --diff origin/<base> on a PR; parallanes check all on a push   (plan 09)
 ```
 
 ### Rules-check (PostToolUse on Edit|Write; also CLI, pre-commit, CI)
@@ -263,7 +263,7 @@ secrets = [".env", ".env.*", "!.env.example"]                 # defaults when th
 guard_kit = true
 ```
 
-- **Primary:** `worklanes settings sync` writes deny rules into `settings.json`: `Edit(/<path>)` per
+- **Primary:** `parallanes settings sync` writes deny rules into `settings.json`: `Edit(/<path>)` per
   protected path (root-anchored, which in project settings anchors at the session's working
   directory: the worktree in a lane), `Read(...)` and `Edit(...)` per secret, `Bash(<cmd> *)` and
   `PowerShell(<cmd> *)` per command; plus **ask** rules for the kit's own config when `guard_kit`,
@@ -271,9 +271,9 @@ guard_kit = true
   becomes an exemption rule, kept in `kit.toml`'s order around the bare names it cancels: Claude
   Code carves a `!` rule only out of the unanchored rules listed before it [82, 92]. It records what it wrote in
   `.claude/kit/generated-rules.json` and never touches other rules beyond
-  their position around an exemption [29]. `worklanes check settings` (part of `check all`) reports missing, stale and misplaced
+  their position around an exemption [29]. `parallanes check settings` (part of `check all`) reports missing, stale and misplaced
   rules. Every path rule is `Read(...)` or `Edit(...)`: Claude Code consults no other.
-- **Backstop:** `worklanes hook protected`, a PreToolUse hook on Bash, PowerShell and the file tools. It
+- **Backstop:** `parallanes hook protected`, a PreToolUse hook on Bash, PowerShell and the file tools. It
   matches commands with flags in any order, past `git -C`, wrappers and flag clusters [28]; checks
   file-tool paths; checks the targets of common file commands and PowerShell cmdlets, best effort
   (`kitlib/file_commands.py`) [27]; in `bypassPermissions`, blocks shell writes to the kit's
@@ -283,7 +283,7 @@ guard_kit = true
   guard**: it still protects when `settings.json` is stale, and covers PowerShell cmdlets, which
   the docs don't say deny rules cover [92]. **Fails closed:** in PreToolUse only exit 2
   blocks, so every error, a broken `kit.toml`, bad input and a mistyped hook name all exit 2 [33].
-- **Pre-commit and CI:** `worklanes check protected` reports changed protected paths and added secret
+- **Pre-commit and CI:** `parallanes check protected` reports changed protected paths and added secret
   files; `KIT_ALLOW_PROTECTED=1` lets a human commit an intended change [32]; in CI the PR label
   `kit:protected-change` does for protected paths (never an added secret), only on the run adding
   it starts; the `gh` commands that add it are protected [105] [106]. `.github/workflows/**` is kit config.
@@ -296,7 +296,7 @@ guard_kit = true
 
 | Doc | How lanes write to it |
 | --- | --- |
-| `docs/changelog.d/<lane>-<task>.md` | one fragment per task branch; `worklanes changelog build` compiles them into `CHANGELOG.md` at release |
+| `docs/changelog.d/<lane>-<task>.md` | one fragment per task branch; `parallanes changelog build` compiles them into `CHANGELOG.md` at release |
 | `docs/backlog/<slug>.md` | one file per item with a header (`status`, `lane`, `size`); done = file moves to `docs/backlog/done/` |
 | `docs/plans/YYYY-MM-DD-slug.md` | one file per plan, named by date and slug (no shared counter, no index table); `/next` reads each plan's status line |
 | `docs/BUILD-STATE.md` | regenerated by a skill; on conflict take either side and regenerate |
@@ -306,17 +306,17 @@ guard_kit = true
 
 | Skill | Model | Does | Calls |
 | --- | --- | --- | --- |
-| `/onboard` (08) | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes, at most three `P` checks; writes on approval [68] | `worklanes check settings`, `worklanes settings sync`, `worklanes lanes create` |
-| `/plan-feature` | opus | Understand → ask → task branch → plan file (Draft) → stop for approval | `worklanes lanes start` (outside a lane: `git switch`) |
-| `/implement` | sonnet | Build one approved plan, tests first, on its branch; stop on anything the plan doesn't settle | `worklanes next` |
-| `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; for each thing corrected more than once, proposes one rules line, `P` check or `kit.toml` pattern (never adds it unasked) [66] | `worklanes lanes finish` (outside a lane: `git push`, `gh pr create`) |
-| `/code-health` (07b) | opus | Whole-codebase audit by area (parallel `sonnet` subagents) against the project's rules → findings → dated report and chosen backlog items on a `health-<date>-<area>` branch; changes no code; not a diff review (built-in `/code-review`) [86] [87] [88] | `worklanes lanes start` (outside a lane: `git switch`) |
+| `/onboard` (08) | opus | Reads the repo after install; proposes stack facts, test command, rules files, lanes, at most three `P` checks; writes on approval [68] | `parallanes check settings`, `parallanes settings sync`, `parallanes lanes create` |
+| `/plan-feature` | opus | Understand → ask → task branch → plan file (Draft) → stop for approval | `parallanes lanes start` (outside a lane: `git switch`) |
+| `/implement` | sonnet | Build one approved plan, tests first, on its branch; stop on anything the plan doesn't settle | `parallanes next` |
+| `/wrap-up` | sonnet | Tests → reviewer → docs and fragment → commit message → finish on OK; for each thing corrected more than once, proposes one rules line, `P` check or `kit.toml` pattern (never adds it unasked) [66] | `parallanes lanes finish` (outside a lane: `git push`, `gh pr create`) |
+| `/code-health` (07b) | opus | Whole-codebase audit by area (parallel `sonnet` subagents) against the project's rules → findings → dated report and chosen backlog items on a `health-<date>-<area>` branch; changes no code; not a diff review (built-in `/code-review`) [86] [87] [88] | `parallanes lanes start` (outside a lane: `git switch`) |
 | `/design` (07b) | opus | Read one design-doc section → options and a recommendation → on OK, the exact `DESIGN.md` edit and a decisions-log entry; changes no branches [89] | — |
-| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `worklanes next` [63] |
+| `/next` | sonnet | Read-only: ready / waiting on you / blocked, per lane; ends with one recommended prompt. Prototyped as this repo's own `/kit-next` [26] [64] | `parallanes next` [63] |
 
-Every skill's step 0 is the lane check: `worklanes next`'s first line says lane, main checkout (or another
+Every skill's step 0 is the lane check: `parallanes next`'s first line says lane, main checkout (or another
 worktree that isn't a lane) or not a lane (no lanes), and the skill handles each [62]. Skills run the kit as
-`sh .claude/kit/worklanes <command>`, a launcher that takes Python from `python-path`, because a
+`sh .claude/kit/parallanes <command>`, a launcher that takes Python from `python-path`, because a
 kit-owned file can't hold `{{kit_command}}` or an interpreter path [71]. Skills with side effects
 set `disable-model-invocation: true`, and `allowed-tools` pre-approves only read-only commands, so
 commits and pushes still prompt [67]. Model names use aliases (`opus`, `sonnet`), not dated IDs;
@@ -361,8 +361,8 @@ install.ps1 / install.sh
 
 Hooks in `settings.json` run `sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" <name>`: the launcher reads
 `python-path`, so the committed file holds no machine path. Only `protected` and `reviewer-bash`
-fail closed through it. Everyone, agents and people, runs the kit as `sh .claude/kit/worklanes` [99].
-A re-run puts back a worklanes hook the owner deleted, and says so. `[hooks]` in `kit.toml`
+fail closed through it. Everyone, agents and people, runs the kit as `sh .claude/kit/parallanes` [99].
+A re-run puts back a parallanes hook the owner deleted, and says so. `[hooks]` in `kit.toml`
 (`rules_check = false`, `lane_router = false`) keeps one out; `protected` has no switch, and
 ownership's is `[project] ownership = "off"` [102].
 
@@ -409,9 +409,9 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | --- | --- |
 | ~~Which shell runs hook commands on native Windows?~~ Answered in plan 02: Git Bash by default, PowerShell if it's missing; the `args` form runs the program with no shell. Plan 08 uses `command` with `sh` instead: whether `$CLAUDE_PROJECT_DIR` expands inside `args` isn't documented, and the reviewer guard's `command` form already ran live | — |
 | ~~Does `CLAUDE_PROJECT_DIR` point at the worktree or the main checkout in a lane session?~~ Moot: the lane hooks use the hook input's `cwd` (verified live in plan 04). In the agent's own shell it is not set at all; it exists only for hook processes | — |
-| ~~Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`?~~ Answered (decision 99): one launcher everywhere, no root shims; named `sh .claude/kit/worklanes` by decision 108 | — |
+| ~~Shim (`kit`, `kit.cmd`) vs `python .claude/kit/cli.py`?~~ Answered (decision 99): one launcher everywhere, no root shims; named `sh .claude/kit/parallanes` by decision 108 | — |
 | `claude plugin eval` vs a hand-written `evals/run.py`: the page is published, and plugin eval loads no project `.claude/` or `CLAUDE.md`, so plan 11 keeps its own `claude -p` harness and borrows plugin eval's design (decision 80, `survey-claude-code.md`) | plan 11 |
-| ~~`/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items~~ Answered: `worklanes next` skips them, `done/` and `finished/` (decision 63) | — |
+| ~~`/next` must skip the `README.md` and `_TEMPLATE.md` beside backlog items~~ Answered: `parallanes next` skips them, `done/` and `finished/` (decision 63) | — |
 | ~~Kit-owned skills under `payload/` discovered while developing the kit?~~ Yes, verified live in plan 07 (Claude Code 2.1.284): they load once a file under `payload/kit-owned/` is read; a name clashing with a root skill is listed as `/payload/kit-owned:next` (the root one wins `/next`), others under their plain names. This repo's prototype is now `/kit-next` (decision 64), and a test keeps the names apart. Also seen: a skill's `model` took effect when typed as `/name`, but not when Claude ran it through the Skill tool (one headless run each) | — |
 | ~~Pre-commit mechanism~~ Answered: native `.githooks`, enabled after asking (decision 25); pre-commit framework support is Later | — |
 | ~~Values rendered into `kit.toml` must be TOML-escaped~~ Done in plan 08: values are escaped in `.toml` templates only, tested with quotes and backslashes | — |
@@ -420,10 +420,10 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | ~~PR-mode merge detection~~ Answered in plan 05 (decision 46): `lanes start` counts only a merged PR whose head commit is the branch tip; open, closed or no PR refuses, `--abandon` drops the branch on purpose | — |
 | ~~Claude Code's auto memory across worktrees~~ Verified live on Windows (plan 04): a lane uses the main checkout's memory folder, so every lane shares one memory. Documented in `parallel-lanes.md`; lane-aware memory is on the roadmap as Later | — |
 | ~~Can `claude --worktree <lane>` start a lane session?~~ Answered (decision 107): no. Checked live on Windows (Claude Code 2.1.291, path with a space). Headless (`-p`) at each lane state (between tasks, task branch with and without commits, uncommitted changes) it opened the lane as it was: no reset, the lane's own `settings.local.json` applied, the lane-router briefing and ownership hook fired, Claude Code's own isolation refused an Edit to the main checkout, and `lanes status` worked, as did `lanes finish` in a separate `-w -p` session (local mode). Isolation also refused a combined shell command naming git as "too complex to verify" until it was split. But it locks the worktree (`claude session <lane> (pid N)`), and a `-p` run leaves that lock, so `lanes remove` fails until `git worktree unlock`. Interactive, it records the lane as its own worktree on branch `worktree-<lane>` (which doesn't exist) and on `/exit` from a session that changed nothing **removed the lane's folder; the owner saw no prompt**. The task branch and its commit survived, git's worktree record went with the folder, and `lanes create core` made the lane again. Not tried: exit with uncommitted changes (the docs say it prompts), the desktop app's worktree sessions (the docs say the same folder and reopen rules apply). An unnamed `claude --worktree` makes a separate worktree, which the lane-router reports as not a lane. Lane docs warn against it; backlog `lane-session-lock` | — |
-| Live-verify what plan 03's live run didn't cover: the MultiEdit/NotebookEdit tools, fail-closed with a broken config, macOS/Linux. Plan 08's live check (`tests/live/test_installed_kit.py`, Windows) showed a deny rule written by `worklanes settings sync` refusing a Write, and the protected hook firing on Edit and blocking a `cp`. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode); the ask rules in `acceptEdits` and `bypassPermissions` were checked live (decision 92) | plan 08 |
+| Live-verify what plan 03's live run didn't cover: the MultiEdit/NotebookEdit tools, fail-closed with a broken config, macOS/Linux. Plan 08's live check (`tests/live/test_installed_kit.py`, Windows) showed a deny rule written by `parallanes settings sync` refusing a Write, and the protected hook firing on Edit and blocking a `cp`. The hook itself was verified live on Windows (Bash, PowerShell, Write; auto mode); the ask rules in `acceptEdits` and `bypassPermissions` were checked live (decision 92) | plan 08 |
 | ~~Do ask rules still prompt in `acceptEdits` mode?~~ Answered (decision 92): ask rules are never auto-approved, in `acceptEdits` or `bypassPermissions`; the hook's bypass-mode block now covers shell commands only. Open: the same gap in `acceptEdits`, `auto`, `dontAsk` and allow-listed commands (backlog `kit-config-shell-guard-modes`). Not live-checked: whether `Edit` ask rules cover `rm`, redirections or PowerShell cmdlets | — |
-| Wire `worklanes hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `worklanes settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29). **Done in plan 08:** the installer wires it, runs the sync, and keeps `generated-rules.json` separate; verified live on Windows | — |
-| Wire `worklanes hook lane-router` (SessionStart, no matcher) and `worklanes hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. **Done in plan 08:** wired by the installer, both seen firing live from the installed `settings.json` (Windows). Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 11 |
+| Wire `parallanes hook protected` as PreToolUse with matcher `Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit`, run `parallanes settings sync` at install, commit `.claude/kit/generated-rules.json` (or fold it into the manifest, decision 29). **Done in plan 08:** the installer wires it, runs the sync, and keeps `generated-rules.json` separate; verified live on Windows | — |
+| Wire `parallanes hook lane-router` (SessionStart, no matcher) and `parallanes hook ownership` (PreToolUse, matcher `Edit\|Write\|MultiEdit\|NotebookEdit`) into `settings.json` at install; plan 04 verified both live via a lane's `settings.local.json`. **Done in plan 08:** wired by the installer, both seen firing live from the installed `settings.json` (Windows). Not yet live-verified: `bypassPermissions` and `acceptEdits` behaviour of the ownership `ask`, macOS/Linux | plan 11 |
 | Plan 05 was live-checked by a script against a real GitHub repo (Windows); plan 07 drove `lanes start`/`finish` through the skills in headless sessions (local mode, and PR mode against a local origin with a stand-in `gh`). Not yet shown live: the skills opening a real GitHub PR, a project without lanes, a sync conflict during `/wrap-up`, macOS/Linux, merge-commit merges, and GitHub's "Update branch" followed by a squash merge (both unit-tested) | plan 11 |
 | The reviewer's read-only guard (a hook in the agent's frontmatter) **is skipped in a folder Claude Code doesn't trust**, while the agent still runs with Bash; only the debug log says so (found live in plan 06). The installer's next steps have the owner open Claude Code in the project once and accept the trust dialog (done in plan 08); evals (plan 11) must trust their folder first | plan 11 |
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. **Plan 08:** `install.ps1` requires Git for Windows' `sh` (decision 99) and writes `.claude/kit/python-path`; which shell runs a hook by default on Windows still isn't documented. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 11 |

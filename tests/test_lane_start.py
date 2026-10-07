@@ -1,4 +1,4 @@
-"""`worklanes lanes start <task>`: a fresh task branch, only once the previous one is proved merged
+"""`parallanes lanes start <task>`: a fresh task branch, only once the previous one is proved merged
 (decisions 46, 47, 51)."""
 
 import subprocess

@@ -1,4 +1,4 @@
-"""`worklanes lanes create`, `status` and the lane-router on real repos: install hints (decision 103)."""
+"""`parallanes lanes create`, `status` and the lane-router on real repos: install hints (decision 103)."""
 
 import json
 

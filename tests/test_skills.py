@@ -24,22 +24,22 @@ MODELS = {"opus", "sonnet", "haiku"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
 # Every grant a payload skill may hold. Wildcards only where every form of the command is read-only:
-# not `git diff`/`git log` (`--output` writes a file), not `worklanes lanes` (start/finish change branches).
+# not `git diff`/`git log` (`--output` writes a file), not `parallanes lanes` (start/finish change branches).
 READ_ONLY_GRANTS = {
     "Read",
     "Grep",
     "Glob",
-    "Bash(sh .claude/kit/worklanes next)",
-    "Bash(sh .claude/kit/worklanes next *)",
-    "Bash(sh .claude/kit/worklanes lanes status)",
-    "Bash(sh .claude/kit/worklanes lanes status *)",
+    "Bash(sh .claude/kit/parallanes next)",
+    "Bash(sh .claude/kit/parallanes next *)",
+    "Bash(sh .claude/kit/parallanes lanes status)",
+    "Bash(sh .claude/kit/parallanes lanes status *)",
     "Bash(git status *)",
     "Bash(gh pr list *)",
     "Bash(gh pr view *)",
     "Bash(gh pr checks *)",
 }
 
-KIT_CALL = re.compile(r"sh \.claude/kit/worklanes ([^`\n]+?)(?= <<|`|$)", re.MULTILINE)  # a heredoc isn't an argument
+KIT_CALL = re.compile(r"sh \.claude/kit/parallanes ([^`\n]+?)(?= <<|`|$)", re.MULTILINE)  # a heredoc isn't an argument
 PATH_MENTION = re.compile(r"`((?:docs|\.claude)/[^`\s]+)`")
 
 
@@ -97,7 +97,7 @@ def test_skills_name_kit_commands():
 
 @pytest.mark.parametrize("skill, call", list(kit_calls()))
 def test_skill_commands_exist(skill, call):
-    """Every `sh .claude/kit/worklanes ...` a skill names parses, flags included (placeholders filled in)."""
+    """Every `sh .claude/kit/parallanes ...` a skill names parses, flags included (placeholders filled in)."""
     import cli
 
     words = shlex.split(re.sub(r"<[^>]+>", "x", call))
@@ -140,8 +140,8 @@ def test_skill_step0_lane_check(path):
     text = body(path)
     step0 = re.search(r"^## 0\. .*?(?=^## 1\. )", text, re.MULTILINE | re.DOTALL)
     assert step0, "step 0 is the lane check"
-    assert "sh .claude/kit/worklanes next" in step0.group(0)
-    from kitlib import next_facts  # the labels `worklanes next` really prints
+    assert "sh .claude/kit/parallanes next" in step0.group(0)
+    from kitlib import next_facts  # the labels `parallanes next` really prints
 
     for case in (
         f"`Here: {next_facts.HERE_LANE} ",
@@ -155,7 +155,7 @@ def test_skill_step0_lane_check(path):
 @pytest.mark.parametrize("path", skill_files(), ids=lambda p: p.parent.name)
 def test_every_kit_call_goes_through_the_launcher(path):
     """Otherwise a call slips past test_skill_commands_exist: `python .claude/kit/cli.py`,
-    `{{kit_command}}` (not rendered in kit-owned files) or a bare `worklanes lanes ...`."""
+    `{{kit_command}}` (not rendered in kit-owned files) or a bare `parallanes lanes ...`."""
     text = body(path)
     fenced_lines = [
         line.strip()
@@ -164,11 +164,13 @@ def test_every_kit_call_goes_through_the_launcher(path):
     ]
     spans = re.findall(r"`([^`\n]+)`", text) + fenced_lines
     for span in spans:
-        if span in ("worklanes next", "worklanes lanes start", "worklanes lanes finish"):
+        if span in ("parallanes next", "parallanes lanes start", "parallanes lanes finish"):
             continue  # the command's name in prose, not a call
         # What identifies the kit, not the interpreter: `python -m pytest` is fine to mention.
-        if re.search(r"\.claude/kit/|\bcli\.py\b|\{\{kit_command\}\}", span) or span.startswith(("kit ", "worklanes ")):
-            assert span.startswith("sh .claude/kit/worklanes "), (
+        if re.search(r"\.claude/kit/|\bcli\.py\b|\{\{kit_command\}\}", span) or span.startswith(
+            ("kit ", "parallanes ")
+        ):
+            assert span.startswith("sh .claude/kit/parallanes "), (
                 f"/{path.parent.name}: `{span}` doesn't use the launcher"
             )
 

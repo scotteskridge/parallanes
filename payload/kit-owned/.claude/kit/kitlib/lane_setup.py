@@ -1,4 +1,5 @@
-"""`worklanes lanes create` and `worklanes lanes remove`: making and removing lane worktrees (decisions 35, 39, 45)."""
+"""`parallanes lanes create` and `parallanes lanes remove`: making and removing lane worktrees
+(decisions 35, 39, 45)."""
 
 import filecmp
 import os

@@ -10,7 +10,7 @@ import json
 import subprocess
 from pathlib import Path
 
-KIT_COMMAND = "sh .claude/kit/worklanes"  # decisions 99, 108
+KIT_COMMAND = "sh .claude/kit/parallanes"  # decisions 99, 108
 
 QUESTIONS = [
     ("project_name", "Project name"),
@@ -52,7 +52,7 @@ def detect(target: Path, previous: dict) -> dict:
         "install_date": datetime.date.today().isoformat(),
     }
     # kit_command isn't an answer but how to run the kit being installed: an earlier install's
-    # value would name a launcher this version doesn't ship (decision 108's rename).
+    # value would name a launcher this version doesn't ship (decision 109's rename).
     kept = {key: value for key, value in previous.items() if key in found and key != "kit_command"}
     return {**found, **kept}
 

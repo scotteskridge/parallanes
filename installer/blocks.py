@@ -6,11 +6,11 @@ edited the block by hand: that is an error to show, never something to repair si
 pattern from lanekeeper's CODEOWNERS handling, `docs/survey-lanekeeper.md`).
 """
 
-BEGIN = "# >>> worklanes (managed: the installer rewrites the lines between these markers)"
-END = "# <<< worklanes"
-# The kit's name before decision 108: a block written then is found under it and rewritten with
-# the new markers. A pair must use one name, so a half-renamed block is broken like any other.
-_NAMES = ("worklanes", "claude-code-lanes-starter")
+BEGIN = "# >>> parallanes (managed: the installer rewrites the lines between these markers)"
+END = "# <<< parallanes"
+# The kit's name before decision 109: a block written then is found under it and rewritten
+# with the new markers. A pair must use one name, so a half-renamed block is broken like any other.
+_NAMES = ("parallanes", "claude-code-lanes-starter")
 _BOM = "﻿"
 
 
@@ -35,7 +35,7 @@ def _markers(lines: list) -> tuple[list, list]:
     if len(found) > 1 or not (len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]):
         counts = ", ".join(f"{len(b)} start and {len(e)} end named {name}" for name, (b, e) in found.items())
         raise BlockError(
-            f"its worklanes markers are broken ({counts}): fix or remove them by hand, then run the installer again"
+            f"its parallanes markers are broken ({counts}): fix or remove them by hand, then run the installer again"
         )
     return begins, ends
 

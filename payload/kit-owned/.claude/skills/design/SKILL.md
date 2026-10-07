@@ -4,7 +4,7 @@ description: "Settle one design question with the owner: read one section of the
 model: opus
 disable-model-invocation: true
 argument-hint: "[topic, section heading, or question]"
-allowed-tools: Bash(sh .claude/kit/worklanes next) Bash(sh .claude/kit/worklanes next *) Bash(git status *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/parallanes next) Bash(sh .claude/kit/parallanes next *) Bash(git status *) Read Grep Glob
 ---
 Design question: $ARGUMENTS
 
@@ -12,7 +12,7 @@ You help the owner decide; the owner decides. This skill changes no branches and
 only edits are to `docs/design/DESIGN.md` and `docs/design/decisions-log.md`, after an OK.
 
 ## 0. Lane check
-Run `sh .claude/kit/worklanes next --offline`. Its first line says where this folder is:
+Run `sh .claude/kit/parallanes next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: fine. `DESIGN.md` isn't a shared path, so the edit in step 4 asks the owner
   once; the decisions log is shared. Both land with this lane's current task branch.
 - `Here: main checkout` (or `a worktree that isn't a lane`): fine for discussion; before any edit,
@@ -20,7 +20,7 @@ Run `sh .claude/kit/worklanes next --offline`. Its first line says where this fo
 - `Here: not a lane`: fine; check the branch as below.
 If this folder isn't on a task branch (it's on the integration branch, `integration_branch` in
 `.claude/kit.toml`, default `main`, or detached between tasks), discuss freely but edit nothing:
-say to start a task first. In a lane: `sh .claude/kit/worklanes lanes start <task>`. Without
+say to start a task first. In a lane: `sh .claude/kit/parallanes lanes start <task>`. Without
 lanes, as `/plan-feature` step 3 does: with `merge_mode = "pr"`, `git fetch origin` then
 `git switch --no-track -c <task> origin/<integration branch>`; with `"local"`,
 `git switch -c <task> <integration branch>`. From the main checkout, move to a lane.

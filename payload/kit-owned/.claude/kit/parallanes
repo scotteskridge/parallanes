@@ -1,6 +1,6 @@
 #!/bin/sh
-# Runs the worklanes CLI (decision 108) for kit-owned skills, which can't hold this machine's interpreter path or the
-# project's {{kit_command}}. Usage, from the project root: sh .claude/kit/worklanes <command> [args]
+# Runs the parallanes CLI (decision 109) for kit-owned skills, which can't hold this machine's
+# interpreter path or the project's {{kit_command}}. Usage, from the project root: sh .claude/kit/parallanes <command> [args]
 # Exit codes pass through unchanged (0 done, 1 findings or unfinished, 2 refused or usage).
 kit=$(dirname "$0")
 
@@ -13,7 +13,7 @@ if [ -z "$python" ]; then
     python=$(command -v python3 || command -v python)
 fi
 if [ -z "$python" ] || ! [ -x "$python" ]; then
-    echo "worklanes: no Python found; record one in .claude/kit/python-path" >&2
+    echo "parallanes: no Python found; record one in .claude/kit/python-path" >&2
     exit 2
 fi
 

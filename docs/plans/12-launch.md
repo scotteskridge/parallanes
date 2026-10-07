@@ -2,11 +2,11 @@
 
 **Status:** Approved
 **Branch / PR:** `plan/12-launch` · PR link once open
-**Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107, 108 (the answers); backlog
+**Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107, 108 (the answers), 109 (the name); backlog
 `readme-builtins-comparison` and `plugin-name` (both folded in here); ARCHITECTURE §12
 
 ## Goal
-A stranger can find `worklanes` on GitHub, understand in about two minutes what it adds over
+A stranger can find `parallanes` on GitHub, understand in about two minutes what it adds over
 Claude Code's own worktrees, check that claim against a real two-lane trial, and install v0.1.0
 into their project by following the README alone.
 
@@ -18,13 +18,13 @@ into their project by following the README alone.
 - Publishing to PyPI: the kit installs by copying files (decision 78).
 
 ## Open questions
-1. **How far does the rename to `worklanes` reach?** Decision 81 renames the repo and the CLI
+1. **How far does the rename to `parallanes` reach?** Decision 81 renames the repo and the CLI
    together. `kit.toml` alone appears ~1,100 times, and `.claude/kit/`, `kitlib`, the `KIT_*`
    variables and the `kit:protected-change` label are written into installed projects.
    *Recommendation:* rename what a reader types or sees: the GitHub repo, `pyproject` name, README
-   and docs prose ("worklanes" for the product; "the kit" stays fine as a plain noun), and the
-   command: the launcher `.claude/kit/kit` becomes `.claude/kit/worklanes`, so `{{kit_command}}`
-   is `sh .claude/kit/worklanes` and messages start `worklanes:`. Keep the folder, `kit.toml`,
+   and docs prose ("parallanes" for the product; "the kit" stays fine as a plain noun), and the
+   command: the launcher `.claude/kit/kit` becomes `.claude/kit/parallanes`, so `{{kit_command}}`
+   is `sh .claude/kit/parallanes` and messages start `parallanes:`. Keep the folder, `kit.toml`,
    `kitlib`, `KIT_*` and the label. *Why:* the command is what people type and what the v0.2
    plugin will put on the PATH, so it should be the same name from day one; the internal names
    are invisible in daily use, and renaming them is a large diff with real breakage risk for no
@@ -35,8 +35,8 @@ into their project by following the README alone.
    public, and tagging the release can't be undone quietly (a public repo can be cloned at once).
    *Recommendation:* the code and README land in a normal PR first. After it merges, Claude runs
    a short publish checklist one step at a time, each with your "yes" in chat: secret scan of both
-   repos' full history → push the trial repo to GitHub as `worklanes-trial` → rename this repo to
-   `worklanes` → tag `v0.1.0` and create the release → make both repos public. Making a repo
+   repos' full history → push the trial repo to GitHub as `parallanes-trial` → rename this repo to
+   `parallanes` → tag `v0.1.0` and create the release → make both repos public. Making a repo
    public stays your click if you prefer.
 3. **Drop the "GitHub template repository" from v0.1?** ROADMAP and ARCHITECTURE §12 list it, but
    marking this repo a template would hand people the kit's *development* repo, not a set-up
@@ -48,7 +48,7 @@ into their project by following the README alone.
 ## Reuse
 - `docs/trial/two-lane-trial.md`: the "In short" and the task table are the README's evidence.
 - `docs/survey-claude-code.md`, decision 98, backlog `readme-builtins-comparison`: the
-  "Claude Code does / worklanes adds" table and the lanekeeper line (re-checked against the
+  "Claude Code does / parallanes adds" table and the lanekeeper line (re-checked against the
   current docs through `claude-code-guide` before the README is written).
 - `payload/placeholders.toml` `[kit_command]`, `installer/values.py` `KIT_COMMAND`: the one place
   the command is defined; tests already render it into every template.
@@ -58,21 +58,21 @@ into their project by following the README alone.
 ## Changes
 | File | New / Edit | What |
 | --- | --- | --- |
-| `payload/kit-owned/.claude/kit/kit` → `worklanes` | Rename | launcher; message prefix `worklanes:` |
+| `payload/kit-owned/.claude/kit/kit` → `parallanes` | Rename | launcher; message prefix `parallanes:` |
 | `installer/values.py`, `placeholders.toml`, `cli.py` | Edit | command name, `prog`, message prefix |
-| skills, templates, docs that show the command | Edit | `sh .claude/kit/worklanes …` |
+| skills, templates, docs that show the command | Edit | `sh .claude/kit/parallanes …` |
 | `README.md` | Rewrite | story → "does / adds" table → what the trial caught → 3-step quickstart → diagram → guardrail table → status → license |
-| `pyproject.toml`, `CHANGELOG.md` | Edit | name `worklanes`, version `0.1.0`, release section |
+| `pyproject.toml`, `CHANGELOG.md` | Edit | name `parallanes`, version `0.1.0`, release section |
 | ROADMAP, ARCHITECTURE §12, plans index, decisions log | Edit | template repo dropped; answers logged |
 | backlog `readme-builtins-comparison`, `plugin-name` → `done/`; new `template-repo` | Move / New | |
 | `tests/` | Edit / New | below |
 
 ## Steps
-1. Failing tests first: installed files call `sh .claude/kit/worklanes`, the old launcher is gone,
+1. Failing tests first: installed files call `sh .claude/kit/parallanes`, the old launcher is gone,
    no installed file mentions `.claude/kit/kit` or `claude-code-lanes-starter`.
 2. Rename the launcher and the command everywhere it's shown; full suite and ruff green.
 3. Check the name again: PyPI, npm, GitHub, a quick trademark search, and a scratch stub plugin
-   named `worklanes` through `claude plugin validate --strict` (not committed; result in the PR).
+   named `parallanes` through `claude plugin validate --strict` (not committed; result in the PR).
 4. Write the README; re-check every "Claude Code does" row against the current docs with links.
 5. Two-minute test: a fresh-context subagent given only the README says what it is, why not the
    built-ins, and how to install; then follows the quickstart verbatim in a scratch folder with a
@@ -85,9 +85,9 @@ into their project by following the README alone.
 ## Tests
 | Test | Proves |
 | --- | --- |
-| a fresh install has `.claude/kit/worklanes` and no `.claude/kit/kit` | the command is renamed |
+| a fresh install has `.claude/kit/parallanes` and no `.claude/kit/kit` | the command is renamed |
 | no installed file mentions `.claude/kit/kit` or the old repo name | nothing points at the old names |
-| `sh .claude/kit/worklanes next` runs from a path with a space | the renamed launcher works on Windows |
+| `sh .claude/kit/parallanes next` runs from a path with a space | the renamed launcher works on Windows |
 | re-install over a v0.1.0.dev0 project reports the launcher change, keeps owner files | decision 100 still holds |
 | README's quickstart commands appear verbatim in a test that runs them | the README can't drift from what works |
 

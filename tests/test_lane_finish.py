@@ -1,4 +1,4 @@
-"""`worklanes lanes finish`: sync, run the tests, then open a PR or fast-forward (decisions 49, 50)."""
+"""`parallanes lanes finish`: sync, run the tests, then open a PR or fast-forward (decisions 49, 50)."""
 
 import subprocess
 import sys

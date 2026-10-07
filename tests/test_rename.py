@@ -1,6 +1,6 @@
-"""The rename to `worklanes` (plan 12, decision 108): what people type and see, and nothing else.
+"""The rename to `parallanes` (plan 12, decisions 108-109): what people type and see, nothing else.
 
-The command is `sh .claude/kit/worklanes`, the name the v0.2 plugin will put on the PATH. The
+The command is `sh .claude/kit/parallanes`, the name the v0.2 plugin will put on the PATH. The
 `.claude/kit/` folder, `kit.toml`, `kitlib`, the `KIT_*` variables and the PR label keep their
 names. A project installed before the rename keeps working: the installer never deletes a file, so
 its old launcher and the files that call it stay as they were.
@@ -22,31 +22,31 @@ OLD_NAMES = re.compile(r"\.claude/kit/kit\b|claude-code-lanes-starter")  # \b: n
 needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="needs sh (Git Bash on Windows)")
 
 
-def test_the_launcher_is_named_worklanes():
-    assert (LAUNCHERS / "worklanes").is_file()
+def test_the_launcher_is_named_parallanes():
+    assert (LAUNCHERS / "parallanes").is_file()
     assert not (LAUNCHERS / "kit").exists()
 
 
-def test_the_command_is_worklanes():
-    assert values.KIT_COMMAND == "sh .claude/kit/worklanes"
+def test_the_command_is_parallanes():
+    assert values.KIT_COMMAND == "sh .claude/kit/parallanes"
 
 
 def test_an_earlier_installs_command_doesnt_win():
     """kit_command isn't an answer: it says how to run the kit being installed, so a re-run's newly
     rendered files call the launcher that exists."""
     found = values.detect(ROOT / "tests", {"kit_command": "sh .claude/kit/kit"})
-    assert found["kit_command"] == "sh .claude/kit/worklanes"
+    assert found["kit_command"] == "sh .claude/kit/parallanes"
 
 
-def test_the_cli_calls_itself_worklanes():
+def test_the_cli_calls_itself_parallanes():
     cli = LAUNCHERS / "cli.py"
     usage = subprocess.run([sys.executable, str(cli), "--help"], capture_output=True, text=True)
-    assert usage.stdout.startswith("usage: worklanes"), usage.stdout
+    assert usage.stdout.startswith("usage: parallanes"), usage.stdout
     refused = subprocess.run(
         [sys.executable, str(cli), "check", "rules", "--lane", "x"], capture_output=True, text=True
     )
     assert refused.returncode == 2
-    assert refused.stderr.startswith("worklanes: "), refused.stderr
+    assert refused.stderr.startswith("parallanes: "), refused.stderr
 
 
 def test_a_block_with_the_old_markers_is_renamed_in_place():
@@ -79,7 +79,7 @@ def test_no_installed_file_names_the_old_command_or_repo(tmp_path):
             text = path.read_bytes().decode("utf-8", errors="replace")
             old = OLD_NAMES.search(text)
             assert old is None, f"{path.relative_to(repo).as_posix()} mentions {old.group(0)}"
-    assert (repo / ".claude" / "kit" / "worklanes").is_file()
+    assert (repo / ".claude" / "kit" / "parallanes").is_file()
     assert not (repo / ".claude" / "kit" / "kit").exists()
 
 
@@ -92,15 +92,15 @@ def test_a_project_installed_before_the_rename_keeps_working(tmp_path):
     setup(repo)
     kit = repo / ".claude" / "kit"
     old = kit / "kit"
-    shutil.copyfile(kit / "worklanes", old)  # what a v0.1.0.dev0 install left
+    shutil.copyfile(kit / "parallanes", old)  # what a v0.1.0.dev0 install left
     agents = repo / "AGENTS.md"
     agents.write_bytes(agents.read_bytes() + b"\nRun `sh .claude/kit/kit next`.\n")
 
     again = setup(repo)
     assert old.is_file()
-    assert ".claude/kit/kit is the old name of .claude/kit/worklanes" in again.stdout
+    assert ".claude/kit/kit is the old name of .claude/kit/parallanes" in again.stdout
     assert b"sh .claude/kit/kit next" in agents.read_bytes()
-    for launcher in ("kit", "worklanes"):
+    for launcher in ("kit", "parallanes"):
         result = subprocess.run(
             ["sh", f".claude/kit/{launcher}", "next", "--offline"], cwd=repo, capture_output=True, text=True
         )

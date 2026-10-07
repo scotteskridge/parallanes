@@ -73,7 +73,7 @@ def test_install_into_an_existing_repo_with_spaces(tmp_path):
     assert git(repo, "check-ignore", ".claude/kit/python-path").strip() == ".claude/kit/python-path"
 
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    assert settings["permissions"]["deny"]  # the rules `worklanes settings sync` writes; check settings agrees
+    assert settings["permissions"]["deny"]  # the rules `parallanes settings sync` writes; check settings agrees
     assert set(settings["hooks"]) == {"PreToolUse", "PostToolUse", "SessionStart"}
 
 

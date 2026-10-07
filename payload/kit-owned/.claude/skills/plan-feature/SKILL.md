@@ -4,7 +4,7 @@ description: "Turn a request or a backlog item into an approved plan on a fresh 
 model: opus
 disable-model-invocation: true
 argument-hint: "[what to build, or a backlog item's slug]"
-allowed-tools: Bash(sh .claude/kit/worklanes next) Bash(sh .claude/kit/worklanes next *) Bash(git status *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/parallanes next) Bash(sh .claude/kit/parallanes next *) Bash(git status *) Read Grep Glob
 ---
 Plan this: $ARGUMENTS
 
@@ -12,7 +12,7 @@ You write a plan and stop. **Build nothing**: building is `/implement`, in a fre
 the owner approves.
 
 ## 0. Lane check
-Run `sh .claude/kit/worklanes next --offline`. Its first line says where this folder is:
+Run `sh .claude/kit/parallanes next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: the plan's task branch comes from `lanes start` (step 3). Keep the plan
   inside this lane's scope and owned paths (the session-start hook listed them).
 - `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this isn't
@@ -35,7 +35,8 @@ work is bigger than one plan (more than about eight steps), propose a split and 
 
 ## 3. Branch
 Pick a short task name: lowercase letters, digits and hyphens (e.g. `export-csv`).
-- In a lane: `sh .claude/kit/worklanes lanes start <task>`. If it refuses, show its reason and stop.
+- In a lane: `sh .claude/kit/parallanes lanes start <task>`. If it refuses, show its reason and
+  stop.
   Never add `--abandon` unless the owner says to drop the unmerged branch it names.
 - Not a lane: with `merge_mode = "pr"`, `git fetch origin` then
   `git switch --no-track -c <task> origin/<integration branch>`; with `"local"`,
