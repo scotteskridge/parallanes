@@ -39,6 +39,16 @@ def test_ruff_is_pinned_and_ci_runs_both_checks():
     assert re.search(r"^\s*- run: ruff format --check \.$", workflow, re.M)
 
 
+def test_ci_installs_with_the_setup_command_agents_md_documents():
+    # A pyproject.toml change once broke `pip install -e ".[dev]"` unnoticed, because CI installed
+    # pytest directly; installing the documented way makes every pytest job check that command.
+    command = 'python -m pip install -e ".[dev]"'
+    assert command in (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    # A whole step line, so a commented-out step doesn't count.
+    assert re.search(r"^\s*- run: " + re.escape(command) + "$", workflow, re.M)
+
+
 def test_ci_cancels_superseded_pr_runs_but_never_main_runs():
     # Decision 95. A PR's runs share a group, so a new push cancels the older run. Each push to main
     # gets a group of its own (its run id): in a shared group GitHub keeps only one pending run and
