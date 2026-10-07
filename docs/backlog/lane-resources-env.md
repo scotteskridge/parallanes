@@ -14,11 +14,15 @@ that they're free, writes them into the worktree's `.env`, and generates URL var
 templates (`VITE_API_URL: http://${HOST}:${BACKEND_PORT}`).
 
 This is the change most likely to make the kit useful beyond Unity; pair it with
-[prove-it-on-a-real-project](prove-it-on-a-real-project.md). Open for the owner: which file the
+[prove-it-on-a-real-project](done/prove-it-on-a-real-project.md) (done: [the write-up](../trial/two-lane-trial.md)). Open for the owner: which file the
 kit writes (a lane-local `.env` it owns, or a block inside the project's), and whether it stays
 stdlib-only (it can).
 
 Reference: `docs/survey-lanekeeper.md` (the port probe, URL templates and the client-env-prefix table). Improve on it: long-lived lanes can have fixed ports per lane, so the kit needs no ledger or lock, only the probe as a warning.
+
+**From the two-lane trial:** being *told* the port was enough for a plain Express app that reads
+`PORT` (agents and the owner ran `PORT=3002 npm start`); the env-file work matters once a frontend
+build or a second service needs the values.
 
 **Done when:** a lane's ports come from `kit.toml` (or a range), `lanes create` writes them and the
 URL variables into the lane's environment file, `lanes status` warns when one is already taken,

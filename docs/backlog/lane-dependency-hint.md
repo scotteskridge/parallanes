@@ -11,6 +11,13 @@ a new lane fails, and nothing says why. lanekeeper reads the lockfile to name th
 there's a manifest but no lockfile. Table and rules: `docs/survey-lanekeeper.md`, row
 `lane-dependency-hint`.
 
+**Worse in practice (two-lane trial, F4):** nothing failed at all. Lanes in `.claude/worktrees/`
+sit inside the main checkout, and Node resolves packages up the folder tree, so every lane silently
+ran the main checkout's `node_modules`. A lane that changes a dependency would test the old version
+and see green. Python's venv and other tools that search parent folders can do the same. So the
+hint should say *why* to install in each lane, and `lanes status` (or the lane-router) should warn
+when a lane has a manifest but no install of its own.
+
 **Done when:** `lanes create` ends each new lane's lines with the install command for that project
 (or "your call", or nothing when there's no manifest), with tests for each lockfile, a manifest
 without one, and none.

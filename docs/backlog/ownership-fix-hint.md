@@ -1,5 +1,5 @@
 ---
-status: later
+status: next
 lane: any
 size: S
 ---
@@ -11,6 +11,14 @@ prints the one command that widens the lane on purpose (`lanekeeper allow --lane
 refuses a path another lane owns, so the boundary changes by a recorded decision.
 
 Reference: `docs/survey-lanekeeper.md`.
+
+**Seen in the two-lane trial (F8, F11):** an api task needed `data/` added to `.gitignore`, which
+no lane owns. The owner said yes, and it still took three stops: the hook asked, pre-commit refused,
+and the only way through was the owner committing by hand with `KIT_ALLOW_CROSS_LANE=1`. The task
+landed without it. An approved `/wrap-up` rule hit the same wall (`.claude/rules/` is in no lane).
+Repo-wide files (`.gitignore`, `package.json`, rules) come up in every web project, so this is now
+`next`. Pair it with [shared-path-modes](shared-path-modes.md): an `ask` mode with a steward lane
+fits these files.
 
 **Done when:** the ownership prompt and the lane-boundary check end with the exact change that would
 allow the file (a `kit.toml` line, or a `kit lanes allow` command if one is added), and say when the

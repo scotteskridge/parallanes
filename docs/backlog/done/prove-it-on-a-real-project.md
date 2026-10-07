@@ -1,5 +1,5 @@
 ---
-status: next
+status: now
 lane: any
 size: M
 ---
@@ -21,3 +21,10 @@ Code's own worktrees?"
 **Done when:** at least three tasks per lane went through `lanes start` → work → `lanes finish`,
 a short write-up lists the friction found (each becoming a backlog item or a cut) and what the
 kit caught, and the README can show a real two-lane run.
+
+**Outcome (2026-10-07):** done. Six tasks, three per lane, on a reading-list app; write-up with
+what the kit caught and the friction found: [docs/trial/two-lane-trial.md](../../trial/two-lane-trial.md).
+Friction became `installer-dry-run-prompts`, `local-mode-setup-hints`, `decision-log-fragments` and
+`lane-guide-trial-notes`, and extended `lane-dependency-hint`, `ownership-fix-hint` and
+`lane-resources-env`. Build order step 5's companions (`lanes-and-worktree-flag`,
+`lane-dependency-hint`) are still open.
