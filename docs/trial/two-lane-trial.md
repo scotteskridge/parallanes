@@ -6,15 +6,15 @@ lanes, each taking three real tasks through `lanes start` → work → `/wrap-up
 ## In short
 
 Two agents built a small web app at the same time, each in its own lane, through six tasks. Every
-task landed on `main` in a straight line. At each later finish, the kit rebased onto the other
-lane's work and ran the whole suite on the exact commit that would land: 77 tests at the end. That
-sync surfaced the one real conflict (both lanes adding to the shared decisions log) inside the
-lane, before `main` moved. When a task needed a file no lane owns, three things stopped it: the
-agent asked first, the ownership hook stopped the edit, and pre-commit refused the commit. Plain
-worktrees would have let that edit through without anyone noticing. Here, though, the owner
-*wanted* the edit, and it still didn't land, so the same three stops are also the trial's biggest
-friction (F8). The reviewer's 🟠 findings were real bugs, in four of the six tasks, all fixed
-before landing.
+task landed on `main` in a straight line. Every finish ran the whole suite on the exact commit that
+would land: 77 tests at the end. Three times the other lane had landed first, and the kit rebased
+onto its work before testing. That sync surfaced the one real conflict (both lanes adding to the
+shared decisions log) inside the lane, before `main` moved. When a task needed a file no lane owns,
+three things stopped it: the agent asked first, the ownership hook stopped the edit, and pre-commit
+refused the commit. Nothing in plain worktrees would have stopped that edit. Here, though, the
+owner *wanted* the edit, and it still didn't land, so the same three stops are also the trial's
+biggest friction (F8). In four of the six tasks the reviewer found a real bug, all fixed before
+landing.
 
 The biggest gaps found:
 - **F4:** lanes inside the project silently run the main checkout's `node_modules`.
@@ -48,7 +48,7 @@ All three are now backlog items.
 
 | Lane | Task | Start → finish | Result |
 | --- | --- | --- | --- |
-| web | book-cards | start → build (75 s) → `/wrap-up` (1 🟠, 2 🟡, all fixed) → finish | Landed first: b1f9f2b, 5 tests |
+| web | book-cards | start → build (75 s) → `/wrap-up` (🟠: no changelog fragment, a process miss rather than a bug; 2 🟡 on test coverage; all fixed) → finish | Landed first: b1f9f2b, 5 tests |
 | api | add-book | start → test-first (53 s) → `/wrap-up` (🟠: malformed JSON got an HTML error page; owner chose a JSON 400) → finish | finish rebased onto web's commit and ran all 13 tests on the exact result: cfddb8a |
 | api | mark-read | start → test-first (48 s) → `/wrap-up` (2 🟡 fixed; logged 2 owner choices) → finish | b1c1113, 24 tests |
 | web | add-form | start (from cfddb8a, so it already had api's new endpoint) → build → browser check on port 3002 → `/wrap-up` (2 rounds; 🟠: submitting before the list loaded reloaded the page) → finish (rebased onto b1c1113) | 0c01d14, 36 tests |
@@ -69,9 +69,10 @@ about $1.50 to $4, with the review rounds the largest part.
 | C4 | api/persist | `lanes finish` sync | Both lanes had added entries at the top of the shared `docs/design/decisions-log.md`. The rebase surfaced the conflict in the lane, before `main` moved, and the full suite ran on the result. The agent's hand merge kept all three entries but put the newest one third, breaking the log's newest-first order (F12). |
 
 C2 and C3 are what plain worktrees lack: they stop an edit to a file no lane owns unless a person
-approves it. C1 is the model following the lane note, which plain worktrees could have too. The
-price showed here: the edit *was* approved and still didn't land, so `data/books.json` is
-untracked and not ignored on the trial's `main` (F8). Without the kit, C4 would have been a merge
+approves it (the hook) or sets the bypass (pre-commit). C1 is the model following the lane note,
+which plain worktrees could have too. The price showed here: the edit *was* approved and still
+didn't land, so once the server runs, `data/books.json` would be untracked and not ignored on the
+trial's `main` (F8). Without the kit, C4 would have been a merge
 conflict on `main`.
 
 ## Friction found
@@ -96,4 +97,5 @@ What worked without friction:
 - `lanes start` always began from the latest `main`, so the web lane picked up the API's new
   endpoint with no extra step.
 - `lanes finish` ran the tests on the combined result every time.
-- The reviewer's 🟠 findings were real bugs, not style notes.
+- The reviewer's 🟠 findings were real bugs, not style notes, apart from one missing changelog
+  fragment.

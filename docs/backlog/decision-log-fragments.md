@@ -3,13 +3,14 @@ status: next
 lane: any
 size: M
 ---
-# Stop lanes colliding on the decisions log
+# Keep the decisions log in order across lanes
 
 ARCHITECTURE §8 keeps `docs/design/decisions-log.md` as one newest-first file "for readability",
 with the rule that a lane adds at most one entry per task. Decision 13 made the changelog fragments
-instead and rejected `merge=union` as fragile. The two-lane trial (F12, C4) tested §8's choice:
-both lanes prepended to the log, `lanes finish` surfaced the conflict while syncing, and the
-agent's hand merge kept every entry but put the newest one third, breaking newest-first. One task
+instead and rejected `merge=union` as fragile; decision 72 made the log a default shared path. The
+two-lane trial (F12, C4) tested §8's choice: both lanes prepended to the log, `lanes finish`
+surfaced the conflict while syncing, and the agent's hand merge kept every entry but put the newest
+one third, breaking newest-first. One task
 (`web/read-toggle`) had also added two entries, against the one-entry rule, because nothing
 checks it.
 
