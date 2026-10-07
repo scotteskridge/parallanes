@@ -141,6 +141,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- `parallel-lanes.md` warns against opening a lane with `claude --worktree <lane>` (decision 107):
+  checked live, Claude Code deletes a clean lane's folder when that session exits.
 - `.claude/kit/hook` fails closed only for the guards (`protected`, `reviewer-bash`); for the other
   hooks a missing Python or a crash no longer turns into a block (plan 08).
 - **Breaking for some `kit.toml` files** (decision 97): the same `owns` pattern in two lanes, which

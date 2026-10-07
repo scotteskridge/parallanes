@@ -16,3 +16,8 @@ Also check: the built-in isolation checks against the main checkout alongside th
 **Done when:** a live run in a scratch project (path with a space, Windows) shows what
 `claude -w <lane>` does at each lane state (between tasks, on a task branch, with changes), the
 results are in ARCHITECTURE §15, and the lane docs either recommend it or warn against it.
+
+**Outcome:** decision 107, ARCHITECTURE §15. `claude -w <lane>` opens the lane unchanged at every
+state and the kit's hooks work there, but Claude Code adopts the lane as its own worktree and on
+exit deleted a clean lane's folder without asking; `-p` runs leave a lock that blocks `lanes
+remove`. `parallel-lanes.md` warns against the flag; detecting the lock is `lane-session-lock`.
