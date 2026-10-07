@@ -16,7 +16,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 07 | [Skills: the task loop](07-skills.md) | `/next` (lane- and backlog-aware, with `kit next`; grown from this repo's prototype, decision 26), `/plan-feature`, `/implement`, `/wrap-up` (incl. rule proposals after repeated corrections) | Done |
 | 07b | [Skills: design and code health](07b-design-health.md) | `/design`, `/code-health` (dated report, findings become backlog items) (decisions 61, 69, 85–91) | Done |
 | 08 | [Installer](08-installer.md) | One `kit init` (behind `install.ps1` / `install.sh`) that copies the kit in: prerequisites, interpreter detection, dry run, manifest, no overwrites (decision 78) | Done |
-| 09 | CI template | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Not started |
+| 09 | [CI template](09-ci-template.md) | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Draft |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
 | 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
 | 12 | Launch | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `worklanes` (decision 81), template repo, v0.1.0, make public | Not started |
