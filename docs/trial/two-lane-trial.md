@@ -11,7 +11,7 @@ would land: 77 tests at the end. Three times the other lane had landed first, an
 onto its work before testing. That sync surfaced the one real conflict (both lanes adding to the
 shared decisions log) inside the lane, before `main` moved. When a task needed a file no lane owns,
 three things stopped it: the agent asked first, the ownership hook stopped the edit, and pre-commit
-refused the commit. Nothing in plain worktrees would have stopped that edit. Here, though, the
+refused the commit. Plain worktrees have nothing like the hook or the pre-commit check. Here, the
 owner *wanted* the edit, and it still didn't land, so the same three stops are also the trial's
 biggest friction (F8). In four of the six tasks the reviewer found a real bug, all fixed before
 landing.
@@ -72,8 +72,8 @@ C2 and C3 are what plain worktrees lack: they stop an edit to a file no lane own
 approves it (the hook) or sets the bypass (pre-commit). C1 is the model following the lane note,
 which plain worktrees could have too. The price showed here: the edit *was* approved and still
 didn't land, so once the server runs, `data/books.json` would be untracked and not ignored on the
-trial's `main` (F8). Without the kit, C4 would have been a merge
-conflict on `main`.
+trial's `main` (F8). Without the kit's sync, C4 would have surfaced at merge time instead of inside
+the lane.
 
 ## Friction found
 

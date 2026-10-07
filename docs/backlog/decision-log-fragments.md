@@ -10,9 +10,8 @@ with the rule that a lane adds at most one entry per task. Decision 13 made the 
 instead and rejected `merge=union` as fragile; decision 72 made the log a default shared path. The
 two-lane trial (F12, C4) tested §8's choice: both lanes prepended to the log, `lanes finish`
 surfaced the conflict while syncing, and the agent's hand merge kept every entry but put the newest
-one third, breaking newest-first. One task
-(`web/read-toggle`) had also added two entries, against the one-entry rule, because nothing
-checks it.
+one third, breaking newest-first. One task (`web/read-toggle`) had also added two entries, against
+the one-entry rule, because nothing checks it.
 
 Open for the owner, each reversing or tightening a settled choice:
 - **(a) Fragments, like the changelog.** This reverses §8's readability choice; a `kit` command
