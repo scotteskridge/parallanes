@@ -32,7 +32,7 @@ e.g. [11], point there). Claude Code behaviour cited here was checked against th
 ## 3. Kit repo layout
 
 ```
-claude-code-lanes-starter/
+parallanes/
 ├── install.ps1 · install.sh        thin bootstrappers: check prerequisites, run kit_setup.py   (plan 08)
 ├── kit_setup.py · installer/       the installer (dry run, questions, manifest)                (plan 08)
 ├── payload/

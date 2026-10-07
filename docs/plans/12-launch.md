@@ -1,6 +1,6 @@
 # 12 — Launch
 
-**Status:** Approved
+**Status:** In progress
 **Branch / PR:** `plan/12-launch` · PR link once open
 **Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107, 108 (the answers), 109 (the name); backlog
 `readme-builtins-comparison` and `plugin-name` (both folded in here); ARCHITECTURE §12
@@ -99,4 +99,24 @@ into their project by following the README alone.
 - [ ] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **The name changed to `parallanes`** (decision 109). Step 3's check found `worklanes` already
+  published as a Claude Code plugin (Deploy Forward, created 2026-10-02) and a "WORKLANE"
+  trademark filing on software. The owner chose `parallanes`; this plan's text uses the new name.
+  The stub plugin passed `claude plugin validate --strict` (Claude Code 2.1.293).
+- **Upgrading an earlier install:** the installer never deletes, so `.claude/kit/kit` stays and
+  the re-run says it's the old name; managed blocks under the old `claude-code-lanes-starter`
+  markers are rewritten under the new ones; `kit_command` is no longer taken from the earlier
+  manifest, since it would name a launcher this version doesn't ship.
+- **The command's name in messages too:** `kit lanes start`, `kit settings sync` and the like in
+  the CLI's and hooks' output now say `parallanes ...`, so what an agent is told matches what
+  it can run.
+- **The README test caught the README:** the first quickstart said `--target ../my-project`,
+  one folder too high; `tests/test_readme.py` now runs the quickstart's commands as written.
+- **Two-minute test:** a fresh reader given only the README scored 4/5. Fixed from its notes:
+  the second lane is shown, why not `--worktree` is said, jargon cut, and "inside the lane" and
+  "PR or fast-forward" explained.
+- **Built-ins re-checked** by `claude-code-guide` against the current docs: claims 1, 2, 4, 6 hold
+  as written. The desktop app's base-branch sync and PR watching aren't in the docs it read, so
+  the README doesn't claim them. No built-in path ownership or task cycle exists.
+- **Not done here:** `AGENTS.md`'s title still says `claude-code-lanes-starter`. Changing it needs
+  the owner's OK on the exact line (CLAUDE.md), so it's proposed in the PR.

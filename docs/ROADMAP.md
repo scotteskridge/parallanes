@@ -99,8 +99,8 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** MIT license
 
 ## 13. Documentation and presentation
-- **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table
-- **MVP** A real two-lane trial on a small web project, shown in the README with its plan, review report and lane merges (decision 80)
+- **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table. *Done in plan 12.*
+- **MVP** A real two-lane trial on a small web project, shown in the README with its plan, review report and lane merges (decision 80). *Done:* [write-up](trial/two-lane-trial.md), linked from the README.
 - **Later** Demo GIF of `lanes create` → two agents working → `lanes finish`
 - **Later** FAQ, troubleshooting, "why this design" page
 

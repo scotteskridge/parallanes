@@ -16,3 +16,9 @@ too (one name is easier to find; `kit` is short to type), and when to rename the
 warning; the repo, README, `pyproject.toml` and docs use the name; the CLI question is decided
 and logged; and the name is checked again on PyPI, npm and GitHub (and a quick trademark search)
 just before launch.
+
+**Done (plan 12):** `worklanes` turned out to be taken (a published Claude Code plugin, and a
+"WORKLANE" trademark filing), so the kit is `parallanes` (decision 109). A stub plugin of that
+name passed `claude plugin validate --strict` (Claude Code 2.1.293); PyPI, npm, GitHub and a web
+search were clear on 2026-10-07. The command is `sh .claude/kit/parallanes` (decision 108); the
+repo is renamed in the publish checklist.

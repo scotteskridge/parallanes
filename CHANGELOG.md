@@ -5,6 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-07
+
+The first release: lanes with owned paths and a tested start → sync → finish cycle, the hooks,
+checks, skills and reviewer around them, an installer, and a CI template (plans 00–09, 07b, 12).
+
 ### Added
 - The CI template (plan 09, decision 105): `.github/workflows/kit.yml` runs `kit check all` (a PR
   judged on its change, a push on the whole project) and the project's tests on every pull request
@@ -141,6 +146,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   through built-in hooks, pinning what live checks load, hook `if` conditions, and `REVIEW.md`.
 
 ### Changed
+- **The kit is named `parallanes`** (decisions 108, 109), and so is its command:
+  `sh .claude/kit/parallanes`, and messages start `parallanes:`. `worklanes` (decision 73) was
+  already a published Claude Code plugin. The `.claude/kit/` folder, `kit.toml`, the `KIT_*`
+  variables and the `kit:protected-change` label keep their names. A project installed earlier
+  keeps working: the re-run leaves `.claude/kit/kit` in place and says it's the old name, and
+  rewrites the managed blocks under the new markers.
+- The README tells the story first: what Claude Code does by itself and what parallanes adds,
+  what the two-lane trial showed, and a quickstart that a test runs as written.
+- A GitHub template repository is no longer planned for v0.1 (decision 108, backlog
+  `template-repo`).
 - `parallel-lanes.md` warns against opening a lane with `claude --worktree <lane>` (decision 107):
   checked live, Claude Code deletes a clean lane's folder when that session exits.
 - `.claude/kit/hook` fails closed only for the guards (`protected`, `reviewer-bash`); for the other
@@ -172,8 +187,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   N untracked" instead of "N uncommitted"): only changed tracked files are unfinished work.
 - A backlog item's `blocked_by` may name a plan (done once it is in `docs/plans/finished/`); a
   blocker that names nothing, or the item itself, is reported by `kit next`.
-- The kit's name is `worklanes` (decision 73): `claude-` plugin names are reserved, and
-  `laneguard` read too much like the existing `lanekeeper`.
+- The kit's name is `worklanes` (decision 73; replaced by `parallanes`, decision 109): `claude-`
+  plugin names are reserved, and `laneguard` read too much like the existing `lanekeeper`.
 
 ### Fixed
 - The git pre-commit hook drops a trailing `\r` from `.claude/kit/python-path`, as both launchers
