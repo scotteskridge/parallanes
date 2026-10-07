@@ -44,7 +44,8 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 # The kit's hooks in .claude/settings.json. Re-running the installer puts back one you deleted;
 # switch one off here instead, then re-run it. The protected hook is the backstop behind the rules
 # above and has no switch; the ownership hook's is `ownership = "off"` in [project]. A mistake in
-# this table (a misspelt key, `protected = false`) stops every agent action until it's fixed.
+# this table (a misspelt key, `protected = false`) blocks every agent command and file edit until
+# it's fixed.
 # [hooks]
 # rules_check = true                # check the [[checks.rules]] patterns after every agent edit
 # lane_router = true                # tell the agent its lane at session start

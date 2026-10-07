@@ -106,7 +106,9 @@ def merge(settings: dict, recorded: list, off=frozenset()) -> list:
 
 def recorded_names(recorded: list) -> set:
     """The kit hooks the record holds. merge drops a switched-off hook from it but keeps one the
-    owner only deleted, so a missing hook that isn't recorded was switched back on (or is new)."""
+    owner only deleted, so a missing hook that isn't recorded was switched back on (or is new).
+    Known gap: a switchable hook kept as the owner's edited copy while off isn't recorded either, so
+    deleting it later reads as switched on; telling them apart would need the old `off` set."""
     commands = {command for entry in recorded for command in _commands(entry["group"])}
     return {name for _, _, name in WIRING if _command(name) in commands}
 
@@ -121,7 +123,8 @@ def missing(settings: dict, off=frozenset()) -> list:
     """The kit hooks merge will add: none of the groups under their event runs their command.
 
     Checked per event, as merge does. On a re-run each one is said aloud, recorded or not, so a
-    deleted hook coming back isn't a surprise; the way out is `[hooks]` in kit.toml.
+    deleted hook coming back isn't a surprise; the way out is `[hooks]` in kit.toml (rules-check
+    and lane-router only).
     """
     hooks = settings.get("hooks", {})
     return [

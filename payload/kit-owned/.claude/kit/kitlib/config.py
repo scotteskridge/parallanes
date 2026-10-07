@@ -30,6 +30,7 @@ _PROTECTED_KEYS = {"paths": list, "commands": list, "secrets": list, "guard_kit"
 # Hooks the owner may switch off (decision 102), by key and hook name. Not `protected`: it is the
 # backstop behind the deny rules. Not `ownership`: [project] ownership = "off" already switches it off.
 _HOOK_SWITCHES = {"rules_check": "rules-check", "lane_router": "lane-router"}
+SWITCHABLE_HOOKS = frozenset(_HOOK_SWITCHES.values())
 _HOOK_REDIRECTS = {
     "protected": "'protected' can't be switched off: it is the backstop behind the deny rules; "
     "narrow what it guards in [protected] instead",
