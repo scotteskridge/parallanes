@@ -1,3 +1,9 @@
+# Declared rather than left to pip's legacy fallback. 77 is the first setuptools that reads the
+# SPDX string form of `license` below.
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "claude-code-lanes-starter"
 version = "0.1.0.dev0"
@@ -10,6 +16,12 @@ authors = [{ name = "Scott Eskridge" }]
 [project.optional-dependencies]
 # ruff is pinned exactly: its formatting changes between versions, and CI must agree with a local run.
 dev = ["pytest>=8", "pytest-xdist>=3", "ruff==0.16.10"]
+
+# No packages: the kit isn't distributed as one (the installer copies files into a project), so
+# `pip install -e ".[dev]"` only needs the dev extras. Without this, setuptools' auto-discovery
+# finds payload/ and installer/ side by side and refuses to guess.
+[tool.setuptools]
+packages = []
 
 # Dev-only (decision 94): lints and formats the kit's own code; nothing here is installed.
 [tool.ruff]
