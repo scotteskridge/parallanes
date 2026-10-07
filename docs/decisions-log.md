@@ -24,7 +24,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        it merges; the docs say how to see that. *Why:* running every rule over the whole project on
        each PR would block every PR on old code.
      - Also from the reviews: `gh -R`/`--repo` before the subcommand, `gh pr new`, `--opt=value` and
-       `-ovalue` forms, `gh alias set`/`import` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
+       `-ovalue` forms (gh's options before its subcommand and clustered too, round 3), `gh alias
+       set`/`import` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
        approval a solo owner can't give.
 
 104. **Plan 09's three answers (owner's OK on Claude's recommendations).**

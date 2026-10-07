@@ -174,6 +174,17 @@ def test_the_label_never_lets_a_secret_file_through(tmp_path):
     assert ".env" in result.stdout and "vendor/lib.py" not in result.stdout
 
 
+def test_a_staged_secret_missing_from_the_disk_is_still_added(tmp_path):
+    # Review round 3: "deleted" comes from git, not from whether the file is on disk.
+    repo = make_repo(tmp_path, config=PROTECTED_TOML)
+    write(repo, ".env", "KEY=1\n")
+    git(repo, "add", ".env")
+    (repo / ".env").unlink()
+    result = run_cli(repo, "check", "protected", "--staged", env={**os.environ, "KIT_ALLOW_PROTECTED": LABEL_VALUE})
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert ".env" in result.stdout
+
+
 @pytest.mark.slow
 def test_the_label_lets_a_committed_secret_be_deleted(tmp_path):
     # Review round 2: removing an accidentally committed .env is the fix, not a leak.
@@ -280,6 +291,13 @@ def test_kit_test_without_a_command_fails_and_says_where_to_set_it(tmp_path):
         f"gh pr create --body --repo -l {LABEL}",
         f"gh pr create -l{LABEL}",
         "gh alias import aliases.yml",
+        # Review round 3: gh finds the subcommand past options, and short options cluster.
+        f"gh pr --add-label {LABEL} edit 12",
+        f"gh issue --add-label {LABEL} edit 12",
+        f"gh -R o/r pr --add-label={LABEL} edit 12",
+        f"gh pr --draft new -l {LABEL}",
+        f"gh pr create -dl{LABEL}",
+        f"gh pr create -wdl{LABEL}",
     ],
 )
 def test_the_default_commands_block_labelling(command):
@@ -297,6 +315,10 @@ def test_the_default_commands_block_labelling(command):
         "gh -R o/r pr view 12",
         "gh pr merge 12 --merge --delete-branch",
         "gh alias list",
+        # Review round 3: a separate value that starts with a dash and holds a space is text.
+        'gh pr create --title x --body "-lots of changes"',
+        'git commit -m "-n flag removed from script"',
+        "gh pr --limit 1 list",
     ],
 )
 def test_the_default_commands_leave_ordinary_gh_alone(command):

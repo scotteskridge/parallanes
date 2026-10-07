@@ -134,30 +134,40 @@ def normalize(words: list[str]) -> Command | None:
 
 
 def _gh_args(args: list[str]) -> list[str]:
-    """gh's args as a pattern expects them: no repo option, aliases spelled out (plan 09 review).
+    """gh's args without the repo option given before the first subcommand word (plan 09 review).
 
-    gh takes `-R`/`--repo` before or among the subcommand words (`gh pr -R o/r edit`), which would
-    otherwise keep `gh pr edit` from matching; `gh pr new` is gh's own name for `gh pr create`.
-    Only there: further on, `-R` may be another option's value (`--title -R`, review round 2), and
-    the flags a pattern needs are found anywhere after the subcommand anyway.
+    `gh -R o/r pr edit` would otherwise read `o/r` as the first word. Further on it needs no
+    stripping: gh finds its subcommand words past options anyway (see `_gh_words`), and `-R` there
+    may be another option's value (`--title -R`, review round 2).
     """
-    kept = []
     rest = list(args)
-    while rest and len(kept) < 2:
+    while rest and rest[0].startswith("-") and rest[0] != "--":
         arg = rest.pop(0)
         if arg in ("-R", "--repo"):
             rest = rest[1:]  # its value
-        elif arg.startswith("--repo=") or (arg.startswith("-R") and not arg.startswith("--")):
-            pass
-        elif arg.startswith("-"):
-            rest.insert(0, arg)  # another option: the subcommand words are over
+    return rest
+
+
+def _gh_words(args: tuple, words: tuple) -> bool:
+    """Whether gh would run the subcommand `words` (review round 3).
+
+    gh (cobra) finds a subcommand by skipping options, so `gh pr --add-label x edit 12` runs
+    `gh pr edit`. Which options take a value isn't known here, so the later words need only appear
+    in order among the non-option words: wider than gh, never narrower. `gh pr new` is gh's own
+    name for `gh pr create`.
+    """
+    plain = []
+    for arg in args:
+        if arg == "--":
             break
-        else:
-            kept.append(arg)
-    kept += rest
-    if kept[:2] == ["pr", "new"]:
-        kept[1] = "create"
-    return kept
+        if not arg.startswith("-"):
+            plain.append("create" if plain == ["pr"] and arg == "new" else arg)
+    if not words:
+        return True
+    if not plain or plain[0] != words[0]:
+        return False
+    found = iter(plain[1:])
+    return all(word in found for word in words[1:])  # `in` on an iterator consumes it: in order
 
 
 def _expand(arg: str) -> set[str]:
@@ -191,17 +201,29 @@ def parse_pattern(text: str) -> Pattern:
 def matches(command: Command, pattern: Pattern) -> bool:
     if command.program != pattern.program:
         return False
-    if command.args[: len(pattern.words)] != pattern.words:
+    gh = command.program == "gh"
+    if gh:
+        if not _gh_words(command.args, pattern.words):
+            return False
+        options = command.args  # gh's options may sit before and among its subcommand words
+    elif command.args[: len(pattern.words)] != pattern.words:
         return False
+    else:
+        options = command.args[len(pattern.words) :]
     present = set()
-    for arg in command.args[len(pattern.words) :]:
+    for arg in options:
         if arg == "--":
             break  # after `--`, words are operands (`grep -- --force` names a pattern)
         if arg.startswith("-") and "=" in arg:
             arg = arg.partition("=")[0]  # `--label=x` and `-l=x` are `--label x` and `-l x`
         present |= _expand(arg)
-        if re.match(r"-[A-Za-z].", arg):
-            present.add(arg[:2])  # a short option joined to its value: `-lvalue` is `-l value`
+        # A short option joined to its value, `-lvalue` (one word with no space: a separate value
+        # like `-m "-n removed"` is text). gh clusters options before it, `-dlvalue` (review round 3);
+        # elsewhere only the first letter counts, so `git commit -mnote` isn't `-n`.
+        joined = re.match(r"-([A-Za-z]+)\S*$", arg) if re.fullmatch(r"-[A-Za-z]\S+", arg) else None
+        if joined:
+            letters = joined[1] if gh else joined[1][0]
+            present |= {f"-{letter}" for letter in letters}
     return pattern.flags <= present
 
 

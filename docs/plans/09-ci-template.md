@@ -107,4 +107,8 @@ check required (branch protection) and how a human lets an intended protected-pa
   `labeled` event starts counts. Also: a committed secret couldn't be deleted through a PR, a
   secret under a protected path was told to get the label, `-R` as another option's value hid a
   label flag, `gh alias import`, `-lvalue`.
+- **Review round 3** (fresh reviewer on the round-2 fixes; no 🔴): gh reads options before its
+  subcommand words (`gh pr --add-label x edit`), and short options cluster (`-dlvalue`); a separate
+  value holding a space (`-m "-n removed"`) was wrongly read as an option; "deleted" now comes from
+  git, not the disk; `gh extension` and `gh run rerun` are listed as misses.
 - **Live check** on a private scratch repo, `scotteskridge/worklanes-ci-check`: see the PR.

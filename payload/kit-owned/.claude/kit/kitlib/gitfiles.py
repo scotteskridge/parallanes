@@ -74,6 +74,16 @@ def touched_since(root: Path, base: str) -> list[str]:
     return _names(_git(root, "diff", "--name-only", "--no-renames", "-z", f"{base}...HEAD"))
 
 
+def deleted_staged(root: Path) -> list[str]:
+    """The paths the next commit deletes (a rename's old name too)."""
+    return _names(_git(root, "diff", "--cached", "--name-only", "--no-renames", "--diff-filter=D", "-z"))
+
+
+def deleted_since(root: Path, base: str) -> list[str]:
+    """The paths this branch deleted since it left base (a rename's old name too)."""
+    return _names(_git(root, "diff", "--name-only", "--no-renames", "--diff-filter=D", "-z", f"{base}...HEAD"))
+
+
 def current_branch(root: Path) -> str | None:
     """The checked-out branch, or None when HEAD is detached (as in CI).
 

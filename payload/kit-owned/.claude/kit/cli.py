@@ -199,15 +199,20 @@ def check_protected(root: Path, config, args) -> list:
     paths = touched_paths(root, args)
     if not paths:
         return []
-    # Gone from the checked-out tree: deleted (or moved away) by the change.
-    deleted = frozenset(path for path in paths if not (root / path).exists())
+    # What the change deletes, from git: the disk can differ from the index (review round 3).
+    if args.staged:
+        deleted = frozenset(gitfiles.deleted_staged(root))
+    elif args.diff:
+        deleted = frozenset(gitfiles.deleted_since(root, args.diff))
+    else:
+        deleted = frozenset()  # named files exist (explicit_paths checks), so none is deleted
     findings = protected.check(config, paths, deleted=deleted)
     if protected.override() == "paths":
         # CI's label: protected paths pass, and a secret file may leave, never arrive (decision 105).
         kept = protected.check(config, [path for path in paths if path not in deleted], keys=("secrets",))
         if len(findings) > len(kept):
             print(
-                f"kit: {len(findings) - len(kept)} protected path change(s) allowed by the "
+                f"kit: {len(findings) - len(kept)} protected change(s) allowed by the "
                 f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); added secret files never are.",
                 file=sys.stderr,
             )
