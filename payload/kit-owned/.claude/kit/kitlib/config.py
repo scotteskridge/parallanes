@@ -53,6 +53,7 @@ DEFAULT_COMMANDS = [
     "gh pr create -l",
     "gh label edit",
     "gh alias set",  # an alias would hide any of the above from the hook
+    "gh alias import",
     "gh pr merge --admin",  # merges past red required checks
 ]
 # Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).

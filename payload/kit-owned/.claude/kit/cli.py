@@ -199,14 +199,16 @@ def check_protected(root: Path, config, args) -> list:
     paths = touched_paths(root, args)
     if not paths:
         return []
-    findings = protected.check(config, paths)
+    # Gone from the checked-out tree: deleted (or moved away) by the change.
+    deleted = frozenset(path for path in paths if not (root / path).exists())
+    findings = protected.check(config, paths, deleted=deleted)
     if protected.override() == "paths":
-        # CI's label: protected paths pass, secret files never do (decision 105).
-        kept = protected.check(config, paths, keys=("secrets",))
+        # CI's label: protected paths pass, and a secret file may leave, never arrive (decision 105).
+        kept = protected.check(config, [path for path in paths if path not in deleted], keys=("secrets",))
         if len(findings) > len(kept):
             print(
                 f"kit: {len(findings) - len(kept)} protected path change(s) allowed by the "
-                f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); secret files never are.",
+                f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); added secret files never are.",
                 file=sys.stderr,
             )
         return kept

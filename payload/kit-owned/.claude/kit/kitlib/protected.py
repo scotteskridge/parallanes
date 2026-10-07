@@ -135,22 +135,29 @@ def _secret_matching(path: str, patterns) -> str | None:
     return anchored or bare
 
 
-def check(config, paths, keys=KINDS) -> list[Finding]:
+def check(config, paths, keys=KINDS, deleted=frozenset()) -> list[Finding]:
     """Findings for changed paths that are protected or secret (only those under keys).
 
     Kit config changes are normal commits. The remedy differs in CI, where a person's label on the
-    pull request is the override and a secret file has none (decision 105).
+    pull request is the override: it lets a secret file go (deleted), never arrive (decision 105).
+    A secret is reported as one first there, so the remedy fits (review round 2).
     """
     in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
+    order = ("secrets", "paths") if in_ci else KINDS
     findings = []
     for path in paths:
-        found = _reason_and_key(config.protected, path, keys=keys)
+        found = next(
+            (hit for key in order if key in keys and (hit := _reason_and_key(config.protected, path, keys=(key,)))),
+            None,
+        )
         if found:
             reason, key = found
             if not in_ci:
                 remedy = f"If this change is intended, commit it with {ALLOW_VARIABLE}=1."
             elif key == "paths":
                 remedy = f"If this change is intended, a person adds the label {LABEL} to the pull request."
+            elif path in deleted:
+                remedy = f"Removing it is right: a person adds the label {LABEL} to the pull request."
             else:
                 remedy = "A secret file never lands through a pull request: take it out of the change."
             findings.append(Finding(path=normalize(path), line=0, check=CHECK, message=f"{reason}. {remedy}"))

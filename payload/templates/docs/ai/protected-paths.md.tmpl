@@ -142,19 +142,20 @@ the change: look at any pull request that touches those folders before you merge
 - **In a pull request:** create the label `kit:protected-change` once (Issues → Labels, or
   `gh label create kit:protected-change`), then add it to the pull request after you have read the
   change. CI runs again and lets the protected paths through. Nothing else changes:
-  - Secret files (`[protected].secrets`) still fail. A secret file never lands through a pull
-    request.
+  - A secret file (`[protected].secrets`) the pull request adds still fails: it never lands
+    through a pull request. Removing one that was committed by mistake passes with the label.
   - A change to another lane's files still needs a branch that isn't a lane's.
   - Every other check still applies.
 
-  The label covers the change you looked at, not later ones. A new push to the pull request, or a
-  new base branch, is checked without it. Remove the label and add it again once you have read the
-  new commits.
+  The label counts only on the run that adding it starts. It stays on the pull request, but every
+  later run is judged without it: a new push, a new base branch, an edited title or description,
+  a reopen, or another label added or removed. Once you have read what changed, remove the label
+  and add it again.
 - **An agent:** it can't add the label. The default `[protected].commands` block the `gh` commands
-  that add it (`gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label`,
-  `gh label edit`, `gh alias set`), in any flag order and with `-R`/`--repo` anywhere. Its `gh` uses
-  your login, so GitHub itself would let it. What still gets past the hook: `gh api`, a short
-  option written together with its value (`-lkit:protected-change`), and commands inside strings
-  (`bash -c "..."`). Your reading of the pull request is what catches those. Ask the agent to
-  explain the change, then label it yourself, or remove the path from `[protected]` (and run
-  `{{kit_command}} settings sync`).
+  that add it (`gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label` or
+  `-l`, `gh label edit`) and the ones that would hide them (`gh alias set`, `gh alias import`), in
+  any flag order, with `--label=value` or `-lvalue`, and with `-R`/`--repo` before the
+  subcommand. Its `gh` uses your login, so GitHub itself would let it. What still gets past the
+  hook: `gh api`, and commands inside strings (`bash -c "..."`). Your reading of the pull request
+  is what catches those. Ask the agent to explain the change, then label it yourself, or remove
+  the path from `[protected]` (and run `{{kit_command}} settings sync`).

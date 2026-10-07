@@ -35,10 +35,11 @@ jobs:
       # merged change again would turn {{integration_branch}} red after a reviewed, labelled merge.
       - name: kit check all
         env:
-          # The label lets protected paths through (never secret files), and only on runs that change
-          # no code: after a new push or a new base it counts again once a person labels again
-          # (decision 105). The agent's gh commands that add it are protected.
-          KIT_ALLOW_PROTECTED: $\{{ contains(fromJSON('["labeled", "unlabeled", "reopened"]'), github.event.action) && contains(github.event.pull_request.labels.*.name, 'kit:protected-change') && 'paths' || '' }}
+          # The label lets protected paths through (never added secret files), and only on the run a
+          # person starts by adding it: the label stays on the PR, so every later run (a push, an
+          # edit, a reopen, another label) is judged without it until they add it again (decision
+          # 105). The agent's gh commands that add it are protected.
+          KIT_ALLOW_PROTECTED: $\{{ github.event.action == 'labeled' && github.event.label.name == 'kit:protected-change' && 'paths' || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             python .claude/kit/cli.py check all --diff "origin/$GITHUB_BASE_REF"

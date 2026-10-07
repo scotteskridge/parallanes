@@ -65,14 +65,15 @@ def test_kit_checks_fetches_the_whole_history():
 
 
 def test_the_override_comes_only_from_the_label_and_only_on_the_check_step():
-    # Only runs that change no code honour the label (decision 105): a push after labelling, or a
-    # new base, is judged without it until a person labels again. Shown live in plan 09's check.
+    # Only the run a person starts by adding this label honours it (decision 105, review round 2):
+    # any later event, a push, a reopen or another label's change, is judged without it, since the
+    # label stays on the PR. Shown live in plan 09's check.
     flow = workflow()
     step = check_step(flow)
     assert step["env"] == {
         "KIT_ALLOW_PROTECTED": (
-            '${{ contains(fromJSON(\'["labeled", "unlabeled", "reopened"]\'), github.event.action) && '
-            f"contains(github.event.pull_request.labels.*.name, '{LABEL}') && '{LABEL_VALUE}' || '' }}}}"
+            f"${{{{ github.event.action == 'labeled' && github.event.label.name == '{LABEL}' "
+            f"&& '{LABEL_VALUE}' || '' }}}}"
         )
     }
     others = [s for job in flow["jobs"].values() for s in job["steps"] if s is not step]
@@ -97,7 +98,7 @@ def test_concurrency_never_cancels_a_push_run():
 # ---- the check step's script, run as CI would run it -------------------------------------------
 
 
-def ci_project(tmp_path, config, head, changes):
+def ci_project(tmp_path, config, head, changes, base=None, deletes=()):
     """A repo checked out as actions/checkout leaves a PR: detached at a merge of head into origin/main.
 
     origin/main moves on after head branched off, so the merge is a real two-parent commit and the
@@ -107,12 +108,15 @@ def ci_project(tmp_path, config, head, changes):
         pytest.skip("sh is needed to run the workflow's script (Git Bash on Windows)")
     repo = make_repo(tmp_path, config=config)
     shutil.copytree(KIT, repo / ".claude" / "kit", ignore=shutil.ignore_patterns("__pycache__"), dirs_exist_ok=True)
-    write(repo, "src/app.py", "x = 1\n")
+    for rel, text in {"src/app.py": "x = 1\n", **(base or {})}.items():
+        write(repo, rel, text)
     git(repo, "add", ".")
     git(repo, "commit", "-qm", "base")
     git(repo, "checkout", "-qb", head)
     for rel, text in changes.items():
         write(repo, rel, text)
+    for rel in deletes:
+        git(repo, "rm", "-q", rel)
     git(repo, "add", ".")
     git(repo, "commit", "-qm", "the PR's change")
     git(repo, "checkout", "-q", "main")
@@ -168,6 +172,25 @@ def test_the_label_never_lets_a_secret_file_through(tmp_path):
     result = run_step(repo, "pull_request", allow=LABEL_VALUE)
     assert result.returncode == 1, result.stdout + result.stderr
     assert ".env" in result.stdout and "vendor/lib.py" not in result.stdout
+
+
+@pytest.mark.slow
+def test_the_label_lets_a_committed_secret_be_deleted(tmp_path):
+    # Review round 2: removing an accidentally committed .env is the fix, not a leak.
+    repo = ci_project(tmp_path, PROTECTED_TOML, "fix/env", {}, base={".env": "KEY=1\n"}, deletes=[".env"])
+    result = run_step(repo, "pull_request", head="fix/env")
+    assert result.returncode == 1
+    assert "Removing it is right" in result.stdout
+    assert run_step(repo, "pull_request", allow=LABEL_VALUE, head="fix/env").returncode == 0
+
+
+@pytest.mark.slow
+def test_a_secret_under_a_protected_path_is_told_the_label_wont_help(tmp_path):
+    # Review round 2: paths are checked first, but the label can't let a secret through.
+    repo = ci_project(tmp_path, PROTECTED_TOML, "fix/vendor", {"vendor/.env": "KEY=1\n"})
+    result = run_step(repo, "pull_request")
+    assert result.returncode == 1
+    assert "never lands through a pull request" in result.stdout and LABEL not in result.stdout
 
 
 @pytest.mark.slow
@@ -251,6 +274,12 @@ def test_kit_test_without_a_command_fails_and_says_where_to_set_it(tmp_path):
         f"gh alias set lbl 'pr edit --add-label {LABEL}'",
         "gh pr merge 12 --admin",  # merges past red required checks
         "gh -R o/r pr merge 12 --admin --squash",
+        # Review round 2: a value that looks like the repo option, a short option joined to its
+        # value, and an alias file.
+        f"gh pr create --title -R --label {LABEL}",
+        f"gh pr create --body --repo -l {LABEL}",
+        f"gh pr create -l{LABEL}",
+        "gh alias import aliases.yml",
     ],
 )
 def test_the_default_commands_block_labelling(command):

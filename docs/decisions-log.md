@@ -10,17 +10,21 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        guard). *Why:* a pull request runs its own copy of the workflow, so an agent editing it could
        switch CI off for that PR. No CI job can defend against the PR it runs from; a person reading
        changes to the kit's folders is the server-side check, and the docs say so.
-     - *The label counts only on runs that change no code* (`labeled`, `unlabeled`, `reopened`). A
-       new push or a new base (`edited`, now a trigger) is judged without it until a person labels
-       again. *Why:* the label then means "I read this exact change"; it costs a re-label per late push.
-     - *The label waives protected paths, never secret files.* CI sets `KIT_ALLOW_PROTECTED=paths`;
-       `1` (a person at a terminal) still waives both. *Why:* committing `.env` through a PR is never
-       the intended change.
+     - *The label counts only on the run that adding it starts* (`action == 'labeled'` for this
+       label). Every later run, a push, a new base (`edited`, now a trigger), a reopen or another
+       label's change, is judged without it until a person labels again. *Why:* the label then
+       means "I read this exact change"; it costs a re-label per late push. Review round 2 found
+       the first version (honouring `unlabeled` and `reopened` while the label was on) let an
+       agent's `gh pr close` and `reopen` turn an unread push green.
+     - *The label waives protected paths and the removal of a committed secret, never an added
+       secret file.* CI sets `KIT_ALLOW_PROTECTED=paths`; `1` (a person at a terminal) still waives
+       everything. *Why:* committing `.env` through a PR is never the intended change; deleting one
+       committed by mistake is the fix.
      - *A push keeps checking the whole project.* A rule added later must pass project-wide before
        it merges; the docs say how to see that. *Why:* running every rule over the whole project on
        each PR would block every PR on old code.
-     - Also from the review: `gh -R`/`--repo` anywhere, `gh pr new`, `--opt=value` forms, `gh alias
-       set` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
+     - Also from the reviews: `gh -R`/`--repo` before the subcommand, `gh pr new`, `--opt=value` and
+       `-ovalue` forms, `gh alias set`/`import` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
        approval a solo owner can't give.
 
 104. **Plan 09's three answers (owner's OK on Claude's recommendations).**

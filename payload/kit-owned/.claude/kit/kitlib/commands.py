@@ -138,17 +138,23 @@ def _gh_args(args: list[str]) -> list[str]:
 
     gh takes `-R`/`--repo` before or among the subcommand words (`gh pr -R o/r edit`), which would
     otherwise keep `gh pr edit` from matching; `gh pr new` is gh's own name for `gh pr create`.
+    Only there: further on, `-R` may be another option's value (`--title -R`, review round 2), and
+    the flags a pattern needs are found anywhere after the subcommand anyway.
     """
     kept = []
-    words = iter(args)
-    for arg in words:
-        if arg == "--":
-            kept += [arg, *words]
-            break
+    rest = list(args)
+    while rest and len(kept) < 2:
+        arg = rest.pop(0)
         if arg in ("-R", "--repo"):
-            next(words, None)  # its value
-        elif not (arg.startswith("--repo=") or (arg.startswith("-R") and not arg.startswith("--"))):
+            rest = rest[1:]  # its value
+        elif arg.startswith("--repo=") or (arg.startswith("-R") and not arg.startswith("--")):
+            pass
+        elif arg.startswith("-"):
+            rest.insert(0, arg)  # another option: the subcommand words are over
+            break
+        else:
             kept.append(arg)
+    kept += rest
     if kept[:2] == ["pr", "new"]:
         kept[1] = "create"
     return kept
@@ -194,6 +200,8 @@ def matches(command: Command, pattern: Pattern) -> bool:
         if arg.startswith("-") and "=" in arg:
             arg = arg.partition("=")[0]  # `--label=x` and `-l=x` are `--label x` and `-l x`
         present |= _expand(arg)
+        if re.match(r"-[A-Za-z].", arg):
+            present.add(arg[:2])  # a short option joined to its value: `-lvalue` is `-l value`
     return pattern.flags <= present
 
 

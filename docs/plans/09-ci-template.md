@@ -102,4 +102,9 @@ check required (branch protection) and how a human lets an intended protected-pa
   switched off by editing `kit.yml` in the PR (🔴, now kit config with an ask rule, and the limit is
   stated); the label waived secrets and later pushes; the branch-protection recipe locked out a solo
   owner; several `gh` forms got past the hook; CI's message pointed at a terminal-only override.
+- **Review round 2** (fresh general reviewer on the fix commit): 🔴 the label was honoured again
+  after an agent's `gh pr close`/`reopen` or another label's removal; now only the run its own
+  `labeled` event starts counts. Also: a committed secret couldn't be deleted through a PR, a
+  secret under a protected path was told to get the label, `-R` as another option's value hid a
+  label flag, `gh alias import`, `-lvalue`.
 - **Live check** on a private scratch repo, `scotteskridge/worklanes-ci-check`: see the PR.
