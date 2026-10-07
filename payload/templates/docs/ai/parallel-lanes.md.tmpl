@@ -25,6 +25,15 @@ start.
 Then start one Claude Code session in each lane's folder. Two to four lanes is usually the limit of
 what one person can review.
 
+**Open a lane by its folder, never with `claude --worktree <lane>`.** With lanes in the default
+`.claude/worktrees/` folder, that flag finds the lane and the session works, but Claude Code then
+treats the lane as a worktree it made: when you exit a session that left the lane unchanged, it
+deletes the lane folder without asking (if there are changes, it asks: keep it). Committed work
+survives on its branch; the lane's ignored files (local settings, `.env`) are lost, and `lanes
+create <lane>` makes the folder again. Run `claude` from inside the lane folder instead (in a
+terminal: `cd` there first). An unnamed `claude --worktree`, or one with lanes outside the project,
+makes a separate worktree that isn't a lane; the session is told so.
+
 `lanes create` makes each lane folder from the latest `{{integration_branch}}` (`origin/{{integration_branch}}` in PR
 mode, the local branch in local mode; it never fetches), with no branch checked out until a task
 starts. If one lane fails, the others are still created; fix the problem and run it again. It
@@ -142,6 +151,9 @@ another remote, counts as unpushed, and `sync` would rebase it.
 `{{kit_command}} lanes remove <lane>` deletes its worktree. It refuses if there are uncommitted changes, or
 ignored files that may hold work (a changed `.env`, local settings, build output; not caches such as
 `__pycache__` or `node_modules`); it lists them, and `--force` deletes them anyway. The lane's entry stays in `kit.toml` until you delete it.
+If git says it "cannot remove a locked working tree" with the reason `claude session <lane>`, a
+`claude --worktree` session left a lock behind: once no session runs there, clear it with
+`git worktree unlock <lane folder>` and run the command again.
 
 ## Lanes or agent teams?
 

@@ -62,6 +62,7 @@ waits for v0.2); 35 was checked live on Linux and Windows and isn't a bug (decis
 - **Cross-session messaging** ([cross-session-messaging](https://code.claude.com/docs/en/cross-session-messaging.md)) lists "Coordinate parallel worktrees" as a use. It covers live lane-to-lane coordination; it isn't stored, so persistent handoff notes (§6 Later) remain files.
 - **Lane memory:** all worktrees share one auto-memory folder ([memory](https://code.claude.com/docs/en/memory.md)); a gitignored `CLAUDE.local.md` exists only in its own worktree, a cheap place for lane notes.
 - **Desktop preview:** `.claude/launch.json` per folder with `autoPort` ([desktop](https://code.claude.com/docs/en/desktop.md)); `lanes create` could write a lane's fixed port there.
+- ✓ **`claude --worktree <lane>`** opens a lane but adopts it as Claude Code's own worktree and deletes a clean lane's folder on exit (decision 107): open lanes by folder.
 - **Background sessions** started inside a linked worktree don't make another one ([agent-view](https://code.claude.com/docs/en/agent-view.md)), so `claude --bg` works in a lane folder. Check live that deleting a session never removes a lane folder.
 - **Don't use a `WorktreeCreate` hook for lanes:** it receives only `name`, replaces creation for every subagent and background session too, and turns off `.worktreeinclude`.
 - **Agent teams** don't isolate teammates in worktrees and are experimental: not a fit for lanes.

@@ -3,6 +3,17 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: Lanes and `claude --worktree`
+
+107. **Lanes are opened by their folder; the lane docs warn against `claude --worktree <lane>`
+     (owner's OK on Claude's recommendations, backlog `lanes-and-worktree-flag`).** *Why:* a live
+     run showed the flag finds the lane and the session works, but Claude Code adopts the lane as
+     its own worktree and deleted a clean lane's folder on exit without asking, taking its ignored
+     files (local settings, `.env`) with it. Headless runs also leave a lock that blocks `lanes
+     remove`. Docs only: detecting a Claude Code session lock in the lane-router and `lanes remove`
+     is backlog `lane-session-lock`. Not checked live: exit with uncommitted changes, the desktop
+     app's worktree sessions (ARCHITECTURE §15).
+
 ## 2026-10-07: The CI template (plan 09)
 
 106. **Plan 09's review round 1 (owner's OK on Claude's recommendations).**
