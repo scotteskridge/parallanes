@@ -27,12 +27,14 @@ what one person can review.
 
 **Open a lane by its folder, never with `claude --worktree <lane>`.** With lanes in the default
 `.claude/worktrees/` folder, that flag finds the lane and the session works, but Claude Code then
-treats the lane as a worktree it made: when you exit a session that left the lane unchanged, it
-deletes the lane folder without asking (if there are changes, it asks: keep it). Committed work
-survives on its branch; the lane's ignored files (local settings, `.env`) are lost, and `lanes
-create <lane>` makes the folder again. Run `claude` from inside the lane folder instead (in a
-terminal: `cd` there first). An unnamed `claude --worktree`, or one with lanes outside the project,
-makes a separate worktree that isn't a lane; the session is told so.
+treats the lane as a worktree it made: when you exit and the lane has no uncommitted changes, it
+deletes the lane folder without asking, even with commits on the task branch (with uncommitted
+changes, Claude Code's docs say it asks: keep it). Committed work survives on its branch; the
+lane's own changes to ignored files (`.env`, local settings, build output) are lost. `lanes create
+<lane>` makes the folder again; then `git switch <lane>/<task>` in it to carry on. Run `claude`
+from inside the lane folder instead (in a terminal: `cd` there first). An unnamed `claude
+--worktree`, or one with lanes outside the project, makes a separate worktree that isn't a lane;
+the session is told so.
 
 `lanes create` makes each lane folder from the latest `{{integration_branch}}` (`origin/{{integration_branch}}` in PR
 mode, the local branch in local mode; it never fetches), with no branch checked out until a task
