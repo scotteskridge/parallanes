@@ -5,14 +5,24 @@ size: M
 ---
 # Stop lanes colliding on the decisions log
 
-Every lane adds its decisions at the top of `docs/design/decisions-log.md`, a shared path, so two
-lanes that both decide something conflict on the same lines. In the two-lane trial (F12) it
-happened on the third round: `lanes finish` surfaced it while syncing and the agent merged the
-entries by hand, which works but costs a step and a judgement call every time. The changelog
-already avoids this with one fragment file per change (`docs/changelog.d/`).
+ARCHITECTURE §8 keeps `docs/design/decisions-log.md` as one newest-first file "for readability",
+with the rule that a lane adds at most one entry per task. Decision 13 made the changelog fragments
+instead and rejected `merge=union` as fragile. The two-lane trial (F12, C4) tested §8's choice:
+both lanes prepended to the log, `lanes finish` surfaced the conflict while syncing, and the
+agent's hand merge kept every entry but put the newest one third, breaking newest-first. One task
+(`web/read-toggle`) had also added two entries, against the one-entry rule, because nothing
+checks it.
 
-Open for the owner: decision fragments gathered by a `kit` command (like `changelog build`), or a
-merge rule (`merge=union` in `.gitattributes`) that keeps both sides of a top-of-file insert.
+Open for the owner, each reversing or tightening a settled choice:
+- **(a) Fragments, like the changelog.** This reverses §8's readability choice; a `kit` command
+  could build the readable log.
+- **(b) `merge=union` for this one file.** This reverses decision 13 for it; it would need a
+  reason that it's safe here when it wasn't for the changelog.
+- **(c) Keep one file, and enforce §8.** `/wrap-up` checks for one entry per task and tells the
+  agent how to merge a top-of-file conflict, keeping newest first.
 
-**Done when:** two lanes that each log a decision both land without a conflict, with a test that
-runs that case.
+Recommendation: (c). It keeps the decision already made, the trial's conflict was small, and the
+real failures were the unchecked rule and the merge order.
+
+**Done when:** the owner's choice is recorded in `docs/decisions-log.md`, and two lanes that each
+log a decision land with the log still newest first, with a test for that case.
