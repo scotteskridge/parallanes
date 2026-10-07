@@ -176,7 +176,7 @@ def test_status_text(tmp_path):
     assert "detached HEAD" in text and "! careful" in text and "Note: overlap" in text
     assert "core .claude/worktrees/core · core/x · 2 ahead, 1 behind origin/main · 1 changed · 2 untracked" in text
     assert "pushed branch gone from origin · PR #4 MERGED" in text
-    assert "api .claude/worktrees/api · not created (parallanes lanes create api)" in text
+    assert "api .claude/worktrees/api · not created (sh .claude/kit/parallanes lanes create api)" in text
 
 
 def test_github_remote_gets_a_compare_url():

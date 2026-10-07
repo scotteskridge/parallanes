@@ -6,6 +6,8 @@ names. A project installed before the rename keeps working: the installer never 
 its old launcher and the files that call it stay as they were.
 """
 
+import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -83,25 +85,65 @@ def test_no_installed_file_names_the_old_command_or_repo(tmp_path):
     assert not (repo / ".claude" / "kit" / "kit").exists()
 
 
+def old_install(repo):
+    """Turn a fresh install into what the kit wrote before the rename (review round 1: copying the new
+    launcher wasn't one): the old launcher, old block markers, the old command in every file, and a
+    manifest whose hashes and kit_command match those files, as main's installer recorded them."""
+    kit = repo / ".claude" / "kit"
+    (kit / "parallanes").rename(kit / "kit")
+    swaps = [
+        ("# >>> parallanes", "# >>> claude-code-lanes-starter"),
+        ("# <<< parallanes", "# <<< claude-code-lanes-starter"),
+        (".claude/kit/parallanes", ".claude/kit/kit"),
+    ]
+    for path in repo.rglob("*"):
+        if path.is_file() and ".git" not in path.relative_to(repo).parts:
+            data = path.read_bytes()
+            for new, old in swaps:
+                data = data.replace(new.encode(), old.encode())
+            path.write_bytes(data)
+    manifest_path = kit / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"] = {rel: hashlib.sha256((repo / rel).read_bytes()).hexdigest() for rel in manifest["files"]}
+    assert manifest["values"]["kit_command"] == "sh .claude/kit/kit"
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
 @pytest.mark.slow
 @needs_sh
 def test_a_project_installed_before_the_rename_keeps_working(tmp_path):
-    """Its own files call `sh .claude/kit/kit`: the re-run leaves that launcher, says it's the old
-    name, and the new one works too."""
     repo = new_repo(tmp_path)
+    (repo / ".gitattributes").write_text("*.png binary\n", encoding="utf-8")  # the owner's: narrow block
     setup(repo)
-    kit = repo / ".claude" / "kit"
-    old = kit / "kit"
-    shutil.copyfile(kit / "parallanes", old)  # what a v0.1.0.dev0 install left
-    agents = repo / "AGENTS.md"
-    agents.write_bytes(agents.read_bytes() + b"\nRun `sh .claude/kit/kit next`.\n")
+    old_install(repo)
+    assert ".claude/kit/kit text eol=lf" in (repo / ".gitattributes").read_text(encoding="utf-8")
 
     again = setup(repo)
-    assert old.is_file()
-    assert ".claude/kit/kit is the old name of .claude/kit/parallanes" in again.stdout
-    assert b"sh .claude/kit/kit next" in agents.read_bytes()
+
+    kit = repo / ".claude" / "kit"
+    assert (kit / "kit").is_file() and (kit / "parallanes").is_file()
+    for rel in (".gitignore", ".gitattributes", ".worktreeinclude"):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "claude-code-lanes-starter" not in text, rel
+        assert text.count(blocks.BEGIN) == 1, rel
+    # The old launcher keeps LF, or a CRLF checkout on Windows breaks it for every file still calling it.
+    attributes = (repo / ".gitattributes").read_text(encoding="utf-8")
+    assert ".claude/kit/kit text eol=lf" in attributes and ".claude/kit/parallanes text eol=lf" in attributes
+    manifest = json.loads((kit / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["values"]["kit_command"] == "sh .claude/kit/parallanes"
+    assert "parallanes" in (repo / ".claude/skills/next/SKILL.md").read_text(encoding="utf-8")  # replaced
+    # The note names the files that still call the old launcher, so "delete it once none do" is doable.
+    note = next(line for line in again.stdout.splitlines() if "old name" in line)
+    assert "CLAUDE.md" in note and "docs/ai/parallel-lanes.md" in note
     for launcher in ("kit", "parallanes"):
         result = subprocess.run(
             ["sh", f".claude/kit/{launcher}", "next", "--offline"], cwd=repo, capture_output=True, text=True
         )
         assert result.returncode == 0, (launcher, result.stderr)
+
+
+def test_an_owners_line_that_starts_like_a_marker_isnt_one():
+    """Markers match whole, not by prefix: `# >>> parallanes-trial` is the owner's own line."""
+    text = "# >>> parallanes-trial notes\nkeep/\n"
+    merged = blocks.merge(text, ".env\n")
+    assert merged.startswith(text) and merged.count(blocks.BEGIN) == 1

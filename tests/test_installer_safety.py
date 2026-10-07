@@ -347,3 +347,11 @@ def test_an_edited_kit_new_deleted_after_the_note_comes_back(tmp_path):
     offered.unlink()
     setup(repo)
     assert offered.read_bytes() == original
+
+
+def test_a_new_folder_is_told_to_make_the_branch_the_kit_expects(tmp_path):
+    """`git init` alone may name the branch master while the installer chose main, and then
+    `lanes create` can't find it (plan 12 review round 1)."""
+    target = tmp_path / "new project"
+    result = setup(target)
+    assert "git init -b main" in result.stdout

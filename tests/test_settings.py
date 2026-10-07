@@ -190,7 +190,7 @@ def test_check_all_includes_settings(tmp_path):
     repo = make_repo(tmp_path, config=PROTECTED_TOML, settings=False)
     result = run_cli(repo, "check", "all")
     assert result.returncode == 1
-    assert "settings sync" in result.stdout
+    assert "sh .claude/kit/parallanes settings sync" in result.stdout
 
 
 def test_owner_rule_that_the_kit_also_needs_survives_removal(tmp_path):
