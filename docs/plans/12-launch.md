@@ -1,8 +1,8 @@
 # 12 — Launch
 
-**Status:** Approved (decision 108)
+**Status:** Approved
 **Branch / PR:** `plan/12-launch` · PR link once open
-**Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107; backlog
+**Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107, 108 (the answers); backlog
 `readme-builtins-comparison` and `plugin-name` (both folded in here); ARCHITECTURE §12
 
 ## Goal

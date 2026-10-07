@@ -42,7 +42,7 @@ def installed_project():
     text = config.read_text(encoding="utf-8")
     assert "paths = []" in text
     config.write_text(text.replace("paths = []", 'paths = ["vendor/**"]', 1), encoding="utf-8")
-    subprocess.run(["sh", ".claude/kit/kit", "settings", "sync"], cwd=folder, check=True)
+    subprocess.run(["sh", ".claude/kit/worklanes", "settings", "sync"], cwd=folder, check=True)
     (folder / "vendor").mkdir()
     (folder / "notes.txt").write_text("original\n", encoding="utf-8")
     return folder

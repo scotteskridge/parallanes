@@ -6,6 +6,7 @@ names. A project installed before the rename keeps working: the installer never 
 its old launcher and the files that call it stay as they were.
 """
 
+import re
 import shutil
 import subprocess
 import sys
@@ -17,7 +18,7 @@ from installer import blocks, values
 from test_installer import new_repo, setup
 
 LAUNCHERS = ROOT / "payload" / "kit-owned" / ".claude" / "kit"
-OLD_NAMES = (".claude/kit/kit", "claude-code-lanes-starter")
+OLD_NAMES = re.compile(r"\.claude/kit/kit\b|claude-code-lanes-starter")  # \b: not .claude/kit/kitlib
 needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="needs sh (Git Bash on Windows)")
 
 
@@ -41,7 +42,9 @@ def test_the_cli_calls_itself_worklanes():
     cli = LAUNCHERS / "cli.py"
     usage = subprocess.run([sys.executable, str(cli), "--help"], capture_output=True, text=True)
     assert usage.stdout.startswith("usage: worklanes"), usage.stdout
-    refused = subprocess.run([sys.executable, str(cli), "check", "rules", "--lane", "x"], capture_output=True, text=True)
+    refused = subprocess.run(
+        [sys.executable, str(cli), "check", "rules", "--lane", "x"], capture_output=True, text=True
+    )
     assert refused.returncode == 2
     assert refused.stderr.startswith("worklanes: "), refused.stderr
 
@@ -74,8 +77,8 @@ def test_no_installed_file_names_the_old_command_or_repo(tmp_path):
     for path in repo.rglob("*"):
         if path.is_file() and ".git" not in path.relative_to(repo).parts:
             text = path.read_bytes().decode("utf-8", errors="replace")
-            for old in OLD_NAMES:
-                assert old not in text, f"{path.relative_to(repo).as_posix()} mentions {old}"
+            old = OLD_NAMES.search(text)
+            assert old is None, f"{path.relative_to(repo).as_posix()} mentions {old.group(0)}"
     assert (repo / ".claude" / "kit" / "worklanes").is_file()
     assert not (repo / ".claude" / "kit" / "kit").exists()
 

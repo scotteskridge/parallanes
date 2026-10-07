@@ -44,7 +44,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
 ## 5. Hooks (automatic enforcement)
 - **MVP** Rules-check (PostToolUse on Edit/Write): forbidden patterns from `.claude/kit.toml` (pattern, glob, message); exits 2 so the agent fixes violations; fails open; ignores comments
-- **MVP** Every check has three entry points: hook, CLI for humans and agents (`kit check ...`), and pre-commit; CI runs the CLI
+- **MVP** Every check has three entry points: hook, CLI for humans and agents (`worklanes check ...`), and pre-commit; CI runs the CLI
 - **MVP** Lane-router hook (SessionStart): tells the agent its lane, branch, scope, owned paths and resources; warns about drift
 - **MVP** Protected paths: `settings.json` deny rules generated from config (primary) + PreToolUse command backstop (fails closed); each project's `docs/ai/protected-paths.md` states the limits and recommends the sandbox where available
 - **Later** Stop hook that reminds the agent to run tests if code changed without a test run

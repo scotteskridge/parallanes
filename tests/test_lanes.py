@@ -1,4 +1,4 @@
-"""`kit lanes create / status / remove` on throwaway repos with a bare origin (decisions 35-39, 42, 43)."""
+"""`worklanes lanes create / status / remove` on throwaway repos with a bare origin (decisions 35-39, 42, 43)."""
 
 import json
 import os

@@ -1,4 +1,4 @@
-"""`kit lanes ...`: runs one lanes command and turns its result into output and an exit code.
+"""`worklanes lanes ...`: runs one lanes command and turns its result into output and an exit code.
 
 Imported lazily by cli.py, so a fault in the lane code can't take the protected guard down.
 """
@@ -34,13 +34,13 @@ def run(args) -> int:
             lines = [lane_status.format_status(lane_status.status(here, config, args.offline))]
     except lane_setup.PartialCreate as error:
         print("\n".join(error.lines))
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"worklanes: {error}", file=sys.stderr)
         return USAGE
     except lanes.Unfinished as error:  # before LaneError, its base class
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"worklanes: {error}", file=sys.stderr)
         return UNFINISHED
     except (ConfigError, lanes.LaneError) as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"worklanes: {error}", file=sys.stderr)
         return USAGE
     print("\n".join(lines))
     return OK

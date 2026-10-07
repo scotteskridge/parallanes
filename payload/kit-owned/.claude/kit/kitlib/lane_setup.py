@@ -1,4 +1,4 @@
-"""`kit lanes create` and `kit lanes remove`: making and removing lane worktrees (decisions 35, 39, 45)."""
+"""`worklanes lanes create` and `worklanes lanes remove`: making and removing lane worktrees (decisions 35, 39, 45)."""
 
 import filecmp
 import os

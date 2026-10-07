@@ -1,7 +1,7 @@
 """The lane-boundary check (decision 96): a lane's change lands only in its own and the shared paths.
 
 The ownership hook asks before an out-of-lane edit and fails open (decision 41); this check is the
-backstop when the work lands, in `kit lanes finish`, the pre-commit hook and CI, and it fails closed.
+backstop when the work lands, in `worklanes lanes finish`, the pre-commit hook and CI, and it fails closed.
 Rules taken from lanekeeper's merge check (docs/survey-lanekeeper.md); no code was borrowed.
 Paths come from kitlib.gitfiles, where a rename already counts as a change to both names and a
 base that can't be diffed is an error, never a clean result.

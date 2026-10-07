@@ -1,4 +1,4 @@
-"""Protected paths: the shared path logic and `kit check protected` (pre-commit and CI)."""
+"""Protected paths: the shared path logic and `worklanes check protected` (pre-commit and CI)."""
 
 import os
 import subprocess
@@ -82,7 +82,7 @@ def test_reason_names_the_pattern_and_where_it_lives():
     assert "vendor/**" in reason and "[protected]" in reason
 
 
-# ---- kit check protected ------------------------------------------------------------------------
+# ---- worklanes check protected ------------------------------------------------------------------------
 
 
 def committed_repo(tmp_path):

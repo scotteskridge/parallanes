@@ -24,7 +24,7 @@ def config(mode="pr"):
 
 
 def clean(monkeypatch, status_output):
-    # The parser is lanes.changes, shared with `kit next`; it reads git through lanes.git.
+    # The parser is lanes.changes, shared with `worklanes next`; it reads git through lanes.git.
     monkeypatch.setattr(lanes, "git", lambda top, *args, **kwargs: status_output)
     return lane_cycle._clean(Path("."))
 
@@ -176,7 +176,7 @@ def test_status_text(tmp_path):
     assert "detached HEAD" in text and "! careful" in text and "Note: overlap" in text
     assert "core .claude/worktrees/core · core/x · 2 ahead, 1 behind origin/main · 1 changed · 2 untracked" in text
     assert "pushed branch gone from origin · PR #4 MERGED" in text
-    assert "api .claude/worktrees/api · not created (kit lanes create api)" in text
+    assert "api .claude/worktrees/api · not created (worklanes lanes create api)" in text
 
 
 def test_github_remote_gets_a_compare_url():
@@ -196,7 +196,7 @@ def test_lanes_cli_reports_a_missing_config_cleanly(tmp_path, monkeypatch, capsy
     args = SimpleNamespace(lanes_command="sync")
     assert lane_cli.run(args) == lane_cli.USAGE
     err = capsys.readouterr().err
-    assert err.startswith("kit: ") and "Traceback" not in err
+    assert err.startswith("worklanes: ") and "Traceback" not in err
 
 
 def test_lanes_cli_catches_unfinished_from_where_it_is_defined(tmp_path, monkeypatch, capsys):
@@ -212,4 +212,4 @@ def test_lanes_cli_catches_unfinished_from_where_it_is_defined(tmp_path, monkeyp
     monkeypatch.setattr(lane_cycle, "finish", finish)
     args = SimpleNamespace(lanes_command="finish", title=None, body_file=None)
     assert lane_cli.run(args) == lane_cli.UNFINISHED
-    assert capsys.readouterr().err == "kit: core/t is pushed, but gh pr create failed\n"
+    assert capsys.readouterr().err == "worklanes: core/t is pushed, but gh pr create failed\n"

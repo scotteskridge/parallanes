@@ -1,4 +1,4 @@
-"""`kit lanes sync`: rebase before the branch is pushed, merge after, stop on conflicts (decision 48)."""
+"""`worklanes lanes sync`: rebase before the branch is pushed, merge after, stop on conflicts (decision 48)."""
 
 from pathlib import Path
 

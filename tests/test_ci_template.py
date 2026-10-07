@@ -1,4 +1,4 @@
-"""The CI template an installed project gets (plan 09, decision 105), and `kit test`, which it runs.
+"""The CI template an installed project gets (plan 09, decision 105), and `worklanes test`, which it runs.
 
 The workflow is parsed as YAML, and its check step's script is run with sh (Git's on Windows; the
 runner uses bash) in a scratch repo with the variables GitHub Actions sets, so the tests exercise
@@ -231,7 +231,7 @@ def test_a_push_checks_the_whole_project_not_a_change(project):
     assert "src/app.py:1" in result.stdout
 
 
-# ---- kit test -------------------------------------------------------------------------------------
+# ---- worklanes test -------------------------------------------------------------------------------------
 
 
 def config_with(test_command: str) -> str:

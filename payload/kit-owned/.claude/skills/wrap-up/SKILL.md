@@ -4,18 +4,18 @@ description: "Finish the current task: run the tests, get the reviewer's report 
 model: sonnet
 disable-model-invocation: true
 argument-hint: "[docs/plans/<plan>.md]"
-allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/worklanes next) Bash(sh .claude/kit/worklanes next *) Bash(git status *) Read Grep Glob
 ---
 Wrap up the current task. $ARGUMENTS
 
 ## 0. Lane check
-Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
+Run `sh .claude/kit/worklanes next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: step 6 finishes with `lanes finish`.
 - `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this isn't
   one. Stop: wrap up from the lane folder the task's branch is in.
 - `Here: not a lane`: the project has no lanes; step 6 uses git and `gh` directly.
 Stop if the current branch is the integration branch. The plan is the one named, or the one
-`kit next` lists as In progress; a small task may have none.
+`worklanes next` lists as In progress; a small task may have none.
 
 ## 1. Test
 Run the full test command (`test_command` in `.claude/kit.toml`) and keep its result lines. If
@@ -64,7 +64,7 @@ commit message that says *why*. Ask: "Commit and open the pull request?" Wait fo
    file outside the lane's paths makes the ownership hook ask.
 3. In a lane, as one command:
    ```
-   sh .claude/kit/kit lanes finish --title "<title>" --body-file - <<'EOF'
+   sh .claude/kit/worklanes lanes finish --title "<title>" --body-file - <<'EOF'
    <the PR body>
    EOF
    ```

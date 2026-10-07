@@ -10,7 +10,7 @@ import json
 import subprocess
 from pathlib import Path
 
-KIT_COMMAND = "sh .claude/kit/kit"  # decision 99
+KIT_COMMAND = "sh .claude/kit/worklanes"  # decisions 99, 108
 
 QUESTIONS = [
     ("project_name", "Project name"),
@@ -51,7 +51,10 @@ def detect(target: Path, previous: dict) -> dict:
         "kit_command": KIT_COMMAND,
         "install_date": datetime.date.today().isoformat(),
     }
-    return {**found, **{key: value for key, value in previous.items() if key in found}}
+    # kit_command isn't an answer but how to run the kit being installed: an earlier install's
+    # value would name a launcher this version doesn't ship (decision 108's rename).
+    kept = {key: value for key, value in previous.items() if key in found and key != "kit_command"}
+    return {**found, **kept}
 
 
 def _npm_test(package: Path) -> str:

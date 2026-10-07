@@ -240,13 +240,13 @@ def test_a_bom_on_gitignore_is_kept(tmp_path):
 
 @pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh (Git Bash on Windows)")
 def test_the_installed_kit_runs_through_its_launcher(tmp_path):
-    """As the skills and docs run it: sh .claude/kit/kit, with the recorded python-path."""
+    """As the skills and docs run it: sh .claude/kit/worklanes, with the recorded python-path."""
     repo = new_repo(tmp_path)
     setup(repo)
     config = repo / ".claude" / "kit.toml"
     config.write_bytes(config.read_bytes().replace(b'test_command = ""', b'test_command = "exit 0"'))
     for args in (["check", "all"], ["next", "--offline"]):
-        result = subprocess.run(["sh", ".claude/kit/kit", *args], cwd=repo, capture_output=True, text=True)
+        result = subprocess.run(["sh", ".claude/kit/worklanes", *args], cwd=repo, capture_output=True, text=True)
         assert result.returncode == 0, (args, result.stdout, result.stderr)
     manifest = json.loads((repo / ".claude/kit/manifest.json").read_text(encoding="utf-8"))
     assert (

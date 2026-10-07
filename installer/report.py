@@ -115,7 +115,8 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
     workflow = ".github/workflows/kit.yml"
     if f"{workflow}.kit-new" in kit_new:
         steps.append(
-            f"Compare {workflow}.kit-new with your {workflow}: the kit's CI runs `kit check all` and `kit test`. "
+            f"Compare {workflow}.kit-new with your {workflow}: the kit's CI runs `worklanes check all` and "
+            "`worklanes test`. "
             'Whichever you keep, make its jobs required checks: docs/ai/protected-paths.md, "The server".'
         )
     else:

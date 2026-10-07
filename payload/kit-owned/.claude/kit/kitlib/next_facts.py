@@ -1,4 +1,4 @@
-"""`kit next`: the facts the `/next` skill turns into an answer (decision 63).
+"""`worklanes next`: the facts the `/next` skill turns into an answer (decision 63).
 
 Where this folder is, every lane, the open plans and the backlog. Read-only. The rules live here,
 not in the skill's prose, so they can be tested. A file that can't be read is listed under

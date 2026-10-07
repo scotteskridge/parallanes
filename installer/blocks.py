@@ -6,9 +6,11 @@ edited the block by hand: that is an error to show, never something to repair si
 pattern from lanekeeper's CODEOWNERS handling, `docs/survey-lanekeeper.md`).
 """
 
-BEGIN = "# >>> claude-code-lanes-starter (managed: the installer rewrites the lines between these markers)"
-END = "# <<< claude-code-lanes-starter"
-_BEGIN_KEY = "# >>> claude-code-lanes-starter"
+BEGIN = "# >>> worklanes (managed: the installer rewrites the lines between these markers)"
+END = "# <<< worklanes"
+# The kit's name before decision 108: a block written then is found under it and rewritten with
+# the new markers. A pair must use one name, so a half-renamed block is broken like any other.
+_NAMES = ("worklanes", "claude-code-lanes-starter")
 _BOM = "﻿"
 
 
@@ -21,12 +23,19 @@ def _bare(line: str) -> str:
 
 
 def _markers(lines: list) -> tuple[list, list]:
-    begins = [number for number, line in enumerate(lines) if _bare(line).startswith(_BEGIN_KEY)]
-    ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == END]
-    if (begins or ends) and not (len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]):
+    found = {}
+    for name in _NAMES:
+        begins = [number for number, line in enumerate(lines) if _bare(line).startswith(f"# >>> {name}")]
+        ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == f"# <<< {name}"]
+        if begins or ends:
+            found[name] = (begins, ends)
+    if not found:
+        return [], []
+    begins, ends = next(iter(found.values()))
+    if len(found) > 1 or not (len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]):
+        counts = ", ".join(f"{len(b)} start and {len(e)} end named {name}" for name, (b, e) in found.items())
         raise BlockError(
-            f"its claude-code-lanes-starter markers are broken ({len(begins)} start, {len(ends)} end): "
-            "fix or remove them by hand, then run the installer again"
+            f"its worklanes markers are broken ({counts}): fix or remove them by hand, then run the installer again"
         )
     return begins, ends
 
