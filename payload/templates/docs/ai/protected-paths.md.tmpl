@@ -157,7 +157,7 @@ the change: look at any pull request that touches those folders before you merge
   any flag order (before the subcommand words too, as gh reads them), with `--label=value`,
   `-lvalue` or `-dlvalue`, and with `-R`/`--repo`. Its `gh` uses your login, so GitHub itself
   would let it. What still gets past the hook: `gh api`, a gh extension (`gh extension install`
-  runs any script), commands inside strings (`bash -c "..."`), and `gh run rerun` of a labelled
+  runs any script), `gh pr create --recover` with a saved file that may hold labels, commands inside strings (`bash -c "..."`), and `gh run rerun` of a labelled
   run after the base branch changed (a re-run reuses that run's event). Your reading of the pull
   request is what catches those. Ask the agent to explain the change, then label it yourself, or remove
   the path from `[protected]` (and run `{{kit_command}} settings sync`).

@@ -161,13 +161,27 @@ def _gh_words(args: tuple, words: tuple) -> bool:
         if arg == "--":
             break
         if not arg.startswith("-"):
-            plain.append("create" if plain == ["pr"] and arg == "new" else arg)
+            # Anywhere after `pr`: an option's value may sit between (`gh pr -R o/r new`, round 4).
+            plain.append("create" if plain[:1] == ["pr"] and arg == "new" else arg)
     if not words:
         return True
     if not plain or plain[0] != words[0]:
         return False
     found = iter(plain[1:])
     return all(word in found for word in words[1:])  # `in` on an iterator consumes it: in order
+
+
+# gh's short options that take a value: in a cluster, the rest of the word is that value, so
+# `-tlogin` is a title, not `-l` (review round 4). Wider than any one command's set, on purpose.
+_GH_VALUE_LETTERS = set("BHtbRarmTFplLjqsSeAM")
+
+
+def _gh_cluster(letters: str) -> str:
+    """The options in a gh cluster: each letter up to and including the first that takes a value."""
+    for index, letter in enumerate(letters):
+        if letter in _GH_VALUE_LETTERS:
+            return letters[: index + 1]
+    return letters
 
 
 def _expand(arg: str) -> set[str]:
@@ -222,7 +236,7 @@ def matches(command: Command, pattern: Pattern) -> bool:
         # elsewhere only the first letter counts, so `git commit -mnote` isn't `-n`.
         joined = re.match(r"-([A-Za-z]+)\S*$", arg) if re.fullmatch(r"-[A-Za-z]\S+", arg) else None
         if joined:
-            letters = joined[1] if gh else joined[1][0]
+            letters = _gh_cluster(joined[1]) if gh else joined[1][0]
             present |= {f"-{letter}" for letter in letters}
     return pattern.flags <= present
 

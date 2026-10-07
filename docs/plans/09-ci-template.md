@@ -111,4 +111,7 @@ check required (branch protection) and how a human lets an intended protected-pa
   subcommand words (`gh pr --add-label x edit`), and short options cluster (`-dlvalue`); a separate
   value holding a space (`-m "-n removed"`) was wrongly read as an option; "deleted" now comes from
   git, not the disk; `gh extension` and `gh run rerun` are listed as misses.
+- **Review round 4** (on the round-3 matcher; no 🔴): `gh pr -R o/r new -l` slipped past (the
+  alias after an option's value); gh's clustering now stops at an option that takes a value, so
+  `-tlogin` is a title. Two rare false positives are accepted (`gh label list --search edit`).
 - **Live check** on a private scratch repo, `scotteskridge/worklanes-ci-check`: see the PR.

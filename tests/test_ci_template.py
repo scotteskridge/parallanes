@@ -298,6 +298,9 @@ def test_kit_test_without_a_command_fails_and_says_where_to_set_it(tmp_path):
         f"gh pr --draft new -l {LABEL}",
         f"gh pr create -dl{LABEL}",
         f"gh pr create -wdl{LABEL}",
+        # Review round 4: gh's `new` alias after an option's value.
+        f"gh pr -R o/r new -l {LABEL}",
+        f"gh pr --title t new -l {LABEL}",
     ],
 )
 def test_the_default_commands_block_labelling(command):
@@ -319,6 +322,9 @@ def test_the_default_commands_block_labelling(command):
         'gh pr create --title x --body "-lots of changes"',
         'git commit -m "-n flag removed from script"',
         "gh pr --limit 1 list",
+        # Review round 4: gh's clustering stops at an option that takes a value.
+        "gh pr create -t x -b y -Bdevelop",
+        "gh pr create -tlogin -b y",
     ],
 )
 def test_the_default_commands_leave_ordinary_gh_alone(command):
