@@ -5,7 +5,7 @@ import json
 import pytest
 
 from helpers import git, run_cli, write
-from lane_helpers import LANES_TOML, commit, lane_dir, lanes_repo
+from lane_helpers import LANES_TOML, PACKAGE_JSON, commit, lane_dir, lanes_repo
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
 
@@ -195,9 +195,18 @@ def test_worst_case_briefing_stays_in_budget(tmp_path):
     commit(repo, ".claude/kit.toml", config + "\n# changed\n")  # kit.toml drift
     git(repo, "push", "-q")
     write(folder, "src/core/a.py", "dirty\n")  # uncommitted
+    write(folder, "package.json", PACKAGE_JSON)  # untracked, and a Node lane without node_modules
     git(folder, "fetch", "-q")
     text = brief(folder)
-    for word in ("not a core/<task>", "already merged", "behind", "kit.toml differs", "uncommitted"):
+    for word in (
+        "not a core/<task>",
+        "already merged",
+        "behind",
+        "kit.toml differs",
+        "uncommitted",
+        "untracked",
+        "node_modules",
+    ):
         assert word in text, text
     assert "Scope: Domain logic and its tests and more lines" in text
     assert len(text.splitlines()) <= 15, text

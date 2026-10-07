@@ -34,8 +34,8 @@ like any other.
 3. ~~The lane-boundary check: `lane-boundary-check`, with `lane-overlap-check` for files two lanes claim~~ (done)
 4. ~~Plan 08: the installer~~ (done)
 5. A two-lane trial on a small web project: `prove-it-on-a-real-project` (trial done:
-   [write-up](../trial/two-lane-trial.md); still open: `lanes-and-worktree-flag` and
-   `lane-dependency-hint`)
+   [write-up](../trial/two-lane-trial.md); still open: `lanes-and-worktree-flag`;
+   `lane-dependency-hint` done)
 6. Plan 09: the CI template
 7. Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)
 
