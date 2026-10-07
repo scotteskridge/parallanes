@@ -104,6 +104,13 @@ def merge(settings: dict, recorded: list, off=frozenset()) -> list:
     return record
 
 
+def recorded_names(recorded: list) -> set:
+    """The kit hooks the record holds. merge drops a switched-off hook from it but keeps one the
+    owner only deleted, so a missing hook that isn't recorded was switched back on (or is new)."""
+    commands = {command for entry in recorded for command in _commands(entry["group"])}
+    return {name for _, _, name in WIRING if _command(name) in commands}
+
+
 def _running(settings: dict) -> set:
     return {
         command for groups in settings.get("hooks", {}).values() for group in groups for command in _commands(group)

@@ -181,6 +181,8 @@ def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
     off = config.hooks.switched_off
     settings_hooks.check(sync.settings.get("hooks", {}), old_record)  # before the notes read them
     added = settings_hooks.missing(sync.settings, off)
+    announced = added if previous else []
+    was_recorded = settings_hooks.recorded_names(old_record)
     was_running = settings_hooks.still_running(sync.settings, off)
     record = settings_hooks.merge(sync.settings, old_record, off)
     running = settings_hooks.still_running(sync.settings, off)
@@ -198,7 +200,10 @@ def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
         "writes_record": writes_record,
         "rules": sum(len(added) for added in sync.added.values()),
         "added_hooks": len(added),
-        "readded_hooks": added if previous else [],  # a first install adds them all; nothing to explain
+        # A first install adds them all; nothing to explain. Only a hook the owner deleted gets the
+        # "to keep it out" advice; one switched back on (so no longer recorded) doesn't.
+        "readded_hooks": [name for name in announced if name in was_recorded],
+        "switched_on_hooks": [name for name in announced if name not in was_recorded],
         "removed_hooks": [name for name in was_running if name not in running],
         "still_running": running,
         "hooks": record,

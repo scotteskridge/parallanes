@@ -254,6 +254,17 @@ def test_a_kit_command_under_another_event_doesnt_count_as_present():
     assert settings_hooks.missing(settings) == ["protected"]
 
 
+def test_recorded_names_tell_a_deleted_hook_from_one_switched_back_on():
+    """Switching off drops a hook from the record; deleting it by hand doesn't (review of PR 31)."""
+    settings = {}
+    record = settings_hooks.merge(settings, [])
+    assert settings_hooks.recorded_names(record) == {"protected", "ownership", "rules-check", "lane-router"}
+    record = settings_hooks.merge(settings, record, off={"rules-check"})
+    assert "rules-check" not in settings_hooks.recorded_names(record)
+    del settings["hooks"]["SessionStart"]  # deleted by hand: still recorded
+    assert "lane-router" in settings_hooks.recorded_names(record)
+
+
 def test_every_switch_in_kit_toml_names_a_hook_the_kit_wires():
     """A typo in either list would make a switch silently do nothing."""
     from kitlib import config

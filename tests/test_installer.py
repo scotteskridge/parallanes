@@ -111,7 +111,9 @@ def test_a_rerun_honours_hooks_switched_off_and_brings_back_the_protected_hook(t
     # On again: the note mustn't blame the owner for a removal the kit made (review round 2).
     toml.write_text(toml.read_text(encoding="utf-8").replace("rules_check = false", ""), encoding="utf-8")
     back_on = setup(repo)
-    assert "the rules-check hook isn't in .claude/settings.json and is added" in back_on.stdout
+    # The owner asked for it back: no advice on keeping it out (review of PR 31).
+    assert "the rules-check hook is on in .claude/kit.toml and is added to .claude/settings.json" in back_on.stdout
+    assert "isn't in .claude/settings.json" not in back_on.stdout
     assert "missing" not in back_on.stdout
 
 

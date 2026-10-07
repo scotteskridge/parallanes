@@ -17,7 +17,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      it guards is narrowed in `[protected]`. *Refined while building:* `[hooks]` has no `ownership`
      key, because `[project] ownership = "off"` already switches that hook off, and works without a
      re-run; two switches for one behaviour could disagree. Only the installer applies `[hooks]`
-     for now, so a change takes effect on the next run.
+     for now, so a change takes effect on the next run. Owner's OK on both refinements (2026-10-07,
+     PR #31's review): the ownership hook stays out of `[hooks]`, and `kit check settings` doesn't
+     read `[hooks]` until the trial shows a need.
 
 ## 2026-10-06: Plan 08 questions (the installer)
 

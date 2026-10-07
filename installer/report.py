@@ -40,6 +40,8 @@ def plan(files: file_plan.FilePlan, settings: dict, extra: dict, precommit: str)
             else "to keep it out, set it false under [hooks] in .claude/kit.toml"
         )
         print(f"  note     the {name} hook isn't in .claude/settings.json and is added; {how}")
+    for name in settings["switched_on_hooks"]:
+        print(f"  note     the {name} hook is on in .claude/kit.toml and is added to .claude/settings.json")
     for name in settings["removed_hooks"]:
         print(
             f"  note     the {name} hook is switched off in .claude/kit.toml and is removed from .claude/settings.json"
