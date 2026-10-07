@@ -128,7 +128,30 @@ def normalize(words: list[str]) -> Command | None:
                 value = args.pop(0)
             if name == "-c":
                 git_config.append(value)
+    elif program == "gh":
+        args = _gh_args(args)
     return Command(program, tuple(args), tuple(git_config))
+
+
+def _gh_args(args: list[str]) -> list[str]:
+    """gh's args as a pattern expects them: no repo option, aliases spelled out (plan 09 review).
+
+    gh takes `-R`/`--repo` before or among the subcommand words (`gh pr -R o/r edit`), which would
+    otherwise keep `gh pr edit` from matching; `gh pr new` is gh's own name for `gh pr create`.
+    """
+    kept = []
+    words = iter(args)
+    for arg in words:
+        if arg == "--":
+            kept += [arg, *words]
+            break
+        if arg in ("-R", "--repo"):
+            next(words, None)  # its value
+        elif not (arg.startswith("--repo=") or (arg.startswith("-R") and not arg.startswith("--"))):
+            kept.append(arg)
+    if kept[:2] == ["pr", "new"]:
+        kept[1] = "create"
+    return kept
 
 
 def _expand(arg: str) -> set[str]:
@@ -168,6 +191,8 @@ def matches(command: Command, pattern: Pattern) -> bool:
     for arg in command.args[len(pattern.words) :]:
         if arg == "--":
             break  # after `--`, words are operands (`grep -- --force` names a pattern)
+        if arg.startswith("-") and "=" in arg:
+            arg = arg.partition("=")[0]  # `--label=x` and `-l=x` are `--label x` and `-l x`
         present |= _expand(arg)
     return pattern.flags <= present
 

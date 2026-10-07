@@ -116,7 +116,9 @@ def test_shell_write_from_a_subfolder_resolves_against_cwd(repo):
     assert_allowed(hook(repo / "src", payload))
 
 
-@pytest.mark.parametrize("rel", [".claude/kit.toml", ".claude/settings.json", ".githooks/pre-commit"])
+@pytest.mark.parametrize(
+    "rel", [".claude/kit.toml", ".claude/settings.json", ".githooks/pre-commit", ".github/workflows/kit.yml"]
+)
 @pytest.mark.parametrize("mode", ["default", "acceptEdits", "bypassPermissions"])
 def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
     # Decision 92: Claude Code's ask rules prompt in every mode, bypassPermissions included.
@@ -128,6 +130,7 @@ def test_kit_config_edits_are_left_to_the_ask_rules(repo, rel, mode):
     [
         ("echo 'guard_kit = false' >> .claude/kit.toml", "Bash"),
         ("rm -rf .githooks", "Bash"),
+        ("rm .github/workflows/kit.yml", "Bash"),  # plan 09: the CI gate is kit config too
         ("Set-Content .claude/settings.json '{}'", "PowerShell"),
     ],
 )

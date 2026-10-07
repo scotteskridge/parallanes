@@ -5,6 +5,24 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-07: The CI template (plan 09)
 
+105. **Plan 09's review round 1 (owner's OK on Claude's recommendations).**
+     - *`.github/workflows/**` joins the kit's guarded files* (ask rules, and the bypass-mode shell
+       guard). *Why:* a pull request runs its own copy of the workflow, so an agent editing it could
+       switch CI off for that PR. No CI job can defend against the PR it runs from; a person reading
+       changes to the kit's folders is the server-side check, and the docs say so.
+     - *The label counts only on runs that change no code* (`labeled`, `unlabeled`, `reopened`). A
+       new push or a new base (`edited`, now a trigger) is judged without it until a person labels
+       again. *Why:* the label then means "I read this exact change"; it costs a re-label per late push.
+     - *The label waives protected paths, never secret files.* CI sets `KIT_ALLOW_PROTECTED=paths`;
+       `1` (a person at a terminal) still waives both. *Why:* committing `.env` through a PR is never
+       the intended change.
+     - *A push keeps checking the whole project.* A rule added later must pass project-wide before
+       it merges; the docs say how to see that. *Why:* running every rule over the whole project on
+       each PR would block every PR on old code.
+     - Also from the review: `gh -R`/`--repo` anywhere, `gh pr new`, `--opt=value` forms, `gh alias
+       set` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
+       approval a solo owner can't give.
+
 104. **Plan 09's three answers (owner's OK on Claude's recommendations).**
      - *A PR label, `kit:protected-change`, lets an intended protected change through CI.* The
        workflow re-runs on `labeled`/`unlabeled` and sets `KIT_ALLOW_PROTECTED=1` for the protected

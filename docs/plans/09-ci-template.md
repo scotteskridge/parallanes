@@ -89,4 +89,17 @@ check required (branch protection) and how a human lets an intended protected-pa
 - [ ] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **A push checks the whole project**, not `--diff github.event.before`: judging the merged change
+  again would turn the integration branch red after every labelled protected change (decision 104).
+- **`kit test`** is new: CI runs `test_command` from `kit.toml` instead of holding a copy of it.
+- **The blocked `gh` commands** are `pr edit --add-label`, `issue edit --add-label`, `pr create
+  --label`/`-l`, `label edit`, `alias set` and `pr merge --admin`, not `gh label` (which would block
+  `gh label list`). The matcher drops gh's `-R`/`--repo` wherever it sits, reads `gh pr new` as
+  `gh pr create`, and `--opt=value` as `--opt`, for every program.
+- **The renderer:** `\{{` now escapes braces whatever follows, so GitHub's `${{ }}` survives.
+- **PyYAML** is a dev-only dependency, so the tests parse the workflow instead of matching its text.
+- **Review round 1** (repo reviewer and a hands-on general reviewer; decision 105): CI could be
+  switched off by editing `kit.yml` in the PR (🔴, now kit config with an ask rule, and the limit is
+  stated); the label waived secrets and later pushes; the branch-protection recipe locked out a solo
+  owner; several `gh` forms got past the hook; CI's message pointed at a terminal-only override.
+- **Live check** on a private scratch repo, `scotteskridge/worklanes-ci-check`: see the PR.

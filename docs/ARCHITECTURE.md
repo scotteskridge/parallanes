@@ -254,7 +254,8 @@ paths = ["vendor/**", "docs/originals/"]
 commands = ["git push --force", "git push -f", "git reset --hard", "git clean -f",
             "git commit --no-verify", "git commit -n",
             "gh pr edit --add-label", "gh issue edit --add-label",  # the CI override label [104]
-            "gh pr create --label", "gh pr create -l", "gh label edit"]  # defaults when the key is absent
+            "gh pr create --label", "gh pr create -l", "gh label edit",
+            "gh alias set", "gh pr merge --admin"]                      # defaults when the key is absent
 secrets = [".env", ".env.*", "!.env.example"]                 # defaults when the key is absent
 guard_kit = true
 ```
@@ -281,7 +282,8 @@ guard_kit = true
   blocks, so every error, a broken `kit.toml`, bad input and a mistyped hook name all exit 2 [33].
 - **Pre-commit and CI:** `kit check protected` reports changed protected paths and added secret
   files; `KIT_ALLOW_PROTECTED=1` lets a human commit an intended change [32]; in CI the PR label
-  `kit:protected-change` does, and the `gh` commands that add it are protected [104].
+  `kit:protected-change` does for protected paths, never secrets, and only on runs that change no
+  code; the `gh` commands that add it are protected [104] [105]. `.github/workflows/**` is kit config.
 - **Stated limits** (`docs/ai/protected-paths.md` in each project): none of this stops a script that
   opens files itself. The OS-level answer is Claude Code's sandbox, which runs on macOS, Linux and
   WSL2 but **not native Windows**; the server-side answer is CI, branch protection and `CODEOWNERS`.

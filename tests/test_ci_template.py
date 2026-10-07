@@ -17,10 +17,12 @@ from helpers import CLI, RULES_TOML, git, make_repo, run_cli, write
 from kitlib import commands
 from kitlib.config import DEFAULT_COMMANDS
 from kitlib.render import render
+from lane_helpers import LANES_TOML
 from test_templates import read, registry
 
 KIT = CLI.parent
 LABEL = "kit:protected-change"
+LABEL_VALUE = "paths"  # what the workflow sets while the label counts: protected paths, never secrets
 PROTECTED_TOML = RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n'
 
 
@@ -46,7 +48,8 @@ def test_runs_on_pushes_to_the_integration_branch_and_on_every_pr_label_change()
     on = triggers(workflow())
     assert on["push"]["branches"] == [registry()["integration_branch"]["example"]]
     # labeled/unlabeled: adding or removing the override label must re-run the checks.
-    assert set(on["pull_request"]["types"]) == {"opened", "synchronize", "reopened", "labeled", "unlabeled"}
+    # edited: a PR moved to another base is judged against the new one (review round 1).
+    assert set(on["pull_request"]["types"]) == {"opened", "synchronize", "reopened", "edited", "labeled", "unlabeled"}
 
 
 def test_has_the_two_jobs_with_timeouts():
@@ -62,10 +65,15 @@ def test_kit_checks_fetches_the_whole_history():
 
 
 def test_the_override_comes_only_from_the_label_and_only_on_the_check_step():
+    # Only runs that change no code honour the label (decision 105): a push after labelling, or a
+    # new base, is judged without it until a person labels again. Shown live in plan 09's check.
     flow = workflow()
     step = check_step(flow)
     assert step["env"] == {
-        "KIT_ALLOW_PROTECTED": f"${{{{ contains(github.event.pull_request.labels.*.name, '{LABEL}') && '1' || '' }}}}"
+        "KIT_ALLOW_PROTECTED": (
+            '${{ contains(fromJSON(\'["labeled", "unlabeled", "reopened"]\'), github.event.action) && '
+            f"contains(github.event.pull_request.labels.*.name, '{LABEL}') && '{LABEL_VALUE}' || '' }}}}"
+        )
     }
     others = [s for job in flow["jobs"].values() for s in job["steps"] if s is not step]
     assert not any("env" in s for s in others)
@@ -89,50 +97,91 @@ def test_concurrency_never_cancels_a_push_run():
 # ---- the check step's script, run as CI would run it -------------------------------------------
 
 
-@pytest.fixture
-def project(tmp_path):
-    """A repo with origin/main, and a PR branch that touches a protected path."""
+def ci_project(tmp_path, config, head, changes):
+    """A repo checked out as actions/checkout leaves a PR: detached at a merge of head into origin/main.
+
+    origin/main moves on after head branched off, so the merge is a real two-parent commit and the
+    three-dot diff has to find the merge base, as with refs/pull/N/merge.
+    """
     if shutil.which("sh") is None:
         pytest.skip("sh is needed to run the workflow's script (Git Bash on Windows)")
-    repo = make_repo(tmp_path, config=PROTECTED_TOML)
+    repo = make_repo(tmp_path, config=config)
     shutil.copytree(KIT, repo / ".claude" / "kit", ignore=shutil.ignore_patterns("__pycache__"), dirs_exist_ok=True)
     write(repo, "src/app.py", "x = 1\n")
     git(repo, "add", ".")
     git(repo, "commit", "-qm", "base")
-    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
-    git(repo, "checkout", "-qb", "fix/vendor")
-    write(repo, "vendor/lib.py", "y = 2\n")
+    git(repo, "checkout", "-qb", head)
+    for rel, text in changes.items():
+        write(repo, rel, text)
     git(repo, "add", ".")
-    git(repo, "commit", "-qm", "touch vendor")
-    git(repo, "checkout", "-q", "--detach")  # as actions/checkout leaves a PR
+    git(repo, "commit", "-qm", "the PR's change")
+    git(repo, "checkout", "-q", "main")
+    write(repo, "README.md", "main moved on\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "main moves on")
+    git(repo, "update-ref", "refs/remotes/origin/main", "main")
+    git(repo, "checkout", "-q", "--detach", "main")
+    git(repo, "merge", "-q", "--no-ff", "--no-edit", head)
     return repo
 
 
-def run_step(repo, event, allow=""):
+@pytest.fixture
+def project(tmp_path):
+    return ci_project(tmp_path, PROTECTED_TOML, "fix/vendor", {"vendor/lib.py": "y = 2\n"})
+
+
+def run_step(repo, event, allow="", head="fix/vendor"):
     script = check_step(workflow())["run"]
     # The runner's `python` is setup-python's; here it is the test's interpreter (on Windows, a bare
     # `python` may be the Store alias).
     shim = f'python() {{ "{sys.executable.replace(os.sep, "/")}" "$@"; }}\n'
     env = {
         **os.environ,
+        "GITHUB_ACTIONS": "true",
         "GITHUB_EVENT_NAME": event,
         "GITHUB_BASE_REF": "main" if event == "pull_request" else "",
-        "GITHUB_HEAD_REF": "fix/vendor" if event == "pull_request" else "",
+        "GITHUB_HEAD_REF": head if event == "pull_request" else "",
         "KIT_ALLOW_PROTECTED": allow,
     }
     return subprocess.run(["sh", "-c", shim + script], cwd=repo, env=env, capture_output=True, text=True)
 
 
 @pytest.mark.slow
-def test_a_pr_that_changes_a_protected_path_fails(project):
+def test_a_pr_that_changes_a_protected_path_fails_and_names_the_label(project):
     result = run_step(project, "pull_request")
     assert result.returncode == 1, result.stdout + result.stderr
     assert "vendor/lib.py" in result.stdout
+    # In CI the remedy is the label; KIT_ALLOW_PROTECTED at a terminal changes nothing there.
+    assert LABEL in result.stdout and "commit it with" not in result.stdout
 
 
 @pytest.mark.slow
 def test_the_label_lets_the_protected_change_through(project):
-    result = run_step(project, "pull_request", allow="1")
+    result = run_step(project, "pull_request", allow=LABEL_VALUE)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "allowed" in result.stderr  # said out loud
+
+
+@pytest.mark.slow
+def test_the_label_never_lets_a_secret_file_through(tmp_path):
+    repo = ci_project(tmp_path, PROTECTED_TOML, "fix/vendor", {"vendor/lib.py": "y = 2\n", ".env": "KEY=1\n"})
+    result = run_step(repo, "pull_request", allow=LABEL_VALUE)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert ".env" in result.stdout and "vendor/lib.py" not in result.stdout
+
+
+@pytest.mark.slow
+def test_the_label_never_lets_a_lane_change_another_lanes_files(tmp_path):
+    repo = ci_project(tmp_path, LANES_TOML, "core/task", {"src/core/a.py": "a = 1\n", "src/api/b.py": "b = 1\n"})
+    result = run_step(repo, "pull_request", allow=LABEL_VALUE, head="core/task")
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "src/api/b.py" in result.stdout and "src/core/a.py" not in result.stdout
+
+
+@pytest.mark.slow
+def test_a_lane_pr_within_its_paths_passes(tmp_path):
+    repo = ci_project(tmp_path, LANES_TOML, "core/task", {"src/core/a.py": "a = 1\n"})
+    result = run_step(repo, "pull_request", head="core/task")
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -189,6 +238,19 @@ def test_kit_test_without_a_command_fails_and_says_where_to_set_it(tmp_path):
         f"gh pr create --title t --label {LABEL}",
         f"gh pr create -l {LABEL}",
         f"gh label edit other --name {LABEL}",
+        # Review round 1: gh's repo option sits anywhere before or among the subcommand words.
+        f"gh -R o/r pr edit 12 --add-label {LABEL}",
+        f"gh --repo o/r pr edit 12 --add-label {LABEL}",
+        f"gh --repo=o/r pr edit 12 --add-label {LABEL}",
+        f"gh pr --repo o/r edit 12 --add-label {LABEL}",
+        f"gh pr -Ro/r edit 12 --add-label {LABEL}",
+        f"gh pr new --label {LABEL}",  # gh's own alias of `pr create`
+        f"gh pr create --label={LABEL}",
+        f"gh pr create -l={LABEL}",
+        f"gh issue edit 12 --add-label={LABEL}",
+        f"gh alias set lbl 'pr edit --add-label {LABEL}'",
+        "gh pr merge 12 --admin",  # merges past red required checks
+        "gh -R o/r pr merge 12 --admin --squash",
     ],
 )
 def test_the_default_commands_block_labelling(command):
@@ -196,7 +258,17 @@ def test_the_default_commands_block_labelling(command):
 
 
 @pytest.mark.parametrize(
-    "command", ["gh pr view 12", "gh pr create --title t", "gh label list", "gh pr edit 12 --title t"]
+    "command",
+    [
+        "gh pr view 12",
+        "gh pr create --title t",
+        "gh label list",
+        "gh label create kit:protected-change",  # creating it is harmless; putting it on a PR isn't
+        "gh pr edit 12 --title t",
+        "gh -R o/r pr view 12",
+        "gh pr merge 12 --merge --delete-branch",
+        "gh alias list",
+    ],
 )
 def test_the_default_commands_leave_ordinary_gh_alone(command):
     assert not commands.find_protected(command, "bash", DEFAULT_COMMANDS)
@@ -223,3 +295,5 @@ def test_the_installer_adds_the_workflow_and_keeps_one_the_project_has(tmp_path)
     result = setup(owned)
     assert (owned / ".github" / "workflows" / "kit.yml").read_text(encoding="utf-8") == "name: mine\n"
     assert "kit.yml.kit-new" in result.stdout
+    # Review round 1: the next step mustn't send the owner to require jobs their own file lacks.
+    assert "compare .github/workflows/kit.yml.kit-new" in result.stdout.lower()

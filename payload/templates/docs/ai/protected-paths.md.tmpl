@@ -34,10 +34,10 @@ calls through (the deny rules still apply).
 
 ## The kit's own configuration
 
-Whoever can edit `.claude/settings.json`, `.claude/kit.toml`, `.claude/kit/` or `.githooks/` can
-switch all of this off. So edits to them get an **ask** rule: Claude must get your approval each
-time. Claude Code never auto-approves an ask rule, in any mode, `acceptEdits` and
-`bypassPermissions` included; in a non-interactive run (`claude -p`), where nobody can answer, the
+Whoever can edit `.claude/settings.json`, `.claude/kit.toml`, `.claude/kit/`, `.githooks/` or
+`.github/workflows/` (CI) can switch all of this off. So edits to them get an **ask** rule: Claude
+must get your approval each time. Claude Code never auto-approves an ask rule, in any mode,
+`acceptEdits` and `bypassPermissions` included; in a non-interactive run (`claude -p`), where nobody can answer, the
 edit is refused. Ask rules are written for Claude's file tools, and Claude Code doesn't say they
 cover `rm` or PowerShell cmdlets, so in `bypassPermissions` mode the hook also blocks shell
 commands that write to or delete these files. `guard_kit = false` in `[protected]` turns both off.
@@ -91,18 +91,31 @@ more than it is:
 ## The server
 
 `.github/workflows/kit.yml` runs two jobs on every pull request and every push to
-`{{integration_branch}}`: `kit-checks` (`check all`, judging a PR on its change) and `tests`
-(`{{kit_command}} test`, which runs `test_command` from `kit.toml`). Add your stack's setup
-step to the `tests` job where the file says so. A red run only stops a merge once you make it
-required, on GitHub under Settings → Rules → Rulesets (or Branches) for `{{integration_branch}}`:
+`{{integration_branch}}`. `kit-checks` runs `check all`: a pull request is judged on its change, a
+push on the whole project. `tests` runs `{{kit_command}} test`, which runs `test_command` from
+`kit.toml`. Add your stack's setup step to the `tests` job where the file says so.
 
-- **Require a pull request before merging**, with at least one approval and **Require review from
-  Code Owners**.
-- **Require status checks to pass**: add `kit-checks` and `tests` (they appear after the first run).
+Because a push checks every tracked file against the rules, a rule you add must pass across the
+whole project before it merges: run `{{kit_command}} check rules` with no file names to see. A
+pull request only checks the files it changes, so it won't show you.
+
+A red run only stops a merge once you make it required. On GitHub, under Settings → Rules →
+Rulesets (or Branches), for `{{integration_branch}}`:
+
+- **Require a pull request before merging.**
+- **Require status checks to pass:** add `kit-checks` and `tests`. They appear after the first run.
 - **Block force pushes**, and don't allow deletions.
+- **Don't let anyone bypass the rules**, admins included. Otherwise `gh pr merge --admin` merges
+  past red checks; the kit's default `[protected].commands` block that command, not the setting.
 
-Then add a `.github/CODEOWNERS` file, so a change to a protected path or to the kit's own
-configuration needs your review. Last match wins, so keep specific lines after general ones:
+Working alone, stop there. The agent opens pull requests with your `gh` login, so you are their
+author, and GitHub doesn't let an author approve their own pull request: a required approval would
+block every merge. Your review is the moment you merge.
+
+With a team, also require **one approval**, **review from Code Owners**, and **dismiss stale
+approvals when new commits are pushed**. Then add a `.github/CODEOWNERS` file, so a change to a
+protected path or to the kit's own configuration needs an owner's review. Last match wins, so keep
+specific lines after general ones:
 
 ```
 # The kit's configuration and CI: whoever edits these can switch the checks off.
@@ -113,19 +126,35 @@ configuration needs your review. Last match wins, so keep specific lines after g
 /vendor/               @your-github-name
 ```
 
-The kit doesn't write this file: it doesn't know your GitHub name, and you keep it in step with
-`[protected].paths` by hand.
+The kit doesn't write this file: it doesn't know your team's GitHub names, and you keep it in step
+with `[protected].paths` by hand.
+
+**What CI can't catch.** A pull request runs its own copy of `kit.yml` and of the kit, so a change
+to either can switch its own checks off. Locally, an agent's edit to `.github/workflows/` asks you
+first, as edits to `.claude/` and `.githooks/` do. On the server, the only check is a person reading
+the change: look at any pull request that touches those folders before you merge it.
 
 ## Changing a protected path on purpose
 
 - **You, at a terminal:** `KIT_ALLOW_PROTECTED=1 git commit ...` lets the commit through (bash; in
   PowerShell set `$env:KIT_ALLOW_PROTECTED = "1"` first). The pre-commit output says it was allowed.
   Agents are blocked from setting it.
-- **In a pull request:** add the label `kit:protected-change`. CI runs again and lets the protected
-  paths through; every other check still applies, and a change to another lane's files still needs a
-  branch that isn't a lane's. Remove the label and the check is back. Adding labels takes write
-  access to the repository, and the default `[protected].commands` block the `gh` commands that add
-  it, so an agent can't approve its own change. They don't cover `gh api` or `--add-label=` written
-  with an `=`; required review is what catches those.
-- **An agent:** it can't, by design. Ask it to explain the change, then make it yourself or remove
-  the path from `[protected]` (and run `{{kit_command}} settings sync`).
+- **In a pull request:** create the label `kit:protected-change` once (Issues → Labels, or
+  `gh label create kit:protected-change`), then add it to the pull request after you have read the
+  change. CI runs again and lets the protected paths through. Nothing else changes:
+  - Secret files (`[protected].secrets`) still fail. A secret file never lands through a pull
+    request.
+  - A change to another lane's files still needs a branch that isn't a lane's.
+  - Every other check still applies.
+
+  The label covers the change you looked at, not later ones. A new push to the pull request, or a
+  new base branch, is checked without it. Remove the label and add it again once you have read the
+  new commits.
+- **An agent:** it can't add the label. The default `[protected].commands` block the `gh` commands
+  that add it (`gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label`,
+  `gh label edit`, `gh alias set`), in any flag order and with `-R`/`--repo` anywhere. Its `gh` uses
+  your login, so GitHub itself would let it. What still gets past the hook: `gh api`, a short
+  option written together with its value (`-lkit:protected-change`), and commands inside strings
+  (`bash -c "..."`). Your reading of the pull request is what catches those. Ask the agent to
+  explain the change, then label it yourself, or remove the path from `[protected]` (and run
+  `{{kit_command}} settings sync`).

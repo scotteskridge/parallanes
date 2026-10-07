@@ -41,6 +41,8 @@ commands = [                        # agents may not run these (flags match in a
     "gh pr create --label",
     "gh pr create -l",
     "gh label edit",
+    "gh alias set",                   # an alias would hide the commands above
+    "gh pr merge --admin",            # merges past red required checks
 ]
 secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edit these; add key files.
                                     # "!name" exempts a bare file name listed after the names it cancels

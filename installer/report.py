@@ -111,11 +111,18 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
     else:
         steps.append("Commit the kit's files (python-path stays out: it's this machine's).")
     # The kit can't change the repo's GitHub settings, and until both jobs are required a red run
-    # doesn't stop a merge (plan 09).
-    steps.append(
-        "Push to GitHub, add your stack's setup to .github/workflows/kit.yml, then make its kit-checks and "
-        'tests jobs required checks: docs/ai/protected-paths.md, "The server".'
-    )
+    # doesn't stop a merge (plan 09). A project that kept its own kit.yml has the kit's beside it.
+    workflow = ".github/workflows/kit.yml"
+    if f"{workflow}.kit-new" in kit_new:
+        steps.append(
+            f"Compare {workflow}.kit-new with your {workflow}: the kit's CI runs `kit check all` and `kit test`. "
+            'Whichever you keep, make its jobs required checks: docs/ai/protected-paths.md, "The server".'
+        )
+    else:
+        steps.append(
+            f"Push to GitHub, add your stack's setup to {workflow}, then make its kit-checks and tests jobs "
+            'required checks: docs/ai/protected-paths.md, "The server".'
+        )
     print("\nNext:")
     for number, step in enumerate(steps, start=1):
         print(f"  {number}. {step}")

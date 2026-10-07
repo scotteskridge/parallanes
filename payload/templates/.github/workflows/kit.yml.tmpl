@@ -5,10 +5,11 @@ name: kit
 
 on:
   push:
-    branches: [{{integration_branch}}]
+    branches: ["{{integration_branch}}"]
   pull_request:
-    # labeled/unlabeled: adding or removing the kit:protected-change label re-runs the checks.
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    # labeled/unlabeled: adding or removing the kit:protected-change label re-runs the checks;
+    # edited: a PR moved to another base branch is judged against the new one.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 # A new push to a PR cancels that PR's older run. Each push to {{integration_branch}} gets a group
 # of its own: in a shared group GitHub keeps one pending run and cancels the others.
@@ -34,8 +35,10 @@ jobs:
       # merged change again would turn {{integration_branch}} red after a reviewed, labelled merge.
       - name: kit check all
         env:
-          # Only a person can add this label (the agent's gh commands for it are protected).
-          KIT_ALLOW_PROTECTED: $\{{ contains(github.event.pull_request.labels.*.name, 'kit:protected-change') && '1' || '' }}
+          # The label lets protected paths through (never secret files), and only on runs that change
+          # no code: after a new push or a new base it counts again once a person labels again
+          # (decision 105). The agent's gh commands that add it are protected.
+          KIT_ALLOW_PROTECTED: $\{{ contains(fromJSON('["labeled", "unlabeled", "reopened"]'), github.event.action) && contains(github.event.pull_request.labels.*.name, 'kit:protected-change') && 'paths' || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             python .claude/kit/cli.py check all --diff "origin/$GITHUB_BASE_REF"

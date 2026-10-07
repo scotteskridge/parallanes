@@ -197,7 +197,19 @@ def touched_paths(root: Path, args) -> list[str] | None:
 
 def check_protected(root: Path, config, args) -> list:
     paths = touched_paths(root, args)
-    findings = protected.check(config, paths) if paths else []
+    if not paths:
+        return []
+    findings = protected.check(config, paths)
+    if protected.override() == "paths":
+        # CI's label: protected paths pass, secret files never do (decision 105).
+        kept = protected.check(config, paths, keys=("secrets",))
+        if len(findings) > len(kept):
+            print(
+                f"kit: {len(findings) - len(kept)} protected path change(s) allowed by the "
+                f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); secret files never are.",
+                file=sys.stderr,
+            )
+        return kept
     return allowed(findings, protected.allowed_by_human(), "protected path", protected.ALLOW_VARIABLE)
 
 
@@ -325,9 +337,6 @@ def run_next(args) -> int:
     return OK
 
 
-# ---- kit settings ------------------------------------------------------------------------------
-
-
 # ---- kit test ----------------------------------------------------------------------------------
 
 
@@ -350,6 +359,9 @@ def run_test(args) -> int:
         print(f"kit: the tests failed (exit {result.returncode})", file=sys.stderr)
         return FINDINGS
     return OK
+
+
+# ---- kit settings ------------------------------------------------------------------------------
 
 
 def run_settings_sync(args) -> int:

@@ -52,6 +52,8 @@ DEFAULT_COMMANDS = [
     "gh pr create --label",
     "gh pr create -l",
     "gh label edit",
+    "gh alias set",  # an alias would hide any of the above from the hook
+    "gh pr merge --admin",  # merges past red required checks
 ]
 # Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).
 DEFAULT_SECRETS = [".env", ".env.*", "!.env.example"]
