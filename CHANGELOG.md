@@ -6,6 +6,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The CI template (plan 09, decision 104): `.github/workflows/kit.yml` runs `kit check all` (a PR
+  judged on its change, a push on the whole project) and the project's tests on every pull request
+  and push to the integration branch. The PR label `kit:protected-change` lets an intended
+  protected change through; the `gh` commands that add it join the default `[protected].commands`.
+  `protected-paths.md` gains "The server": required checks and review, `CODEOWNERS`.
+- `kit test` runs `[project] test_command` from the project root, so CI has no copy of it to drift;
+  an empty one fails.
+- `\{{` keeps literal braces in a template whatever follows, so GitHub expressions survive.
 - `[hooks]` in `.claude/kit.toml` (decision 102): `rules_check = false` or `lane_router = false`
   keeps that hook out of `.claude/settings.json` on the next installer run. The protected hook has
   no switch; ownership's is `[project] ownership = "off"`. A re-run that puts back a kit hook the

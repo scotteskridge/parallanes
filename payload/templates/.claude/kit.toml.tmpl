@@ -36,6 +36,11 @@ commands = [                        # agents may not run these (flags match in a
     "git clean -f",
     "git commit --no-verify",
     "git commit -n",
+    "gh pr edit --add-label",         # the kit:protected-change label lets a protected change pass CI:
+    "gh issue edit --add-label",      # only a person adds it
+    "gh pr create --label",
+    "gh pr create -l",
+    "gh label edit",
 ]
 secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edit these; add key files.
                                     # "!name" exempts a bare file name listed after the names it cancels

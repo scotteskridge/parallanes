@@ -3,12 +3,14 @@
 Deliberately tiny instead of a template engine: templates are prose, and the only job is safe
 substitution. Anything a template asks for must be in the registry, and every registered name it
 uses must have a value, so a typo fails at install time instead of shipping as literal braces.
-Write \\{{name}} to keep literal braces in the output.
+Write \\{{ to keep literal braces in the output, whatever follows: \\{{name}}, or a GitHub Actions
+expression (`$\\{{ github.ref }}`, plan 09).
 """
 
 import re
 
-_PLACEHOLDER = re.compile(r"(\\?)\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+# An escape (no group) or a placeholder (group 1 is its name).
+_PLACEHOLDER = re.compile(r"\\\{\{|\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
 
 
 class TemplateError(ValueError):
@@ -17,7 +19,7 @@ class TemplateError(ValueError):
 
 def placeholders_in(text: str) -> set[str]:
     """Names of the placeholders a template uses, ignoring escaped ones."""
-    return {name for escape, name in _PLACEHOLDER.findall(text) if not escape}
+    return {name for name in _PLACEHOLDER.findall(text) if name}
 
 
 def render(text: str, values: dict[str, str], registry: set[str]) -> str:
@@ -35,9 +37,9 @@ def render(text: str, values: dict[str, str], registry: set[str]) -> str:
         raise TemplateError("; ".join(problems))
 
     def substitute(match: re.Match) -> str:
-        escape, name = match.groups()
-        if escape:
-            return match.group(0)[1:]  # drop the backslash, keep the braces
+        name = match.group(1)
+        if name is None:
+            return "{{"  # an escape: drop the backslash, keep the braces
         return str(values[name])
 
     # A function replacement inserts values literally: no backslash or group processing.

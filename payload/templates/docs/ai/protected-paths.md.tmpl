@@ -12,7 +12,7 @@ CI, required reviews and branch protection.
 | Deny rules (main protection) | `.claude/settings.json`, written by `{{kit_command}} settings sync` | Claude's Edit/Write tools on protected paths; reads and edits of secrets; the shell file commands Claude Code recognizes (`sed`, `tee`, redirections); protected commands in the form written in `kit.toml`, also inside `&&`, `;`, pipes and subshells | Commands with options in between (`git -C . push --force`, `git push origin main --force`); writes by any program or script |
 | Hook (backstop) | `{{kit_command}} hook protected`, before every tool call | Protected commands with reordered flags, `git -C`, wrappers (`env`, `sudo`, `timeout`), flag clusters (`-xdf`); edits to protected paths even if `settings.json` drifted; the targets of common file commands (`rm`, `mv`, `cp`, `git rm`, `git mv`, `git restore`, `Set-Content`, `Remove-Item`, `Out-File`, redirections); the agent switching the checks off (`--no-verify`, `KIT_ALLOW_PROTECTED`, `core.hooksPath`) | The misses listed below |
 | Pre-commit | `.githooks/pre-commit` → `{{kit_command}} check all --staged` | A commit that changes a protected path or adds a secret file, from anyone; `kit.toml` and `settings.json` drifting apart | `git commit --no-verify` by a human; machines without the hook enabled |
-| CI | `{{kit_command}} check all --diff origin/{{integration_branch}}` | The same, for every pull request | Nothing it checks can be skipped locally, which is why it is the gate |
+| CI | `.github/workflows/kit.yml`: `check all --diff origin/<base>` on every pull request | The same, for every pull request; nothing it checks can be skipped locally | A merge, unless its jobs are required checks (see "The server" below) |
 
 Where the hook and the deny rules cover the same thing (Claude's file tools, the shell file
 commands Claude Code recognizes), the hook is a **drift guard**: it still protects if
@@ -86,14 +86,46 @@ more than it is:
   native Windows, which is why the deny rules and the hook both exist. On Windows, run Claude Code
   inside WSL2 (then turn the sandbox on), a container (a dev container, for example) or a virtual
   machine to get a real boundary.
-- **The server.** Protect `{{integration_branch}}`: require pull requests and passing CI, and
-  refuse force pushes. Add a `CODEOWNERS` entry for each protected path so changes there need an
-  owner's review.
+- **The server.** See the next section.
+
+## The server
+
+`.github/workflows/kit.yml` runs two jobs on every pull request and every push to
+`{{integration_branch}}`: `kit-checks` (`check all`, judging a PR on its change) and `tests`
+(`{{kit_command}} test`, which runs `test_command` from `kit.toml`). Add your stack's setup
+step to the `tests` job where the file says so. A red run only stops a merge once you make it
+required, on GitHub under Settings → Rules → Rulesets (or Branches) for `{{integration_branch}}`:
+
+- **Require a pull request before merging**, with at least one approval and **Require review from
+  Code Owners**.
+- **Require status checks to pass**: add `kit-checks` and `tests` (they appear after the first run).
+- **Block force pushes**, and don't allow deletions.
+
+Then add a `.github/CODEOWNERS` file, so a change to a protected path or to the kit's own
+configuration needs your review. Last match wins, so keep specific lines after general ones:
+
+```
+# The kit's configuration and CI: whoever edits these can switch the checks off.
+/.claude/              @your-github-name
+/.githooks/            @your-github-name
+/.github/              @your-github-name
+# One line per [protected].paths entry, e.g. vendor/**:
+/vendor/               @your-github-name
+```
+
+The kit doesn't write this file: it doesn't know your GitHub name, and you keep it in step with
+`[protected].paths` by hand.
 
 ## Changing a protected path on purpose
 
 - **You, at a terminal:** `KIT_ALLOW_PROTECTED=1 git commit ...` lets the commit through (bash; in
   PowerShell set `$env:KIT_ALLOW_PROTECTED = "1"` first). The pre-commit output says it was allowed.
   Agents are blocked from setting it.
+- **In a pull request:** add the label `kit:protected-change`. CI runs again and lets the protected
+  paths through; every other check still applies, and a change to another lane's files still needs a
+  branch that isn't a lane's. Remove the label and the check is back. Adding labels takes write
+  access to the repository, and the default `[protected].commands` block the `gh` commands that add
+  it, so an agent can't approve its own change. They don't cover `gh api` or `--add-label=` written
+  with an `=`; required review is what catches those.
 - **An agent:** it can't, by design. Ask it to explain the change, then make it yourself or remove
   the path from `[protected]` (and run `{{kit_command}} settings sync`).

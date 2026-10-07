@@ -1,4 +1,4 @@
-"""The kit's command line: `kit check`, `kit hook`, `kit lanes`, `kit next`, `kit settings`, `kit changelog`.
+"""The kit's command line: `kit check`, `hook`, `lanes`, `next`, `test`, `settings` and `changelog`.
 
 Run from the project root as `sh .claude/kit/kit <command>`, which takes Python from python-path
 (decision 99). Exit codes. CLI: 0 clean, 1 findings (for `lanes`: unfinished, something is mid-way), 2 usage
@@ -13,6 +13,7 @@ from __future__ import annotations  # so this file still loads on an old Python 
 import argparse
 import datetime
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -133,6 +134,9 @@ def build_parser() -> argparse.ArgumentParser:
     upcoming = commands.add_parser("next", help="what's next: this folder, lanes, open plans, backlog (read-only)")
     upcoming.add_argument("--offline", action="store_true", help="don't ask gh for pull request state")
     upcoming.set_defaults(run=run_next)
+
+    tests = commands.add_parser("test", help="run [project] test_command from the project root (CI runs this)")
+    tests.set_defaults(run=run_test)
 
     perms = commands.add_parser("settings", help="permission rules in .claude/settings.json")
     perms_commands = perms.add_subparsers(title="settings commands")
@@ -322,6 +326,30 @@ def run_next(args) -> int:
 
 
 # ---- kit settings ------------------------------------------------------------------------------
+
+
+# ---- kit test ----------------------------------------------------------------------------------
+
+
+def run_test(args) -> int:
+    """CI's tests job runs this, so the command lives in kit.toml only and can't drift from a copy."""
+    try:
+        root = find_root(Path.cwd())
+        command = load(root).project.get("test_command", "").strip()
+    except ConfigError as error:
+        print(f"kit: {error}", file=sys.stderr)
+        return USAGE
+    if not command:
+        # A green run that tested nothing would be a false claim (decision 104).
+        print("kit: no test_command in [project] in .claude/kit.toml: set it, then run this again", file=sys.stderr)
+        return USAGE
+    print(f"Running the tests: {command}", flush=True)
+    # Through the shell, as `lanes finish` runs it: real test commands chain (`npm ci && npm test`).
+    result = subprocess.run(command, shell=True, cwd=root)
+    if result.returncode != 0:
+        print(f"kit: the tests failed (exit {result.returncode})", file=sys.stderr)
+        return FINDINGS
+    return OK
 
 
 def run_settings_sync(args) -> int:

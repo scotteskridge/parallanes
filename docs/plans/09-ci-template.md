@@ -1,6 +1,6 @@
 # 09 — CI template
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/09-ci-template` · PR link once open
 **Builds on:** plans 02, 03, 04 and 08 (Done); decisions 25, 32, 34, 95, 96; ARCHITECTURE §4, §7
 and the §15 row owned by plan 09

@@ -3,6 +3,28 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: The CI template (plan 09)
+
+104. **Plan 09's three answers (owner's OK on Claude's recommendations).**
+     - *A PR label, `kit:protected-change`, lets an intended protected change through CI.* The
+       workflow re-runs on `labeled`/`unlabeled` and sets `KIT_ALLOW_PROTECTED=1` for the protected
+       check only. `gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label`/`-l`
+       and `gh label edit` join the default `[protected].commands` (`gh label list` stays free).
+       *Why:* adding a label needs write access and a human; a commit trailer would be written by
+       the agent it is meant to check. Refines decision 34 ("CI has no override") for protected
+       paths only; a cross-lane change still needs a non-lane branch. `gh api` is a stated miss.
+     - *A PR is judged on its change (`--diff origin/<base>`); a push to the integration branch on
+       the whole project (`check all`).* *Why:* judging the merged change again would turn the
+       branch red after every reviewed, labelled protected change; branch protection keeps direct
+       pushes out. Found while building, not one of the three questions.
+     - *CI runs `kit test`, a new command that runs `test_command` from `kit.toml`.* *Why:* a copy of
+       the command in the workflow would drift from the one `lanes finish` uses.
+     - *`CODEOWNERS` and branch protection are documented, not generated, for v0.1.* *Why:* the kit
+       doesn't know the owner's GitHub handle; generating it joins `codeowners-from-lanes`.
+     - *Two jobs: `kit-checks` (fully known) and `tests` (the project's `test_command` after a
+       marked setup step).* An empty `test_command` fails the job. *Why:* the kit can't know how to
+       install a non-Python stack, and a green run that tested nothing would be a false claim.
+
 ## 2026-10-07: After the two-lane trial
 
 103. **Two answers from the trial (owner's OK on Claude's recommendations, PR #34).**
