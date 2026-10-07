@@ -376,7 +376,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 
 ## 12. Distribution
 
-- **Now:** GitHub template repository plus the installer (works on existing repos too).
+- **Now:** the installer (works on a new folder or an existing repo). A template repository is later (decision 108).
 - **Later:** a Claude Code plugin built from `payload/kit-owned/` (skills, agents, `hooks/hooks.json`
   using `${CLAUDE_PLUGIN_ROOT}`). Project-owned templates still come from `kit_setup.py` or `/onboard`.
 - Semantic versioning; `CHANGELOG.md` in this repo; the installed version is in `.claude/kit/VERSION`.

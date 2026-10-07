@@ -93,7 +93,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **Later** `showcase export`: snapshot to a public repo, excluding a never-copy list, checking for secrets and placeholders first
 
 ## 12. Distribution
-- **MVP** GitHub template repository ("Use this template")
+- **Later** GitHub template repository ("Use this template"): dropped from v0.1 (decision 108, backlog `template-repo`)
 - **v0.2** Claude Code plugin packaging, named `worklanes` (decisions 73, 78)
 - **MVP** Semantic versioning and a changelog for the kit itself
 - **MVP** MIT license

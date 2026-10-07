@@ -19,7 +19,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 09 | [CI template](09-ci-template.md) | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Done |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
 | 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
-| 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `worklanes` (decision 81), template repo, v0.1.0, make public | Draft |
+| 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `worklanes` (decisions 81, 108), v0.1.0, make public | Approved |
 
 ## Build order for v0.1 (decision 77)
 

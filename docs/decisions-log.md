@@ -3,6 +3,26 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-07: Plan 12 questions (launch)
+
+108. **Plan 12's three answers (owner's OK on Claude's recommendations).**
+     - *The rename to `worklanes` covers what people type or see:* the GitHub repo, the
+       `pyproject` name, the README and docs prose, and the command (the launcher
+       `.claude/kit/kit` becomes `.claude/kit/worklanes`, its messages start `worklanes:`). The
+       `.claude/kit/` folder, `kit.toml`, `kitlib`, the `KIT_*` variables and the
+       `kit:protected-change` label keep their names. *Why:* the command is what the v0.2 plugin
+       puts on the PATH, so it has its final name from the first release; the internal names don't
+       show in daily use and renaming them is a large, risky diff for nothing a reader sees.
+       Narrows decision 81. Older log entries keep their wording.
+     - *Publishing is a checklist after the PR merges, each step on the owner's yes in chat:*
+       secret scan of both repos' history, push the trial repo as `worklanes-trial`, rename this
+       repo, tag `v0.1.0` with a release, make both repos public. *Why:* none of these can be
+       quietly undone once a repo is public.
+     - *No GitHub template repository in v0.1* (backlog `template-repo`, later). *Why:* marking
+       this repo a template hands people the kit's development repo, and a pre-installed blank
+       project would carry one machine's `python-path`. The installer covers a new folder, and the
+       published trial repo shows an installed project.
+
 ## 2026-10-07: Lanes and `claude --worktree`
 
 107. **Lanes are opened by their folder; the lane docs warn against `claude --worktree <lane>`
