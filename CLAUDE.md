@@ -8,5 +8,9 @@
   here once a payload file is read. This repo's own status skill is `/kit-next`.
 - Changes to this file or `AGENTS.md`: propose the exact lines and wait for an OK. Keep this file
   under ~100 lines.
+- **Standing permission to push and merge (owner, 2026-10-07):** push any branch except `main`
+  without asking. Merge a PR with `gh pr merge --merge --delete-branch` once the owner has said
+  in chat that it's approved and every CI check is green (or decision 95 applies). Never push to
+  `main` directly, force-push, or merge a PR the owner hasn't approved.
 - When compacting, keep: the task, the approved plan, files changed, latest test results, open
   questions.
