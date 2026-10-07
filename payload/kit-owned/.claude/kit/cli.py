@@ -208,7 +208,7 @@ def check_protected(root: Path, config, args) -> list:
         deleted = frozenset()  # named files exist (explicit_paths checks), so none is deleted
     findings = protected.check(config, paths, deleted=deleted)
     if protected.override() == "paths":
-        # CI's label: protected paths pass, and a secret file may leave, never arrive (decision 105).
+        # CI's label: protected paths pass, and a secret file may leave, never arrive (decision 106).
         kept = protected.check(config, [path for path in paths if path not in deleted], keys=("secrets",))
         if len(findings) > len(kept):
             print(
@@ -356,7 +356,7 @@ def run_test(args) -> int:
         print(f"kit: {error}", file=sys.stderr)
         return USAGE
     if not command:
-        # A green run that tested nothing would be a false claim (decision 104).
+        # A green run that tested nothing would be a false claim (decision 105).
         print("kit: no test_command in [project] in .claude/kit.toml: set it, then run this again", file=sys.stderr)
         return USAGE
     print(f"Running the tests: {command}", flush=True)

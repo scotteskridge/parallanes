@@ -253,7 +253,7 @@ problem instead. [9]
 paths = ["vendor/**", "docs/originals/"]
 commands = ["git push --force", "git push -f", "git reset --hard", "git clean -f",
             "git commit --no-verify", "git commit -n",
-            "gh pr edit --add-label", "gh issue edit --add-label",  # the CI override label [104]
+            "gh pr edit --add-label", "gh issue edit --add-label",  # the CI override label [105]
             "gh pr create --label", "gh pr create -l", "gh label edit",
             "gh alias set", "gh pr merge --admin"]                      # defaults when the key is absent
 secrets = [".env", ".env.*", "!.env.example"]                 # defaults when the key is absent
@@ -283,7 +283,7 @@ guard_kit = true
 - **Pre-commit and CI:** `kit check protected` reports changed protected paths and added secret
   files; `KIT_ALLOW_PROTECTED=1` lets a human commit an intended change [32]; in CI the PR label
   `kit:protected-change` does for protected paths (never an added secret), only on the run adding
-  it starts; the `gh` commands that add it are protected [104] [105]. `.github/workflows/**` is kit config.
+  it starts; the `gh` commands that add it are protected [105] [106]. `.github/workflows/**` is kit config.
 - **Stated limits** (`docs/ai/protected-paths.md` in each project): none of this stops a script that
   opens files itself. The OS-level answer is Claude Code's sandbox, which runs on macOS, Linux and
   WSL2 but **not native Windows**; the server-side answer is CI, branch protection and `CODEOWNERS`.
@@ -425,7 +425,7 @@ instance, Unity ignores and attributes, reviewer items, pattern rules, test comm
 | The guard runs `sh .claude/kit/hook`: if Claude Code runs hooks through PowerShell (Windows without Git Bash), `sh` is missing, the hook exits non-2 and the guard fails open. **Plan 08:** `install.ps1` requires Git for Windows' `sh` (decision 99) and writes `.claude/kit/python-path`; which shell runs a hook by default on Windows still isn't documented. A hook timeout (30 s) also lets the call through. Not live-verified: macOS/Linux | plan 11 |
 | ~~Does `/wrap-up` propose a `P` check or a rules line after the same correction twice?~~ Answered: one of a rules line, a `P` check or a `kit.toml` pattern, on a yes (decision 66). `/onboard` proposes at most three `P` checks (decision 68) | — |
 | ~~The installer writes and gitignores `.claude/kit/python-path`~~ Done in plan 08; `.worktreeinclude` copies it into each lane | — |
-| ~~Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection, and decide how a PR declares an intended protected change~~ Answered (decision 104): the `kit:protected-change` label; `CODEOWNERS` and branch protection are documented in `protected-paths.md`, not generated (generating joins `codeowners-from-lanes`) | — |
+| ~~Generate `CODEOWNERS` entries from `[protected].paths`, document branch protection, and decide how a PR declares an intended protected change~~ Answered (decision 105): the `kit:protected-change` label; `CODEOWNERS` and branch protection are documented in `protected-paths.md`, not generated (generating joins `codeowners-from-lanes`) | — |
 
 ## References
 

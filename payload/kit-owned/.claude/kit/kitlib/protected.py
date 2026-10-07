@@ -139,7 +139,7 @@ def check(config, paths, keys=KINDS, deleted=frozenset()) -> list[Finding]:
     """Findings for changed paths that are protected or secret (only those under keys).
 
     Kit config changes are normal commits. The remedy differs in CI, where a person's label on the
-    pull request is the override: it lets a secret file go (deleted), never arrive (decision 105).
+    pull request is the override: it lets a secret file go (deleted), never arrive (decision 106).
     A secret is reported as one first there, so the remedy fits (review round 2).
     """
     in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
@@ -166,7 +166,7 @@ def check(config, paths, keys=KINDS, deleted=frozenset()) -> list[Finding]:
 
 def override() -> str | None:
     """What KIT_ALLOW_PROTECTED waives: "all" (1, a person at a terminal), "paths" (CI's label: never
-    secrets, decision 105), or None."""
+    secrets, decision 106), or None."""
     return {"1": "all", "paths": "paths"}.get(os.environ.get(ALLOW_VARIABLE, ""))
 
 

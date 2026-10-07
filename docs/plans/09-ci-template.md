@@ -90,7 +90,7 @@ check required (branch protection) and how a human lets an intended protected-pa
 
 ## Notes after implementation
 - **A push checks the whole project**, not `--diff github.event.before`: judging the merged change
-  again would turn the integration branch red after every labelled protected change (decision 104).
+  again would turn the integration branch red after every labelled protected change (decision 105).
 - **`kit test`** is new: CI runs `test_command` from `kit.toml` instead of holding a copy of it.
 - **The blocked `gh` commands** are `pr edit --add-label`, `issue edit --add-label`, `pr create
   --label`/`-l`, `label edit`, `alias set` and `pr merge --admin`, not `gh label` (which would block
@@ -98,7 +98,7 @@ check required (branch protection) and how a human lets an intended protected-pa
   `gh pr create`, and `--opt=value` as `--opt`, for every program.
 - **The renderer:** `\{{` now escapes braces whatever follows, so GitHub's `${{ }}` survives.
 - **PyYAML** is a dev-only dependency, so the tests parse the workflow instead of matching its text.
-- **Review round 1** (repo reviewer and a hands-on general reviewer; decision 105): CI could be
+- **Review round 1** (repo reviewer and a hands-on general reviewer; decision 106): CI could be
   switched off by editing `kit.yml` in the PR (🔴, now kit config with an ask rule, and the limit is
   stated); the label waived secrets and later pushes; the branch-protection recipe locked out a solo
   owner; several `gh` forms got past the hook; CI's message pointed at a terminal-only override.

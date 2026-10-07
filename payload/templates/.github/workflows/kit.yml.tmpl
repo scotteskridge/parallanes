@@ -38,7 +38,7 @@ jobs:
           # The label lets protected paths through (never added secret files), and only on the run a
           # person starts by adding it: the label stays on the PR, so every later run (a push, an
           # edit, a reopen, another label) is judged without it until they add it again (decision
-          # 105). The agent's gh commands that add it are protected.
+          # 106). The agent's gh commands that add it are protected.
           KIT_ALLOW_PROTECTED: $\{{ github.event.action == 'labeled' && github.event.label.name == 'kit:protected-change' && 'paths' || '' }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then

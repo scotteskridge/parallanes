@@ -6,11 +6,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- The CI template (plan 09, decision 104): `.github/workflows/kit.yml` runs `kit check all` (a PR
+- The CI template (plan 09, decision 105): `.github/workflows/kit.yml` runs `kit check all` (a PR
   judged on its change, a push on the whole project) and the project's tests on every pull request
   and push to the integration branch. The PR label `kit:protected-change` lets an intended
   protected change through, or a committed secret file out (never one in), and only on the run
-  adding it starts (decision 105); the `gh` commands that add it, `gh alias set`/`import` and
+  adding it starts (decision 106); the `gh` commands that add it, `gh alias set`/`import` and
   `gh pr merge --admin` join the default `[protected].commands`, matched with gh's `-R`/`--repo`
   and `--opt=value` or `-ovalue` forms. Edits to
   `.github/workflows/` ask first, like the kit's other config. `protected-paths.md` gains "The

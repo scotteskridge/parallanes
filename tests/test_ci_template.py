@@ -1,4 +1,4 @@
-"""The CI template an installed project gets (plan 09, decision 104), and `kit test`, which it runs.
+"""The CI template an installed project gets (plan 09, decision 105), and `kit test`, which it runs.
 
 The workflow is parsed as YAML, and its check step's script is run with sh (Git's on Windows; the
 runner uses bash) in a scratch repo with the variables GitHub Actions sets, so the tests exercise
@@ -65,7 +65,7 @@ def test_kit_checks_fetches_the_whole_history():
 
 
 def test_the_override_comes_only_from_the_label_and_only_on_the_check_step():
-    # Only the run a person starts by adding this label honours it (decision 105, review round 2):
+    # Only the run a person starts by adding this label honours it (decision 106, review round 2):
     # any later event, a push, a reopen or another label's change, is judged without it, since the
     # label stays on the PR. Shown live in plan 09's check.
     flow = workflow()
@@ -78,7 +78,7 @@ def test_the_override_comes_only_from_the_label_and_only_on_the_check_step():
     }
     others = [s for job in flow["jobs"].values() for s in job["steps"] if s is not step]
     assert not any("env" in s for s in others)
-    assert "KIT_ALLOW_CROSS_LANE" not in read(".github/workflows/kit.yml")  # decision 104: no lane override
+    assert "KIT_ALLOW_CROSS_LANE" not in read(".github/workflows/kit.yml")  # decision 105: no lane override
 
 
 def test_the_tests_job_runs_the_configured_command_after_a_marked_setup_step():
@@ -254,7 +254,7 @@ def test_kit_test_reports_a_failing_suite_as_exit_1(tmp_path):
 
 
 def test_kit_test_without_a_command_fails_and_says_where_to_set_it(tmp_path):
-    # A green CI run that tested nothing would be a false claim (decision 104).
+    # A green CI run that tested nothing would be a false claim (decision 105).
     repo = make_repo(tmp_path, config=config_with(""))
     result = run_cli(repo, "test")
     assert result.returncode == 2

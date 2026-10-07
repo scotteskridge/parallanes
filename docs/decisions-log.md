@@ -5,7 +5,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 
 ## 2026-10-07: The CI template (plan 09)
 
-105. **Plan 09's review round 1 (owner's OK on Claude's recommendations).**
+106. **Plan 09's review round 1 (owner's OK on Claude's recommendations).**
      - *`.github/workflows/**` joins the kit's guarded files* (ask rules, and the bypass-mode shell
        guard). *Why:* a pull request runs its own copy of the workflow, so an agent editing it could
        switch CI off for that PR. No CI job can defend against the PR it runs from; a person reading
@@ -28,7 +28,7 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        set`/`import` and `gh pr merge --admin` are caught; the branch-protection recipe no longer requires an
        approval a solo owner can't give.
 
-104. **Plan 09's three answers (owner's OK on Claude's recommendations).**
+105. **Plan 09's three answers (owner's OK on Claude's recommendations).**
      - *A PR label, `kit:protected-change`, lets an intended protected change through CI.* The
        workflow re-runs on `labeled`/`unlabeled` and sets `KIT_ALLOW_PROTECTED=1` for the protected
        check only. `gh pr edit --add-label`, `gh issue edit --add-label`, `gh pr create --label`/`-l`

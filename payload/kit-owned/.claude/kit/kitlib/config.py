@@ -46,7 +46,7 @@ DEFAULT_COMMANDS = [
     "git clean -f",
     "git commit --no-verify",
     "git commit -n",
-    # Putting the CI override label on a PR is a human's call (decision 104); a PR is an issue to gh.
+    # Putting the CI override label on a PR is a human's call (decision 105); a PR is an issue to gh.
     "gh pr edit --add-label",
     "gh issue edit --add-label",
     "gh pr create --label",
