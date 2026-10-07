@@ -157,8 +157,8 @@ meaning (e.g. the Unity pack's `unity_editor`, `mcp_port`).
 
 | Command | Does |
 | --- | --- |
-| `create [lane...]` | Worktree per lane under `worktree_root`, detached at the integration branch; copies `.worktreeinclude` files |
-| `status` | Every lane: folder, current branch, ahead/behind integration, changed and untracked files (counted apart, decision 52), unpushed commits, PR state |
+| `create [lane...]` | Worktree per lane under `worktree_root`, detached at the integration branch; copies `.worktreeinclude` files; names each new lane's install command from the lockfiles at its root (decision 103, `kitlib/lane_deps.py`) |
+| `status` | Every lane: folder, current branch, ahead/behind integration, changed and untracked files (counted apart, decision 52), a Node lane without `node_modules` (decision 103), unpushed commits, PR state |
 | `start <task>` | Prove the lane's previous task branch merged: its tip is in the integration tip (PR mode fetches first), or `gh` shows a PR merged into the integration branch whose head commit is that tip or contains it (squash merges; a PR found by name alone never counts, decisions 46, 53) → delete it → create `<lane>/<task>` with no upstream from the integration tip (`origin/<integration>` in PR mode, the local `<integration>` in local mode). Refuses with uncommitted changes to tracked files (untracked ones are listed, decision 52), commits on no branch, an open or closed PR, or no `gh`; `--abandon` drops an unmerged previous branch on purpose and prints its SHA |
 | `sync` | Bring the integration branch into the task branch: rebase if the branch was never pushed, merge if it was (never force-push a branch under review). A conflict is left in progress with the files and the continue/abort commands (decision 48) |
 | `finish` | `sync`, then run `test_command` through the shell (no skip flag) → **PR mode:** push the task branch and open a PR (`--title`, `--body-file`, or `--body-file -` for stdin, which `/wrap-up` uses for the plan link and the review report [65]); a re-run with an open PR only pushes; **local mode:** no network; fast-forward the local integration branch with `git push . HEAD:<integration>`, re-syncing, re-testing and retrying once if another lane moved it meanwhile (any other refusal is reported), then detach and delete the branch. The tests must leave HEAD, the branch and tracked files as they were (decision 49) |
@@ -175,8 +175,9 @@ checkout's instruction files in their `settings.local.json` (decision 35).
 - *Prevented:* task branches live for one task, so they can't fall behind or keep stale history.
 - *Detected:* the **lane-router hook** (SessionStart: startup, resume, clear, compact) tells the agent
   its lane, scope, owned paths, resources and branch, and warns when the branch is behind, already
-  merged, or isn't a task branch. It uses only local git data (no network) and never blocks.
-  It works out the lane from the hook input's `cwd`, not `CLAUDE_PROJECT_DIR`.
+  merged, or isn't a task branch, or when a Node lane has no `node_modules` of its own
+  (decision 103). It uses only local git data (no network) and never blocks. It works out the lane
+  from the hook input's `cwd`, not `CLAUDE_PROJECT_DIR`.
 
 ### Ownership
 

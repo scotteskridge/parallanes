@@ -21,3 +21,8 @@ when a lane has a manifest but no install of its own.
 **Done when:** `lanes create` ends each new lane's lines with the install command for that project
 (or "your call", or nothing when there's no manifest), with tests for each lockfile, a manifest
 without one, and none.
+
+**Outcome:** decision 103. `kitlib/lane_deps.py` holds the table (plus Bun's lockfiles). `lanes
+create` prints an install line under each new lane and says why once; `lanes status` and the
+lane-router warn when a lane has `package.json` but no `node_modules`. Only Node is warned about,
+and only the lane's root is read.

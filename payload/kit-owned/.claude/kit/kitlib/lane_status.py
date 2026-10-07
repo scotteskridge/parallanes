@@ -5,7 +5,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import lane_merged, lane_owners
+from . import lane_deps, lane_merged, lane_owners
 from .lanes import (
     ahead_behind,
     branch_of,
@@ -38,6 +38,7 @@ class LaneStatus:
     gone: bool = False  # pushed once, but the remote branch is gone
     pr: str = UNKNOWN
     here: bool = False
+    install: str | None = None  # a Node lane without node_modules (decision 103)
 
 
 @dataclass
@@ -75,6 +76,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
         changed, untracked = changes(folder)
         entry = LaneStatus(lane.name, folder, "ok", branch=branch_of(folder), changed=changed, untracked=len(untracked))
         entry.here = top is not None and same_path(top, folder)
+        entry.install = lane_deps.missing_node_modules_short(folder)
         if tip:
             entry.ahead, entry.behind = ahead_behind(folder, tip)
         if entry.branch:
@@ -135,6 +137,8 @@ def format_status(result: Status) -> str:
             parts.append(f"{lane.ahead} ahead, {lane.behind} behind {result.tip}")
         if lane.changed:
             parts.append(f"{lane.changed} changed")
+        if lane.install:
+            parts.append(lane.install)
         if lane.untracked:
             parts.append(f"{lane.untracked} untracked")
         if lane.branch:

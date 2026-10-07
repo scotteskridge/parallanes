@@ -81,8 +81,8 @@ the lane.
 | --- | --- | --- | --- |
 | F1 | install | `--dry-run` without `--yes` still asks the setup questions, so a scripted dry run stops with "no answer (input closed)". It also doesn't show the answers it would take. | [installer-dry-run-prompts](../backlog/installer-dry-run-prompts.md) |
 | F2 | install → lanes | In local mode the main checkout must be detached, but only `lanes status` says so. | [local-mode-setup-hints](../backlog/local-mode-setup-hints.md) |
-| F3 | lanes create | New lanes have no `node_modules`, and nothing says so. | [lane-dependency-hint](../backlog/lane-dependency-hint.md) (already planned) |
-| F4 | lanes (Node) | Worse than F3: no agent noticed, because Node resolves packages up the folder tree and lanes sit inside the main checkout. Every lane silently ran the main checkout's `node_modules`, so a lane that changes a dependency would test the old version and pass. | [lane-dependency-hint](../backlog/lane-dependency-hint.md) (extended) |
+| F3 | lanes create | New lanes have no `node_modules`, and nothing says so. | [lane-dependency-hint](../backlog/done/lane-dependency-hint.md) (done, decision 103) |
+| F4 | lanes (Node) | Worse than F3: no agent noticed, because Node resolves packages up the folder tree and lanes sit inside the main checkout. Every lane silently ran the main checkout's `node_modules`, so a lane that changes a dependency would test the old version and pass. | [lane-dependency-hint](../backlog/done/lane-dependency-hint.md) (done, decision 103) |
 | F5 | prompts | "finish it with /wrap-up" inside a prompt can't run it. The skills are `disable-model-invocation`, so a task takes two prompts. | [lane-guide-trial-notes](../backlog/lane-guide-trial-notes.md) |
 | F6 | lane config | `web` owns only `public/**`, so its tests went into `public/`, where Express serves them. | [lane-guide-trial-notes](../backlog/lane-guide-trial-notes.md) |
 | F7 | skills in a lane | An agent tried to read the main checkout's copy of a skill, and Claude Code refused (outside the working folder). Cause unknown. | [lane-guide-trial-notes](../backlog/lane-guide-trial-notes.md) |

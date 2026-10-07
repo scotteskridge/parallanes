@@ -18,6 +18,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `kit test` runs `[project] test_command` from the project root, so CI has no copy of it to drift;
   an empty one fails.
 - `\{{` keeps literal braces in a template whatever follows, so GitHub expressions survive.
+- Dependency hints for lanes (decision 103): `kit lanes create` ends each new lane's lines with its
+  install command, read from the lockfile at the lane's root (`npm ci`, `pnpm install
+  --frozen-lockfile`, `uv sync`, ...), or says it's the owner's call when there's a manifest but
+  no lockfile, and says why once. `kit lanes status` and the lane-router warn about a lane with
+  `package.json` but no `node_modules` of its own, which Node would otherwise fill silently from
+  the main checkout's. The router's two closing lines are now one.
 - `[hooks]` in `.claude/kit.toml` (decision 102): `rules_check = false` or `lane_router = false`
   keeps that hook out of `.claude/settings.json` on the next installer run. The protected hook has
   no switch; ownership's is `[project] ownership = "off"`. A re-run that puts back a kit hook the
