@@ -48,6 +48,9 @@ def test_the_quickstart_runs_as_written(tmp_path):
     project.mkdir(parents=True)
     (project / "README.md").write_text("A project.\n", encoding="utf-8")
     git(project, "init", "-q", "-b", "main")
+    # A reader's git knows who they are; CI's has no identity, so the commits here would fail.
+    git(project, "config", "user.name", "Test")
+    git(project, "config", "user.email", "test@example.com")
     git(project, "add", "-A")
     git(project, "commit", "-q", "-m", "a project")
 
