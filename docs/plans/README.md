@@ -39,8 +39,19 @@ like any other.
 6. ~~Plan 09: the CI template~~ (done)
 7. ~~Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)~~ (done: [v0.1.0](https://github.com/scotteskridge/parallanes/releases/tag/v0.1.0))
 
-**v0.2:** the plugin (`ship-kit-as-plugin`), `/onboard`, plan 10, plan 11, per-lane ports
-(`lane-resources-env`, `lane-session-identity`), and the backlog items marked `later`.
+## Build order for v0.2 (decision 110)
+
+1. `ownership-fix-hint`
+2. Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
+   `allow-variable-braced-powershell`, `protected-check-merge-commits`
+3. `shared-path-modes`
+4. Lane robustness: `lane-session-lock`, `hook-latency`, `kit-config-shell-guard-modes`,
+   `decision-log-fragments`
+5. The plugin (`ship-kit-as-plugin`, needs a plan), then `/onboard`
+6. Plan 11 (evals), plan 10 (Unity pack), then per-lane ports (`lane-resources-env`,
+   `lane-session-identity`)
+
+The backlog items marked `later` come after these.
 
 Process (decision 79): at most three open questions per plan, each with Claude's recommended
 answer for the owner to approve; small plans get one review round unless it finds a 🔴.

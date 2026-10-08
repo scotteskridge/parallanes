@@ -21,8 +21,9 @@ Never run a payload skill in this repo.)
   `gh pr checks` exits non-zero when checks are failing or pending: that's a result to report, not
   an error. Only if `gh pr list` itself fails, say "PR status unavailable (gh)" and carry on.
 - `Read` `docs/plans/README.md` (short): the `| NN |` rows give number (a split plan adds a letter: `07b`), title, status. Rows for
-  plans not drafted yet have no link; that's expected. Rows marked `v0.2` are out of scope for now.
-  Its **Build order** section lists the v0.1 steps in order, naming plans and backlog item slugs;
+  plans not drafted yet have no link; that's expected. Rows marked `v0.2` are planned, not drafted.
+  Its last **Build order** section (now v0.2's) lists the steps in order, naming plans and backlog
+  item slugs;
   `Glob` `docs/backlog/done/*.md` shows which items are finished.
 - `Grep` `^\*\*Status:\*\*` in `docs/plans/[0-9][0-9]*-*.md`: each plan file's own status.
 - Only when step 2 lands on a plan (states 3–5): find its open questions with `Grep -i` for
@@ -38,9 +39,9 @@ Never run a payload skill in this repo.)
 3. **A plan file with Status Draft:** waiting on the owner's approval of the plan and its open
    questions.
 4. **A plan Approved or In progress:** building is under way; continue it.
-5. **The first unfinished step in the index's Build order** is next: a plan that isn't Done, or a
-   step whose backlog items aren't all in `docs/backlog/done/` (name the first one left). If none
-   is left, say v0.1 is complete and recommend reviewing the roadmap and cutting the release.
+5. **The first unfinished step in the index's last Build order** is next: a plan that isn't Done,
+   or a step whose backlog items aren't all in `docs/backlog/done/` (name the first one left). If
+   none is left, say that release is complete and recommend reviewing the roadmap and cutting it.
 
 **Blocked** lists only a plan whose `**Builds on:**` names a plan that isn't Done; otherwise
 "nothing". Don't guess dependencies.
