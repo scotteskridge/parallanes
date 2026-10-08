@@ -3,6 +3,26 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-08: The v0.2 build order
+
+110. **v0.2 fixes what the trial found, hardens lanes, then widens the kit** (owner's OK on
+     Claude's recommendation; follows decision 77's shape). The order:
+     1. `ownership-fix-hint`: a lane stop ends with the exact change that allows the file;
+     2. a batch of small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`,
+        `installer-dry-run-prompts`, `allow-variable-braced-powershell`,
+        `protected-check-merge-commits`;
+     3. `shared-path-modes`, with a steward lane for repo-wide files;
+     4. lane robustness: `lane-session-lock`, `hook-latency`, `kit-config-shell-guard-modes`,
+        `decision-log-fragments`;
+     5. the plugin (`ship-kit-as-plugin`, needs a plan), then `/onboard`;
+     6. plan 11 (evals), plan 10 (Unity pack), then per-lane ports (`lane-resources-env`,
+        `lane-session-identity`).
+
+     The `later` items wait behind these. *Why:* the two-lane trial's sharpest failure (F8, F11)
+     was a lane boundary with no way through for repo-wide files like `.gitignore`, which every web
+     project has; steps 1 and 3 fix it. Lane behaviour settles before the plugin ships, so fixes
+     don't each need a plugin release. Step 5 can move up without reordering the rest.
+
 ## 2026-10-07: The kit is named `parallanes`
 
 109. **The kit's name is `parallanes`, not `worklanes`** (owner's choice on Claude's
