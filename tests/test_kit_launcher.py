@@ -1,4 +1,4 @@
-"""`.claude/kit/kit`: how kit-owned skills run the kit CLI (decision 71).
+"""`.claude/kit/parallanes`: how kit-owned skills run the kit CLI (decision 71).
 
 Skills are kit-owned, so they can't hold `{{kit_command}}` or this machine's interpreter path; the
 launcher takes Python from python-path, like the hook launcher (decision 57), but passes every exit
@@ -13,7 +13,7 @@ import pytest
 
 from helpers import ROOT, make_repo
 
-LAUNCHER = ROOT / "payload" / "kit-owned" / ".claude" / "kit" / "kit"
+LAUNCHER = ROOT / "payload" / "kit-owned" / ".claude" / "kit" / "parallanes"
 
 needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="needs sh (Git Bash on Windows)")
 
@@ -28,8 +28,8 @@ def install_kit(repo, python=sys.executable):
 
 
 def run(repo, *args):
-    # The skills run it as `sh .claude/kit/kit ...` from the project root.
-    return subprocess.run(["sh", ".claude/kit/kit", *args], cwd=repo, capture_output=True, text=True)
+    # The skills run it as `sh .claude/kit/parallanes ...` from the project root.
+    return subprocess.run(["sh", ".claude/kit/parallanes", *args], cwd=repo, capture_output=True, text=True)
 
 
 def test_launcher_has_lf_endings():

@@ -1,4 +1,4 @@
-"""PR mode's last step of `kit lanes finish`: push the tested branch and open its pull request (decision 49)."""
+"""PR mode's last step of `parallanes lanes finish`: push the tested branch and open its pull request (decision 49)."""
 
 import re
 import shutil
@@ -48,7 +48,10 @@ def open_pr(
     elif body:
         args += ["--body-file", body]
     else:
-        args += ["--body", "Commits:\n" + "\n".join(f"- {s}" for s in subjects) + "\n\nOpened by `kit lanes finish`."]
+        args += [
+            "--body",
+            "Commits:\n" + "\n".join(f"- {s}" for s in subjects) + "\n\nOpened by `parallanes lanes finish`.",
+        ]
     try:
         # Bytes, not text mode: on Windows a text pipe would turn the body's \n into \r\n.
         created = subprocess.run(

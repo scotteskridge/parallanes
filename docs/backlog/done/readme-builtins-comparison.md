@@ -29,3 +29,9 @@ blocks a merge, so the kit's checks stay the gate.
 on lanekeeper, checked against the current docs at release time, with links, plus what the trial
 caught ([the write-up](../trial/two-lane-trial.md)), linked to the published trial repo's plans,
 reviews and merges (decision 104), and a first-time reader gets the point in about two minutes.
+
+**Done (plan 12):** the README leads with the story, a "Claude Code does / parallanes adds" table
+checked against the current docs on 2026-10-07 (with links), the lanekeeper line, and what the
+trial caught, linked to the published trial repo. A fresh reader given only the README scored it
+4/5 for "gets the point in two minutes"; its gripes were fixed. `tests/test_readme.py` runs the
+quickstart as written.

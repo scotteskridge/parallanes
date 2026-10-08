@@ -240,13 +240,13 @@ def test_a_bom_on_gitignore_is_kept(tmp_path):
 
 @pytest.mark.skipif(not __import__("shutil").which("sh"), reason="needs sh (Git Bash on Windows)")
 def test_the_installed_kit_runs_through_its_launcher(tmp_path):
-    """As the skills and docs run it: sh .claude/kit/kit, with the recorded python-path."""
+    """As the skills and docs run it: sh .claude/kit/parallanes, with the recorded python-path."""
     repo = new_repo(tmp_path)
     setup(repo)
     config = repo / ".claude" / "kit.toml"
     config.write_bytes(config.read_bytes().replace(b'test_command = ""', b'test_command = "exit 0"'))
     for args in (["check", "all"], ["next", "--offline"]):
-        result = subprocess.run(["sh", ".claude/kit/kit", *args], cwd=repo, capture_output=True, text=True)
+        result = subprocess.run(["sh", ".claude/kit/parallanes", *args], cwd=repo, capture_output=True, text=True)
         assert result.returncode == 0, (args, result.stdout, result.stderr)
     manifest = json.loads((repo / ".claude/kit/manifest.json").read_text(encoding="utf-8"))
     assert (
@@ -347,3 +347,11 @@ def test_an_edited_kit_new_deleted_after_the_note_comes_back(tmp_path):
     offered.unlink()
     setup(repo)
     assert offered.read_bytes() == original
+
+
+def test_a_new_folder_is_told_to_make_the_branch_the_kit_expects(tmp_path):
+    """`git init` alone may name the branch master while the installer chose main, and then
+    `lanes create` can't find it (plan 12 review round 1)."""
+    target = tmp_path / "new project"
+    result = setup(target)
+    assert "git init -b main" in result.stdout

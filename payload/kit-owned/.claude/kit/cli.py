@@ -1,6 +1,6 @@
-"""The kit's command line: `kit check`, `hook`, `lanes`, `next`, `test`, `settings` and `changelog`.
+"""The kit's command line: `parallanes check`, `hook`, `lanes`, `next`, `test`, `settings` and `changelog`.
 
-Run from the project root as `sh .claude/kit/kit <command>`, which takes Python from python-path
+Run from the project root as `sh .claude/kit/parallanes <command>`, which takes Python from python-path
 (decision 99). Exit codes. CLI: 0 clean, 1 findings (for `lanes`: unfinished, something is mid-way), 2 usage
 or config error (for `lanes`: refused, nothing changed). Hook mode follows Claude
 Code's protocol instead: 0 nothing to report, 2 findings for Claude to fix, 1 a kit error that
@@ -66,7 +66,7 @@ def main(argv=None) -> int:
 
 def import_failure(argv, error: BaseException) -> int:
     print(
-        f"kit: can't load the kit ({type(error).__name__}: {error}). It needs Python 3.11 or newer; "
+        f"parallanes: can't load the kit ({type(error).__name__}: {error}). It needs Python 3.11 or newer; "
         f"this is {sys.version.split()[0]}. Tell the user.",
         file=sys.stderr,
     )
@@ -90,7 +90,7 @@ def _hook_event() -> str | None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="kit", description="claude-code-lanes-starter project tools.")
+    parser = argparse.ArgumentParser(prog="parallanes", description="parallanes project tools.")
     commands = parser.add_subparsers(title="commands")
 
     check = commands.add_parser("check", help="run the project's checks on files")
@@ -154,13 +154,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-# ---- kit check -------------------------------------------------------------------------------
+# ---- parallanes check -------------------------------------------------------------------------------
 
 
 def run_check(args) -> int:
     names = list(CHECKS) if args.name == "all" else [args.name]
     if args.lane and "lanes" not in names:
-        print(f"kit: --lane is for `check lanes` (or `all`), not `check {args.name}`", file=sys.stderr)
+        print(f"parallanes: --lane is for `check lanes` (or `all`), not `check {args.name}`", file=sys.stderr)
         return USAGE
     try:
         root = find_root(Path.cwd())
@@ -175,7 +175,7 @@ def run_check(args) -> int:
         if "lanes" in names:
             findings += check_lanes(root, config, args)
     except (ConfigError, gitfiles.GitError, UsageError, settings.SettingsError) as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"parallanes: {error}", file=sys.stderr)
         return USAGE
     if findings:
         print(format_findings(findings))
@@ -212,7 +212,7 @@ def check_protected(root: Path, config, args) -> list:
         kept = protected.check(config, [path for path in paths if path not in deleted], keys=("secrets",))
         if len(findings) > len(kept):
             print(
-                f"kit: {len(findings) - len(kept)} protected change(s) allowed by the "
+                f"parallanes: {len(findings) - len(kept)} protected change(s) allowed by the "
                 f"{protected.LABEL} label ({protected.ALLOW_VARIABLE}=paths); added secret files never are.",
                 file=sys.stderr,
             )
@@ -222,7 +222,7 @@ def check_protected(root: Path, config, args) -> list:
 
 def check_lanes(root: Path, config, args) -> list:
     """A lane's change outside its own and the shared paths (decision 96). Other branches aren't judged."""
-    # Imported here, as `kit lanes` does: a fault in lane code must not take the protected hook down.
+    # Imported here, as `parallanes lanes` does: a fault in lane code must not take the protected hook down.
     from kitlib import lane_boundary
 
     if not (args.staged or args.diff or args.files):
@@ -254,7 +254,7 @@ def check_lanes(root: Path, config, args) -> list:
 
 def allowed(findings: list, by_human: bool, what: str, variable: str) -> list:
     if findings and by_human:  # said out loud, so an override never passes silently
-        print(f"kit: {len(findings)} {what} change(s) allowed by {variable}=1.", file=sys.stderr)
+        print(f"parallanes: {len(findings)} {what} change(s) allowed by {variable}=1.", file=sys.stderr)
         return []
     return findings
 
@@ -303,14 +303,14 @@ def relative_to_root(root: Path, path: Path) -> str:
         raise UsageError(f"{path} is outside the project ({root})") from None
 
 
-# ---- kit hook ----------------------------------------------------------------------------------
+# ---- parallanes hook ----------------------------------------------------------------------------------
 
 
 def run_hook(args) -> int:
     return hooks.run(args.name)
 
 
-# ---- kit lanes ---------------------------------------------------------------------------------
+# ---- parallanes lanes ---------------------------------------------------------------------------------
 
 
 def run_lanes(args) -> int:
@@ -318,33 +318,39 @@ def run_lanes(args) -> int:
         # Imported here, not at the top, so a fault in the lane code can't take the protected guard down.
         from kitlib import lane_cli
     except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
-        print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
+        print(
+            f"parallanes: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.",
+            file=sys.stderr,
+        )
         return USAGE
     return lane_cli.run(args)
 
 
-# ---- kit next ----------------------------------------------------------------------------------
+# ---- parallanes next ----------------------------------------------------------------------------------
 
 
 def run_next(args) -> int:
     try:
-        # Imported here, as for `kit lanes`: it uses the lane code, which mustn't take the guard down.
+        # Imported here, as for `parallanes lanes`: it uses the lane code, which mustn't take the guard down.
         from kitlib import lanes, next_facts
     except Exception as error:  # noqa: BLE001 - say what broke instead of a traceback
-        print(f"kit: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.", file=sys.stderr)
+        print(
+            f"parallanes: the lane code failed to load ({type(error).__name__}: {error}). Tell the user.",
+            file=sys.stderr,
+        )
         return USAGE
     here = Path.cwd()
     try:
         root = find_root(here)
         result = next_facts.facts(here, root, load(root), args.offline)
     except (ConfigError, lanes.LaneError) as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"parallanes: {error}", file=sys.stderr)
         return USAGE
     print(next_facts.format_facts(result))
     return OK
 
 
-# ---- kit test ----------------------------------------------------------------------------------
+# ---- parallanes test ----------------------------------------------------------------------------------
 
 
 def run_test(args) -> int:
@@ -353,22 +359,24 @@ def run_test(args) -> int:
         root = find_root(Path.cwd())
         command = load(root).project.get("test_command", "").strip()
     except ConfigError as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"parallanes: {error}", file=sys.stderr)
         return USAGE
     if not command:
         # A green run that tested nothing would be a false claim (decision 105).
-        print("kit: no test_command in [project] in .claude/kit.toml: set it, then run this again", file=sys.stderr)
+        print(
+            "parallanes: no test_command in [project] in .claude/kit.toml: set it, then run this again", file=sys.stderr
+        )
         return USAGE
     print(f"Running the tests: {command}", flush=True)
     # Through the shell, as `lanes finish` runs it: real test commands chain (`npm ci && npm test`).
     result = subprocess.run(command, shell=True, cwd=root)
     if result.returncode != 0:
-        print(f"kit: the tests failed (exit {result.returncode})", file=sys.stderr)
+        print(f"parallanes: the tests failed (exit {result.returncode})", file=sys.stderr)
         return FINDINGS
     return OK
 
 
-# ---- kit settings ------------------------------------------------------------------------------
+# ---- parallanes settings ------------------------------------------------------------------------------
 
 
 def run_settings_sync(args) -> int:
@@ -376,7 +384,7 @@ def run_settings_sync(args) -> int:
         root = find_root(Path.cwd())
         plan = settings.plan_sync(root, load(root))
     except (ConfigError, settings.SettingsError) as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"parallanes: {error}", file=sys.stderr)
         return USAGE
     if not plan.changed:
         print(f"{settings.SETTINGS_REL.as_posix()} is up to date.")
@@ -389,7 +397,7 @@ def run_settings_sync(args) -> int:
     return OK
 
 
-# ---- kit changelog -------------------------------------------------------------------------------
+# ---- parallanes changelog -------------------------------------------------------------------------------
 
 
 def run_changelog_build(args) -> int:
@@ -397,7 +405,7 @@ def run_changelog_build(args) -> int:
     try:
         release = changelog.build(root, args.version, args.date)
     except changelog.ChangelogError as error:
-        print(f"kit: {error}", file=sys.stderr)
+        print(f"parallanes: {error}", file=sys.stderr)
         return USAGE
     if args.dry_run:
         print(release.section, end="")

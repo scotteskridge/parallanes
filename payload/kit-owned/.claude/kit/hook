@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs `kit hook <name>` for every hook the kit wires: the installer's settings.json entries and the
+# Runs `parallanes hook <name>` for every hook the kit wires: the installer's settings.json entries and the
 # reviewer agent's frontmatter, which can't hold this machine's interpreter path.
 # Usage: sh "$CLAUDE_PROJECT_DIR/.claude/kit/hook" <name>
 # Only the guards (protected, reviewer-bash) fail closed: any failure exits 2, the one code that
@@ -21,9 +21,9 @@ if [ -z "$python" ]; then
 fi
 fail() {
     if [ "$failure" -eq 2 ]; then
-        echo "Blocked: kit hook $1: $2" >&2
+        echo "Blocked: parallanes hook $1: $2" >&2
     else
-        echo "kit hook $1: $2 (this hook fails open: nothing was blocked)" >&2
+        echo "parallanes hook $1: $2 (this hook fails open: nothing was blocked)" >&2
     fi
     exit "$failure"
 }
@@ -40,7 +40,7 @@ status=$?
 # 0 and 2 are the hook's answers. For a guard anything else is a crash, which must not let the call
 # through; for the others the code passes through as a non-blocking error.
 if [ "$failure" -eq 2 ] && [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
-    echo "Blocked: kit hook $1 failed (exit $status)" >&2
+    echo "Blocked: parallanes hook $1 failed (exit $status)" >&2
     exit 2
 fi
 exit "$status"

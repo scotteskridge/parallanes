@@ -1,4 +1,4 @@
-"""`kit hook <name>`: Claude Code hook entry points, reading the hook's JSON on stdin.
+"""`parallanes hook <name>`: Claude Code hook entry points, reading the hook's JSON on stdin.
 
 Each hook has its own failure policy, because each guards something different:
 - rules-check (PostToolUse) fails open: a kit problem is shown (exit 1) and never blocks (decision 9).
@@ -34,7 +34,7 @@ def run(name: str) -> int:
             raise ValueError("hook input is not a JSON object")
         return ownership(payload) if name == "ownership" else rules_check_hook(payload)
     except Exception as error:  # noqa: BLE001 - the hook must never crash with a traceback
-        print(f"kit hook {name}: {type(error).__name__}: {error}", file=sys.stderr)
+        print(f"parallanes hook {name}: {type(error).__name__}: {error}", file=sys.stderr)
         return HOOK_ERROR
 
 
@@ -117,7 +117,7 @@ def rules_check_hook(payload: dict) -> int:
     except ConfigMissing:
         return HOOK_OK  # the kit isn't set up here: nothing to enforce
     except ConfigError as error:
-        print(f"kit: rules not checked: {error}", file=sys.stderr)
+        print(f"parallanes: rules not checked: {error}", file=sys.stderr)
         return HOOK_ERROR
 
     try:
@@ -152,7 +152,7 @@ def run_lane_router() -> int:
     except Exception as error:  # noqa: BLE001 - never a traceback; say the check failed instead
         text = (
             f"Lane check failed ({type(error).__name__}: {error}). Lane, branch and drift are unknown: "
-            "run `kit lanes status` before starting work, and tell the user if it fails too."
+            "run `sh .claude/kit/parallanes lanes status` before starting work, and tell the user if it fails too."
         )
     if text:
         print(text)

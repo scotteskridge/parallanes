@@ -6,9 +6,11 @@ edited the block by hand: that is an error to show, never something to repair si
 pattern from lanekeeper's CODEOWNERS handling, `docs/survey-lanekeeper.md`).
 """
 
-BEGIN = "# >>> claude-code-lanes-starter (managed: the installer rewrites the lines between these markers)"
-END = "# <<< claude-code-lanes-starter"
-_BEGIN_KEY = "# >>> claude-code-lanes-starter"
+BEGIN = "# >>> parallanes (managed: the installer rewrites the lines between these markers)"
+END = "# <<< parallanes"
+# The kit's name before decision 109: a block written then is found under it and rewritten
+# with the new markers. A pair must use one name, so a half-renamed block is broken like any other.
+_NAMES = ("parallanes", "claude-code-lanes-starter")
 _BOM = "﻿"
 
 
@@ -20,13 +22,27 @@ def _bare(line: str) -> str:
     return line.rstrip("\r\n").removeprefix(_BOM)
 
 
+def _is_begin(line: str, name: str) -> bool:
+    rest = line.removeprefix(f"# >>> {name}")
+    return rest != line and (not rest or rest[0].isspace())
+
+
 def _markers(lines: list) -> tuple[list, list]:
-    begins = [number for number, line in enumerate(lines) if _bare(line).startswith(_BEGIN_KEY)]
-    ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == END]
-    if (begins or ends) and not (len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]):
+    found = {}
+    for name in _NAMES:
+        # Whole words: `# >>> parallanes-trial notes` is the owner's line, not a marker; any space
+        # may follow the name, as the prefix match before accepted (review round 2).
+        begins = [number for number, line in enumerate(lines) if _is_begin(_bare(line), name)]
+        ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == f"# <<< {name}"]
+        if begins or ends:
+            found[name] = (begins, ends)
+    if not found:
+        return [], []
+    begins, ends = next(iter(found.values()))
+    if len(found) > 1 or not (len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]):
+        counts = ", ".join(f"{len(b)} start and {len(e)} end named {name}" for name, (b, e) in found.items())
         raise BlockError(
-            f"its claude-code-lanes-starter markers are broken ({len(begins)} start, {len(ends)} end): "
-            "fix or remove them by hand, then run the installer again"
+            f"its parallanes markers are broken ({counts}): fix or remove them by hand, then run the installer again"
         )
     return begins, ends
 
@@ -38,7 +54,9 @@ def merge(existing: str, body: str) -> str:
     newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
     block = "".join(line + newline for line in [BEGIN, *body.replace("\r\n", "\n").rstrip("\n").split("\n"), END])
     if begins:
-        return "".join(lines[: begins[0]]) + block + "".join(lines[ends[0] + 1 :])
+        # A BOM is part of line 1's text, so a block that starts there carries it over.
+        bom = _BOM if begins[0] == 0 and lines[0].startswith(_BOM) else ""
+        return "".join(lines[: begins[0]]) + bom + block + "".join(lines[ends[0] + 1 :])
     kept = "".join(lines)
     if not _bare(kept).strip():
         return kept + block  # empty, or just a BOM

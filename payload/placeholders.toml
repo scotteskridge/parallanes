@@ -24,7 +24,7 @@ example = "main"
 
 [kit_command]
 description = "How to run the kit CLI from the project root: the launcher that reads python-path (decision 99)."
-example = "sh .claude/kit/kit"
+example = "sh .claude/kit/parallanes"
 
 [kit_version]
 description = "Version of the kit that installed these files."

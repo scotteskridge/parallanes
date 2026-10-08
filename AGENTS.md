@@ -1,4 +1,4 @@
-# claude-code-lanes-starter: rules for any coding agent
+# parallanes: rules for any coding agent
 
 A starter kit that sets up a project for AI-agent development: instructions, skills, a reviewer
 subagent, enforcement hooks, and **parallel lanes** (several agents at once, one git worktree each).

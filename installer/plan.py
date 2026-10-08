@@ -15,6 +15,7 @@ with nothing half-written.
 """
 
 import hashlib
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +32,8 @@ REGISTRY = PAYLOAD / "placeholders.toml"
 
 BLOCK_FILES = {".gitignore", ".gitattributes", ".worktreeinclude"}
 VERSION_REL = ".claude/kit/VERSION"
+LAUNCHER_REL = ".claude/kit/parallanes"
+OLD_LAUNCHER_REL = ".claude/kit/kit"
 # Never shipped: bytecode, and this machine's interpreter (python-path is written per install).
 _SKIP_PARTS = {"__pycache__"}
 _SKIP_NAMES = {"python-path"}
@@ -41,7 +44,7 @@ _SKIP_NAMES = {"python-path"}
 OWNER_GITATTRIBUTES_BODY = """\
 # The kit's shell scripts must keep LF line endings, whatever the rest of the repository uses.
 .claude/kit/hook text eol=lf
-.claude/kit/kit text eol=lf
+.claude/kit/parallanes text eol=lf
 .githooks/* text eol=lf
 """
 
@@ -68,6 +71,7 @@ class FilePlan:
     files: dict = field(default_factory=dict)  # kit-owned rel -> sha256 of what the kit wrote there
     templates: list = field(default_factory=list)  # project-owned rels the kit has rendered
     offered: dict = field(default_factory=dict)  # rel -> sha256 of the .kit-new last offered for it
+    old_callers: list | None = None  # files still calling the pre-rename launcher, while it exists
 
 
 def sha256(data: bytes) -> str:
@@ -132,11 +136,12 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
             _offer(plan, target, rel, data, mode, offered, f"{why}; yours is kept")
 
     rendered_before = set(previous.get("templates", []))
+    old_launcher = (target / OLD_LAUNCHER_REL).is_file()
     for rel, data in rendered_templates(values).items():
         current = _read(target, rel)
         if rel in BLOCK_FILES:
             plan.templates.append(rel)
-            _block(plan, rel, current, data.decode("utf-8"))
+            _block(plan, rel, current, data.decode("utf-8"), old_launcher)
         elif current is None:
             plan.templates.append(rel)
             plan.writes.append(Write(rel, data, "create"))
@@ -148,14 +153,39 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
             plan.kept.append(rel)  # project-owned: rendered once, then the project's
         else:
             _offer(plan, target, rel, data, None, offered, "exists; yours is kept")
+    # The installer never deletes a file, so a project installed before decision 109 keeps its old
+    # launcher, and the files rendered then, which call it, keep working. Naming them makes the
+    # note something the owner can act on (review round 1); it's said when the list changes, not on
+    # every run (round 2), so the manifest keeps the list it last named.
+    if old_launcher:
+        callers = [rel for rel in rendered_templates(values) if rel not in BLOCK_FILES and _calls_old(target, rel)]
+        plan.old_callers = callers
+        if callers != previous.get("old_launcher_callers"):
+            plan.notes.append(
+                f"{OLD_LAUNCHER_REL} is the old name of {LAUNCHER_REL}: both work. "
+                + (
+                    f"Still calling it: {', '.join(callers)}; change those to {LAUNCHER_REL}, then delete it"
+                    if callers
+                    else "nothing calls it any more: delete it"
+                )
+            )
     return plan
 
 
-def _block(plan: FilePlan, rel: str, current: bytes | None, body: str) -> None:
+def _calls_old(target: Path, rel: str) -> bool:
+    data = _read(target, rel)
+    return data is not None and re.search(rb"\.claude/kit/kit\b", data) is not None
+
+
+def _block(plan: FilePlan, rel: str, current: bytes | None, body: str, old_launcher: bool = False) -> None:
     try:
         text = "" if current is None else current.decode("utf-8")  # a BOM stays part of the text
         if rel == ".gitattributes":
             body = _gitattributes_body(text, body)
+            if old_launcher and body == OWNER_GITATTRIBUTES_BODY:
+                # Kept while the old launcher is: a CRLF checkout breaks it for the files that call it.
+                rule = f"{LAUNCHER_REL} text eol=lf\n"
+                body = body.replace(rule, rule + f"{OLD_LAUNCHER_REL} text eol=lf\n")
         merged = blocks.merge(text, body).encode("utf-8")
     except UnicodeDecodeError:
         raise PlanError(f"{rel}: not UTF-8 text, so the kit can't add its lines") from None

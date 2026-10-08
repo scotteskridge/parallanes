@@ -5,9 +5,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claude-code-lanes-starter"
-version = "0.1.0.dev0"
-description = "Starter kit for multi-lane Claude Code projects: instructions, skills, reviewer, hooks and parallel git-worktree lanes."
+name = "parallanes"
+version = "0.1.0"
+description = "Run several Claude Code agents on one repository at once: lanes that own paths, a tested task cycle, hooks, skills and a reviewer."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"

@@ -41,7 +41,7 @@ def main(argv=None) -> int:
         previous = read_manifest(target)
     except (ManifestError, plan.PlanError) as error:
         return _stop(error)
-    print(f"Installing claude-code-lanes-starter into {target}")
+    print(f"Installing parallanes into {target}")
     print(f"Python: {sys.executable}")
     repo = report.repo_root(target)
     answers = values.detect(target, previous.get("values", {}))
@@ -105,7 +105,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _stop(error) -> int:
-    print(f"kit setup: stopped, nothing written: {error}", file=sys.stderr)
+    print(f"parallanes setup: stopped, nothing written: {error}", file=sys.stderr)
     return 2
 
 
@@ -136,6 +136,7 @@ _MANIFEST_SHAPE = {
     "files": lambda v: isinstance(v, dict) and _strings(v.values()),
     "offered": lambda v: isinstance(v, dict) and _strings(v.values()),
     "templates": lambda v: isinstance(v, list) and _strings(v),
+    "old_launcher_callers": lambda v: isinstance(v, list) and _strings(v),
     "hooks": lambda v: isinstance(v, list),  # entries are checked by settings_hooks
 }
 
@@ -254,4 +255,6 @@ def _manifest(answers: dict, files: plan.FilePlan, hooks: list) -> bytes:
         "offered": dict(sorted(files.offered.items())),
         "hooks": hooks,
     }
+    if files.old_callers is not None:
+        data["old_launcher_callers"] = files.old_callers
     return (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")

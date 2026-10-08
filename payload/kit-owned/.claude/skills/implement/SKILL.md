@@ -4,12 +4,12 @@ description: "Build one approved plan, test-first, on its task branch; stop when
 model: sonnet
 disable-model-invocation: true
 argument-hint: "[docs/plans/<plan>.md]"
-allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/parallanes next) Bash(sh .claude/kit/parallanes next *) Bash(git status *) Read Grep Glob
 ---
 Build this plan: $ARGUMENTS
 
 ## 0. Lane check
-Run `sh .claude/kit/kit next --offline`. Its first line says where this folder is:
+Run `sh .claude/kit/parallanes next --offline`. Its first line says where this folder is:
 - `Here: lane <name>`: stay inside this lane's owned paths (the session-start hook listed them;
   an edit outside them asks first). Shared docs (`docs/plans/`, `docs/backlog/`,
   `docs/changelog.d/`, `docs/design/decisions-log.md`, `docs/health/`) are fine.
@@ -20,8 +20,8 @@ The current branch must be the one on the plan's **Branch / PR** line. If it isn
 so; never build on the integration branch.
 
 ## 1. Read the plan
-- No path given: use the plan `kit next` lists as Approved or In progress; if there are several,
-  ask which one.
+- No path given: use the plan `parallanes next` lists as Approved or In progress; if there are
+  several, ask which one.
 - Its status must be Approved or In progress, and every open question answered. Otherwise stop:
   the owner approves it first (`/plan-feature`).
 - Set **Status:** In progress. Read what its *Reuse* section names before writing anything.

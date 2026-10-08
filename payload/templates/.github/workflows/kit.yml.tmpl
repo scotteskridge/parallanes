@@ -1,4 +1,4 @@
-# Installed by claude-code-lanes-starter (plan 09). This file is yours: edit it freely, the kit never
+# Installed by parallanes (plan 09). This file is yours: edit it freely, the kit never
 # overwrites it. Make both jobs required checks on {{integration_branch}} (branch protection) so
 # nothing merges red: docs/ai/protected-paths.md, "The server".
 name: kit
@@ -33,7 +33,7 @@ jobs:
       # A PR is judged on its change; a lane branch (<lane>/<task>) also on the lane's paths. A push
       # checks the whole project: the protected and lane checks ran on the PR, and judging the
       # merged change again would turn {{integration_branch}} red after a reviewed, labelled merge.
-      - name: kit check all
+      - name: parallanes check all
         env:
           # The label lets protected paths through (never added secret files), and only on the run a
           # person starts by adding it: the label stays on the PR, so every later run (a push, an

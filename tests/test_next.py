@@ -1,4 +1,4 @@
-"""`kit next`: the facts `/next` words (decision 63): where this folder is, lanes, plans, backlog."""
+"""`parallanes next`: the facts `/next` words (decision 63): where this folder is, lanes, plans, backlog."""
 
 import pytest
 

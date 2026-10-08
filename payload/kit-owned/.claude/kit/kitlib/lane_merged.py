@@ -19,7 +19,10 @@ def merged(folder: Path, config, branch: str, tip: str) -> tuple[bool, str]:
     if lanes.is_ancestor(folder, head, tip):
         return True, f"{branch} is in {tip}"
     if config.lane_settings.merge_mode != "pr":
-        return False, f"{branch} has commits that aren't in {tip} yet: finish it with `kit lanes finish`"
+        return (
+            False,
+            f"{branch} has commits that aren't in {tip} yet: finish it with `sh .claude/kit/parallanes lanes finish`",
+        )
     prs, error = pull_requests(folder, branch, "all")
     if error:
         return False, f"{branch} isn't in {tip} and its PR can't be checked ({error}), so it may not be merged"

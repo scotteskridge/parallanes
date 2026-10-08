@@ -1,4 +1,4 @@
-"""`kit lanes create / status / remove` on throwaway repos with a bare origin (decisions 35-39, 42, 43)."""
+"""`parallanes lanes create / status / remove` on throwaway repos with a bare origin (decisions 35-39, 42, 43)."""
 
 import json
 import os
@@ -580,3 +580,62 @@ def test_copy_error_is_reported_not_a_traceback(repo, monkeypatch):
         lane_setup.create(repo, load(repo))
     assert "denied" in str(caught.value) and ".env" in str(caught.value)
     assert lane_dir(repo, "api").is_dir()  # the other lane was still created
+
+
+# ---- plan 12 review: lanes are made from the tip, so it must know them --------------------------
+
+
+WEB_LANE = '\n[[lanes]]\nname = "web"\nscope = "Front end"\nowns = ["public/**"]\n'
+
+
+def test_create_refuses_a_lane_the_tip_doesnt_have_yet(repo):
+    """The README's first quickstart went install → edit kit.toml → create with no commit, and the
+    lane came out without the kit or its own lane (plan 12 review round 1)."""
+    config = repo / ".claude" / "kit.toml"
+    config.write_text(config.read_text(encoding="utf-8") + WEB_LANE, encoding="utf-8")
+    result = create(repo)
+    assert result.returncode == 2
+    assert "web" in result.stderr and "commit" in result.stderr
+    assert not lane_dir(repo, "web").exists()
+    assert lane_dir(repo, "core").is_dir()  # lanes the tip knows are still made
+
+
+def test_create_says_to_push_when_the_lane_is_only_committed(repo):
+    config = repo / ".claude" / "kit.toml"
+    config.write_text(config.read_text(encoding="utf-8") + WEB_LANE, encoding="utf-8")
+    git(repo, "commit", "-q", "-am", "add web")  # origin/main, the PR-mode tip, still lacks it
+    result = create(repo, "web")
+    assert result.returncode == 2
+    assert "origin/main" in result.stderr and "push" in result.stderr
+    git(repo, "push", "-q", "origin", "main")
+    assert create(repo, "web").returncode == 0
+
+
+def test_a_missing_integration_branch_says_how_to_fix_it(tmp_path):
+    """A new folder's `git init` may name the branch master while the installer chose main."""
+    repo = lanes_repo(tmp_path, origin=False)
+    git(repo, "branch", "-m", "main", "master")
+    result = create(repo)
+    assert result.returncode == 2
+    assert "integration_branch" in result.stderr and "git branch -m" in result.stderr
+
+
+def test_create_refuses_when_the_tip_lacks_the_launcher_the_checkout_has(repo):
+    """Review round 2: kit.toml committed with the lane, the installed kit not, and the lane came
+    out unable to run `sh .claude/kit/parallanes`."""
+    write(repo, ".claude/kit/parallanes", "#!/bin/sh\n")  # installed here, not committed
+    result = create(repo, "core")
+    assert result.returncode == 2
+    assert ".claude/kit/parallanes" in result.stderr and "commit" in result.stderr
+    assert not lane_dir(repo, "core").exists()
+
+
+def test_create_says_when_the_tips_kit_toml_doesnt_parse(repo):
+    config = repo / ".claude" / "kit.toml"
+    good = config.read_text(encoding="utf-8")
+    config.write_text(good + "\nbroken = [\n", encoding="utf-8")
+    git(repo, "commit", "-q", "--no-verify", "-am", "broken")
+    git(repo, "push", "-q", "origin", "main")
+    config.write_text(good, encoding="utf-8")
+    result = create(repo, "core")
+    assert result.returncode == 2 and "doesn't parse" in result.stderr

@@ -87,14 +87,18 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
     if kit_new:
         steps.append("Compare each .kit-new file with yours, take what you want, then delete it: " + ", ".join(kit_new))
     # From the files, not the answers: the owner may have fixed them since the last run.
-    if not _test_command(target):
+    if not _project_value(target, "test_command"):
         steps.append("Set test_command in .claude/kit.toml: tasks can't finish without it.")
     agents = target / "AGENTS.md"
     if agents.is_file() and "TODO:" in agents.read_text(encoding="utf-8", errors="replace"):
         steps.append("Replace the TODO lines in AGENTS.md.")
     kind = precommit.partition(":")[0]
     if kind == "no-repo":
-        steps.append("Not a git repository yet: run `git init`, then `git config core.hooksPath .githooks`.")
+        # The branch named, not git's default: `git init` may make master while lanes look for main.
+        branch = _project_value(target, "integration_branch") or "main"
+        steps.append(
+            f"Not a git repository yet: run `git init -b {branch}`, commit, then `git config core.hooksPath .githooks`."
+        )
     elif kind == "subfolder":
         steps.append("This folder is not the root of its git repository: the kit's lanes and checks expect to be.")
     elif kind == "own-hooks":
@@ -115,7 +119,8 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
     workflow = ".github/workflows/kit.yml"
     if f"{workflow}.kit-new" in kit_new:
         steps.append(
-            f"Compare {workflow}.kit-new with your {workflow}: the kit's CI runs `kit check all` and `kit test`. "
+            f"Compare {workflow}.kit-new with your {workflow}: the kit's CI runs `parallanes check all` and "
+            "`parallanes test`. "
             'Whichever you keep, make its jobs required checks: docs/ai/protected-paths.md, "The server".'
         )
     else:
@@ -128,9 +133,9 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
         print(f"  {number}. {step}")
 
 
-def _test_command(target: Path) -> str:
+def _project_value(target: Path, key: str) -> str:
     try:
         config = tomllib.loads((target / ".claude" / "kit.toml").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return ""
-    return str(config.get("project", {}).get("test_command", "")).strip()
+    return str(config.get("project", {}).get(key, "")).strip()

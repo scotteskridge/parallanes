@@ -3,7 +3,7 @@ name: next
 description: "Say what to work on next in this folder: unfinished work, plans waiting on the owner, open pull requests, other lanes, and the next ready backlog item. Read-only; ends with one recommended prompt. Use for /next, \"what's next\", \"where are we\", \"what should I work on\"."
 model: sonnet
 effort: low
-allowed-tools: Bash(sh .claude/kit/kit next) Bash(sh .claude/kit/kit next *) Bash(git status *) Bash(gh pr list *) Bash(gh pr checks *) Read Grep Glob
+allowed-tools: Bash(sh .claude/kit/parallanes next) Bash(sh .claude/kit/parallanes next *) Bash(git status *) Bash(gh pr list *) Bash(gh pr checks *) Read Grep Glob
 ---
 What to work on next. $ARGUMENTS
 
@@ -11,8 +11,8 @@ What to work on next. $ARGUMENTS
 recommend one prompt for the owner to send. Run commands from the project root.
 
 ## 0. Lane check
-Run `sh .claude/kit/kit next` (add `--offline` if `gh` is missing or slow). Its first line says
-where this folder is:
+Run `sh .claude/kit/parallanes next` (add `--offline` if `gh` is missing or slow). Its first line
+says where this folder is:
 - `Here: lane <name>`: answer for this lane. Backlog items count when their lane is this lane or
   `any`; other lanes get one line at the end.
 - `Here: main checkout` (or `a worktree that isn't a lane`): the project has lanes but this folder
@@ -21,8 +21,9 @@ where this folder is:
 If the command fails, show its message and stop: the facts below can't be trusted without it.
 
 ## 1. Gather
-- The rest of `kit next`: lanes (branch, ahead/behind, changed files, PR), plans by status, backlog
-  items by status, and **Problems** (files it couldn't read or parse, blockers that name nothing).
+- The rest of `parallanes next`: lanes (branch, ahead/behind, changed files, PR), plans by status,
+  backlog items by status, and **Problems** (files it couldn't read or parse, blockers that name
+  nothing).
 - Not in a lane, and the project opens pull requests: `gh pr list --state open --json
   number,title,headRefName,url`, then `gh pr checks <n>` for each. A non-zero exit from
   `gh pr checks` means failing or pending checks: report it. If `gh pr list` itself fails, say
@@ -52,7 +53,7 @@ aren't written down.
 **Ready next:** <the step from section 2: one line on what it is>
 **Blocked:** <items and what they wait on> or "nothing"
 **Other lanes:** <one line each: lane, branch or idle, PR> (omit when there are no lanes)
-**Problems:** <each problem kit next listed, with its reason> (omit when none)
+**Problems:** <each problem parallanes next listed, with its reason> (omit when none)
 
 **Recommended prompt:**
 > <the exact message the owner could send next>

@@ -44,7 +44,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
 ## 5. Hooks (automatic enforcement)
 - **MVP** Rules-check (PostToolUse on Edit/Write): forbidden patterns from `.claude/kit.toml` (pattern, glob, message); exits 2 so the agent fixes violations; fails open; ignores comments
-- **MVP** Every check has three entry points: hook, CLI for humans and agents (`kit check ...`), and pre-commit; CI runs the CLI
+- **MVP** Every check has three entry points: hook, CLI for humans and agents (`parallanes check ...`), and pre-commit; CI runs the CLI
 - **MVP** Lane-router hook (SessionStart): tells the agent its lane, branch, scope, owned paths and resources; warns about drift
 - **MVP** Protected paths: `settings.json` deny rules generated from config (primary) + PreToolUse command backstop (fails closed); each project's `docs/ai/protected-paths.md` states the limits and recommends the sandbox where available
 - **Later** Stop hook that reminds the agent to run tests if code changed without a test run
@@ -93,14 +93,14 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **Later** `showcase export`: snapshot to a public repo, excluding a never-copy list, checking for secrets and placeholders first
 
 ## 12. Distribution
-- **MVP** GitHub template repository ("Use this template")
-- **v0.2** Claude Code plugin packaging, named `worklanes` (decisions 73, 78)
+- **Later** GitHub template repository ("Use this template"): dropped from v0.1 (decision 108, backlog `template-repo`)
+- **v0.2** Claude Code plugin packaging, named `parallanes` (decisions 78, 109)
 - **MVP** Semantic versioning and a changelog for the kit itself
 - **MVP** MIT license
 
 ## 13. Documentation and presentation
-- **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table
-- **MVP** A real two-lane trial on a small web project, shown in the README with its plan, review report and lane merges (decision 80)
+- **MVP** README: what it is, 3-step quickstart, architecture diagram, guardrail table. *Done in plan 12.*
+- **MVP** A real two-lane trial on a small web project, shown in the README with its plan, review report and lane merges (decision 80). *Done:* [write-up](trial/two-lane-trial.md), linked from the README.
 - **Later** Demo GIF of `lanes create` → two agents working → `lanes finish`
 - **Later** FAQ, troubleshooting, "why this design" page
 

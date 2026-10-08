@@ -1,4 +1,4 @@
-"""`kit lanes status`: every lane at a glance, from local git data plus `gh` when it can (decision 43)."""
+"""`parallanes lanes status`: every lane at a glance, from local git data plus `gh` when it can (decision 43)."""
 
 import os
 import shutil
@@ -126,10 +126,13 @@ def format_status(result: Status) -> str:
             shown = str(lane.folder)
         where = f"{lane.name} {shown}" + (" (this folder)" if lane.here else "")
         if lane.state == "not created":
-            lines.append(f"{where} · not created (kit lanes create {lane.name})")
+            lines.append(f"{where} · not created (sh .claude/kit/parallanes lanes create {lane.name})")
             continue
         if lane.state == "missing":
-            lines.append(f"{where} · folder missing (git worktree prune, then kit lanes create {lane.name})")
+            lines.append(
+                f"{where} · folder missing (git worktree prune, then "
+                f"sh .claude/kit/parallanes lanes create {lane.name})"
+            )
             continue
         parts = [where]
         parts.append(lane.branch if lane.branch else "detached (between tasks)")
