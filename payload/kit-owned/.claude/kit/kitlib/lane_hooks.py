@@ -32,7 +32,10 @@ def router_text(cwd: Path) -> str:
         )
 
     settings = config.lane_settings
-    lines = [f"Lane: {lane.name} (this folder is its worktree: {root})"]
+    # Trial F7: in a nested lane, an agent dropped `.claude/worktrees/<lane>` from its folder and read
+    # the main checkout. A lane beside the main checkout has no such trap.
+    here = "; read and edit files here, not in the main checkout above it" if lanes.is_nested(main, root) else ""
+    lines = [f"Lane: {lane.name} (this folder is its worktree: {root}{here})"]
     if lane.scope:
         lines.append(f"Scope: {_one_line(lane.scope)}")
     lines.append(f"Owns: {', '.join(lane.owns)}")

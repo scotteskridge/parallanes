@@ -6,6 +6,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- From the two-lane trial (backlog `lane-guide-trial-notes`): in a lane inside the main checkout,
+  the lane-router's first line tells the agent to read and edit files in its lane folder, not the
+  main checkout above it (F7: an agent
+  read the main checkout's copy of a skill). `parallel-lanes.md` says a task takes two prompts, the
+  work and then `/wrap-up`, since the task skills run only when typed (F5); the `kit.toml` comment
+  says to give a lane its tests' folder when tests don't sit beside the code (F6).
 - A lane stop now ends with its fix (backlog `ownership-fix-hint`, decision 111, from the two-lane
   trial's F8 and F11). For a file no lane owns, the ownership prompt and the lane-boundary check
   (`lanes finish`, pre-commit, CI) name the exact pattern to add to the lane's `owns` in
