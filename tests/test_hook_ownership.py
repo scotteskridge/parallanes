@@ -84,6 +84,41 @@ def test_a_file_a_more_specific_lane_owns_asks_the_wider_lane(tmp_path):
     assert_allowed(hook(lane_dir(repo, "core"), lane_dir(repo, "core") / "src/core/a.py"))
 
 
+def test_a_file_no_lane_owns_asks_with_the_exact_kit_toml_line(lane):
+    # Backlog ownership-fix-hint: the trial's .gitignore (F8, F11) stopped with no way through.
+    assert_asks(
+        hook(lane, lane / ".gitignore"),
+        "no lane owns it",
+        "Add \"/.gitignore\" to the owns of lane 'core' in .claude/kit.toml.",
+        "branch that isn't a lane's",
+        "lanes sync",
+        # Review round 1: approving the edit was what failed in the trial; say the commit still won't pass.
+        "Approving this edit isn't enough: the commit is refused from this lane until",
+        "KIT_ALLOW_CROSS_LANE=1",
+    )
+    assert "Allow only if" not in reason_for(lane, ".gitignore")
+
+
+def reason_for(lane, rel):
+    return json.loads(hook(lane, lane / rel).stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_editing_the_lane_policy_asks_without_offering_it_to_the_lane(lane):
+    # Review round 1 (both reviewers): a lane owning kit.toml could widen itself. Round 2: and no
+    # "Allow only if this lane should change it", which no lane ever may.
+    reason = reason_for(lane, ".claude/kit.toml")
+    assert "the lane policy belongs to no lane" in reason and "No lane commits it" in reason
+    assert "Add " not in reason and "Allow only if" not in reason
+
+
+def test_a_file_another_lane_owns_asks_without_offering_to_widen(lane):
+    reason = reason_for(lane, "src/api/routes.py")
+    assert "owned by lane 'api'" in reason and "Make this change from that lane instead." in reason
+    assert "Add " not in reason and "lanes sync" not in reason
+    # Review round 2: approving lets the edit through, but say what the commit then needs.
+    assert "Allow only if this lane should change it; committing it then needs a branch that isn't a lane's" in reason
+
+
 def test_relative_path_from_a_subfolder(lane):
     sub = lane / "src"
     assert_asks(run_cli(sub, "hook", "ownership", stdin=pre_tool_use(sub, "api/x.py")), "src/api/x.py")

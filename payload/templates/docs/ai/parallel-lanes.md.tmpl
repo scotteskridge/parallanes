@@ -129,6 +129,11 @@ another remote, counts as unpushed, and `sync` would rebase it.
   rule) outside the shared paths, and any change to `.claude/kit.toml`. To land one on purpose, a person uses a branch that isn't
   a lane's; `KIT_ALLOW_CROSS_LANE=1` gets a local commit or a local-mode finish through, but CI has
   no override, so a pull request needs the non-lane branch. An agent stops and asks instead.
+  Each stop ends with its fix. For a file no lane owns (`.gitignore`, `package.json`), that's the
+  pattern to add to the lane's `owns`, matching that file alone. A person commits it on a branch
+  that isn't a lane's and merges it, then `lanes sync` brings it into the lane, because a lane's own
+  branch is judged by the `kit.toml` it started from; until then, approving the edit doesn't get it
+  committed. For a file another lane owns, the fix is to do the work there.
 - **When two lanes' patterns match one file, the more specific one owns it.** A lane owning
   `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
   the boundary check refuses them. More specific means more literal folder and file names, then a

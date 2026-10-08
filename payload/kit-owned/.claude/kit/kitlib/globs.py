@@ -58,7 +58,11 @@ def _compile(pattern: str) -> re.Pattern:
             body = pattern[i + 1 : end]
             if body.startswith("!"):
                 body = "^" + body[1:]
-            out.append("[" + body.replace("\\", "\\\\") + "]")
+            # Literal in a glob class, but Python warns it will read `[` as a nested set and `&&`,
+            # `~~`, `||` as set operations; escaped, they mean the same today and later.
+            for special in "\\[&~|":
+                body = body.replace(special, "\\" + special)
+            out.append("[" + body + "]")
             i = end + 1
         else:
             out.append(re.escape(pattern[i]))

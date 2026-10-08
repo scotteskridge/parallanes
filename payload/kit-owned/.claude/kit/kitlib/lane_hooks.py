@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import lane_deps, lane_owners, lanes
+from . import globs, lane_boundary, lane_deps, lane_owners, lanes
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -165,13 +165,29 @@ def ownership_reason(payload: dict) -> str | None:
     rel = relative(root, cwd, target, git_bash=False)
     if rel is None:
         return _elsewhere(root, main, cwd, target, config, lane)
-    why = lane_owners.why_not(config, lane, rel)  # the boundary check's rule too (decision 97)
-    if why is None:
+    judged = lane_owners.judge(config, lane, rel)  # the boundary check's rule and fix too (decision 97)
+    if judged is None:
         return None
-    return (
+    why, fix = judged
+    reason = (
         f"{rel} isn't lane {lane.name!r}'s to change: {why}. Lane {lane.name!r} owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
-        + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
+        + ". Editing it may conflict with another lane's work."
+    )
+    # Every stop says what approving does and doesn't do: in the trial (F8) the owner approved an
+    # edit and the commit was refused anyway (review rounds 1 and 2).
+    override = f"or a person sets {lane_boundary.ALLOW_VARIABLE}=1 for a local commit"
+    if globs.matches_any_file(rel, [lane_owners.POLICY]):
+        return f"{reason} No lane commits it: a person changes it on a branch that isn't a lane's."
+    said = f" {fix.text[0].upper()}{fix.text[1:]}." if fix else ""
+    if fix is None or not fix.widens:
+        return (
+            f"{reason} Allow only if this lane should change it; committing it then needs a branch that "
+            f"isn't a lane's ({override}).{said}"
+        )
+    return (
+        f"{reason}{said} {lane_owners.HOW_POLICY_LANDS} Approving this edit isn't enough: the commit is "
+        f"refused from this lane until that change is merged and the lane is synced ({override})."
     )
 
 

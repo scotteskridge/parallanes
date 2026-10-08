@@ -1,5 +1,6 @@
 import pytest
 
+from kitlib import globs
 from kitlib.globs import matches, matches_any, normalize
 
 
@@ -63,3 +64,14 @@ def test_validate_rejects_empty_and_uncompilable_globs(pattern):
 def test_matches_any():
     assert matches_any("src/a.py", ["*.md", "src/*.py"])
     assert not matches_any("src/a.py", [])
+
+
+@pytest.mark.filterwarnings("error")
+@pytest.mark.parametrize(
+    "pattern, path, other",
+    [("a[[]b", "a[b", "ab"), ("[a&&b]x", "&x", "cx"), ("[a~~b]x", "~x", "cx"), ("[a||b]x", "|x", "cx")],
+)
+def test_a_class_holding_set_operator_characters_matches_them_literally(pattern, path, other):
+    # Unescaped, Python warns these will become nested sets or set operations (review round 1).
+    globs._compile.cache_clear()
+    assert globs.matches(path, pattern) and not globs.matches(other, pattern)

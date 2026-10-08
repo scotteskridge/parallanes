@@ -20,6 +20,16 @@ def config(*lanes, shared=()):
     return SimpleNamespace(lanes=list(lanes), lane_settings=LaneSettings(shared_paths=list(shared)))
 
 
+def why_not(cfg, lane, path):
+    judged = lane_owners.judge(cfg, lane, path)
+    return judged[0] if judged else None
+
+
+def fix_for(cfg, lane, path):
+    judged = lane_owners.judge(cfg, lane, path)
+    return judged[1] if judged else None
+
+
 @pytest.mark.parametrize(
     "pattern, canonical",
     [
@@ -113,23 +123,98 @@ def test_no_lane_and_one_lane():
 
 def test_why_not_is_none_for_owned_and_shared_files():
     cfg = config(APP, CORE, shared=["src/core/shared/**"])
-    assert lane_owners.why_not(cfg, CORE, "src/core/a.py") is None
-    assert lane_owners.why_not(cfg, APP, "src/core/shared/x.py") is None  # shared paths come first
+    assert why_not(cfg, CORE, "src/core/a.py") is None
+    assert why_not(cfg, APP, "src/core/shared/x.py") is None  # shared paths come first
 
 
 def test_why_not_names_the_owner_and_why_it_wins():
-    reason = lane_owners.why_not(config(APP, CORE), APP, "src/core/a.py")
+    reason = why_not(config(APP, CORE), APP, "src/core/a.py")
     assert reason == "src/** matches it, but lane 'core' owns it: src/core/** is more specific"
-    assert lane_owners.why_not(config(APP, CORE), CORE, "src/ui/b.py") == "owned by lane 'app'"
-    assert lane_owners.why_not(config(APP, CORE), CORE, "README.md") == "no lane owns it"
+    assert why_not(config(APP, CORE), CORE, "src/ui/b.py") == "owned by lane 'app'"
+    assert why_not(config(APP, CORE), CORE, "README.md") == "no lane owns it"
 
 
 def test_why_not_refuses_a_tie_for_every_lane_in_it():
     a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
     b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
     for lane in (a, b):
-        reason = lane_owners.why_not(config(a, b), lane, "src/a.py")
+        reason = why_not(config(a, b), lane, "src/a.py")
         assert "lanes 'a' and 'b' claim it equally" in reason and "more specific" in reason
+
+
+# ---- the fix a lane stop offers (backlog ownership-fix-hint) -----------------------------------------
+
+
+def widened(lane, fix):
+    """The lane after the owner makes the change a fix offers, read the way kit.toml would read it."""
+    import re
+    import tomllib
+
+    quoted = re.fullmatch(r'add (".*") to the owns of lane .*', fix.text).group(1)
+    return Lane(name=lane.name, owns=[*lane.owns, tomllib.loads(f"p = {quoted}")["p"]], scope="", resources={})
+
+
+def test_no_fix_when_the_lane_may_change_the_file_or_two_lanes_tie():
+    cfg = config(APP, CORE, shared=["docs/**"])
+    assert fix_for(cfg, CORE, "src/core/a.py") is None
+    assert fix_for(cfg, CORE, "docs/x.md") is None
+    a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
+    b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
+    assert fix_for(config(a, b), a, "src/a.py") is None  # why_not already says how to settle it
+
+
+@pytest.mark.parametrize("path", [".claude/kit.toml", ".claude\\kit.toml"])
+def test_the_lane_policy_is_never_offered_to_a_lane(path):
+    # Review round 1 (both reviewers): a lane owning kit.toml could widen itself; the check refuses it anyway.
+    assert lane_owners.judge(config(APP, CORE), CORE, path) == ("the lane policy belongs to no lane", None)
+
+
+def test_a_file_another_lane_owns_points_at_that_lane_and_never_widens():
+    for lane, path, owner in ((CORE, "src/ui/b.py", "app"), (APP, "src/core/a.py", "core")):  # 2nd: lost on specificity
+        why, fix = lane_owners.judge(config(APP, CORE), lane, path)
+        assert f"lane {owner!r} owns it" in why or why == f"owned by lane {owner!r}"  # the reason names it once
+        assert fix == lane_owners.Fix("make this change from that lane instead", widens=False)
+
+
+def test_a_file_no_lane_owns_gets_the_exact_addition():
+    # Review round 1: the addition alone, not a whole `owns` line, which a stale lane would get wrong.
+    fix = fix_for(config(APP, CORE), CORE, ".gitignore")
+    assert fix == lane_owners.Fix("add \"/.gitignore\" to the owns of lane 'core' in .claude/kit.toml", widens=True)
+    # The trial's wall (F8, F11): the lane's own branch can't carry it; the stops say how it lands.
+    assert "branch that isn't a lane's" in lane_owners.HOW_POLICY_LANDS
+    assert "lanes sync" in lane_owners.HOW_POLICY_LANDS
+
+
+@pytest.mark.filterwarnings("error")  # `[[]` once compiled to a regex Python warns will change meaning
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".gitignore",  # bare: anchored, so a nested .gitignore stays out
+        "data dir/notes v2.txt",  # spaces
+        "app/[id]/page.tsx",  # Next.js route: [ ] are glob syntax and must match literally
+        "app/[...slug]/page.tsx",
+        "a*b?.txt",
+        "a[!b].txt",
+        "x]y.txt",
+        "!important.md",
+        "**",
+        'say "hi".md',  # a quote must survive TOML
+        "new\nline.txt",  # control characters too (review round 1): legal in a POSIX file name
+        "del\x7f.txt",
+        "tab\there.txt",
+    ],
+)
+def test_the_offered_addition_lets_the_lane_change_exactly_that_file(path):
+    after = widened(CORE, fix_for(config(APP, CORE), CORE, path))
+    assert why_not(config(APP, after), after, path) is None
+    for neighbour in ("nested/" + path, "app/i/page.tsx", "aXbY.txt", "ab.txt", "x/y.txt", "important.md"):
+        if neighbour != path:
+            assert why_not(config(APP, after), after, neighbour) is not None, neighbour
+
+
+def test_a_windows_path_is_offered_with_forward_slashes():
+    fix = fix_for(config(APP, CORE), CORE, "data\\seed.json")
+    assert fix.text.startswith('add "data/seed.json" to')
 
 
 @pytest.mark.skipif(os.name != "nt", reason="the Windows file system ignores case, so ownership does too")
