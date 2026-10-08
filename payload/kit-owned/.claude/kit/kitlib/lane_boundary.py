@@ -19,7 +19,7 @@ CHECK = "lanes"
 ALLOW_VARIABLE = "KIT_ALLOW_CROSS_LANE"
 ADVICE = (
     f"To land a cross-lane change on purpose, a person uses a branch that isn't a lane's, or sets "
-    f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks."
+    f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks. To widen a lane instead, " + lane_owners.HOW_POLICY_LANDS
 )
 # The lane policy itself: a lane that could change it could widen its own paths inside its own change.
 POLICY = lane_owners.POLICY
@@ -71,6 +71,8 @@ def check(config, lane, paths) -> list[Finding]:
             why = lane_owners.why_not(config, lane, path)  # the hook's rule too (decision 97)
             if why is None:
                 continue
+            fix = lane_owners.fix_for(config, lane, path)
+            why += f"; {fix}" if fix else ""
         findings.append(Finding(path=path, line=0, check=CHECK, message=f"outside lane {lane.name!r}: {why}"))
     return sorted(findings)
 

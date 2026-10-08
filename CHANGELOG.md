@@ -5,6 +5,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- A lane stop now ends with its fix (backlog `ownership-fix-hint`, from the two-lane trial's F8 and
+  F11). For a file no lane owns, the ownership prompt and the lane-boundary check (`lanes finish`,
+  pre-commit, CI) show the lane's exact `owns` line in `kit.toml` with that one file added, and
+  say how that change lands: on a branch that isn't a lane's, then `lanes sync`. For a file another
+  lane owns, they name that lane and don't offer to widen.
+
+### Fixed
+- A glob class holding `[` (as in the pattern `[[]` for a literal bracket) compiled to a regex Python
+  warns about and will read as a nested set.
+
 ## [0.1.0] - 2026-10-07
 
 The first release: lanes with owned paths and a tested start → sync → finish cycle, the hooks,

@@ -128,6 +128,45 @@ def why_not(config, lane, path: str) -> str | None:
     return f"{mine} matches it, but lane {found.owner!r} owns it: {found.pattern} is more specific"
 
 
+# kit.toml belongs to no lane, and a lane's change is judged by the kit.toml it started from
+# (lane_boundary.lanes_before), so a fix that widens a lane can't ride in that lane's own branch.
+HOW_POLICY_LANDS = (
+    f"{POLICY} belongs to no lane: a person commits a change to it on a branch that isn't a lane's "
+    "and merges it, then `sh .claude/kit/parallanes lanes sync` brings it into the lane."
+)
+
+
+def fix_for(config, lane, path: str) -> str | None:
+    """The change that would let lane change path, to follow why_not's reason; None if there's none.
+
+    A file no lane owns gets the lane's `owns` line with that one file added, exact so the boundary
+    widens only as far as the task needs. A file another lane owns gets no widening: taking it would
+    move the boundary under that lane. A tie already says how to settle it.
+    """
+    owners = Owners(config)
+    if owners.shared(path):
+        return None
+    found = owners.claim(path)
+    if found.tied or found.owner == lane.name:
+        return None
+    if found.owner is not None:
+        return f"this change belongs in lane {found.owner!r}"
+    owns = ", ".join(_toml_string(pattern) for pattern in [*lane.owns, literal(path)])
+    return f"to let lane {lane.name!r} change it, its line in {POLICY} becomes: owns = [{owns}]"
+
+
+def literal(path: str) -> str:
+    """A pattern matching path alone: wildcards bracketed (`[id]` is a Next.js folder name, not a
+    class), and a bare name anchored, since `.gitignore` alone would match every nested one (globs)."""
+    path = globs.normalize(path)
+    pattern = re.sub(r"[*?\[]", lambda found: f"[{found.group()}]", path)
+    return pattern if "/" in pattern else "/" + pattern
+
+
+def _toml_string(text: str) -> str:
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 def same_pattern(lanes) -> tuple[str, str, str, str] | None:
     """(lane, other lane, its pattern, the other's) for the first pattern two lanes both list."""
     seen = {}

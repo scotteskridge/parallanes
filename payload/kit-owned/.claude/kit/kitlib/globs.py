@@ -58,7 +58,8 @@ def _compile(pattern: str) -> re.Pattern:
             body = pattern[i + 1 : end]
             if body.startswith("!"):
                 body = "^" + body[1:]
-            out.append("[" + body.replace("\\", "\\\\") + "]")
+            # A `[` inside a class is literal in a glob; unescaped, Python reads it as a nested set.
+            out.append("[" + body.replace("\\", "\\\\").replace("[", "\\[") + "]")
             i = end + 1
         else:
             out.append(re.escape(pattern[i]))

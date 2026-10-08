@@ -168,10 +168,14 @@ def ownership_reason(payload: dict) -> str | None:
     why = lane_owners.why_not(config, lane, rel)  # the boundary check's rule too (decision 97)
     if why is None:
         return None
+    fix = lane_owners.fix_for(config, lane, rel)  # the boundary check offers the same one
+    widen = fix is not None and lane_owners.claim(config, rel).owner is None
     return (
         f"{rel} isn't lane {lane.name!r}'s to change: {why}. Lane {lane.name!r} owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
+        + (f" {fix[0].upper()}{fix[1:]}." if fix else "")
+        + (f" {lane_owners.HOW_POLICY_LANDS}" if widen else "")
     )
 
 

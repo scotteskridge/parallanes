@@ -132,6 +132,69 @@ def test_why_not_refuses_a_tie_for_every_lane_in_it():
         assert "lanes 'a' and 'b' claim it equally" in reason and "more specific" in reason
 
 
+# ---- the fix a lane stop offers (backlog ownership-fix-hint) -----------------------------------------
+
+
+def widened(lane, line):
+    """The lane with the `owns = [...]` line a fix offers, read the way kit.toml would read it."""
+    import tomllib
+
+    return Lane(name=lane.name, owns=tomllib.loads(line)["owns"], scope="", resources={})
+
+
+def test_no_fix_when_the_lane_may_change_the_file_or_two_lanes_tie():
+    cfg = config(APP, CORE, shared=["docs/**"])
+    assert lane_owners.fix_for(cfg, CORE, "src/core/a.py") is None
+    assert lane_owners.fix_for(cfg, CORE, "docs/x.md") is None
+    a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
+    b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
+    assert lane_owners.fix_for(config(a, b), a, "src/a.py") is None  # why_not already says how to settle it
+
+
+def test_a_file_another_lane_owns_points_at_that_lane_and_never_widens():
+    for fix in (
+        lane_owners.fix_for(config(APP, CORE), CORE, "src/ui/b.py"),
+        lane_owners.fix_for(config(APP, CORE), APP, "src/core/a.py"),  # lost on specificity: still core's
+    ):
+        assert "lane 'core'" in fix or "lane 'app'" in fix
+        assert "owns =" not in fix and "change belongs in" in fix
+
+
+def test_a_file_no_lane_owns_gets_the_exact_kit_toml_line():
+    fix = lane_owners.fix_for(config(APP, CORE), CORE, ".gitignore")
+    line = 'owns = ["src/core/**", "tests/core/**", "/.gitignore"]'
+    assert fix == f"to let lane 'core' change it, its line in .claude/kit.toml becomes: {line}"
+    # The trial's wall (F8, F11): the lane's own branch can't carry it; the stops say how it lands.
+    assert "branch that isn't a lane's" in lane_owners.HOW_POLICY_LANDS
+    assert "lanes sync" in lane_owners.HOW_POLICY_LANDS
+
+
+@pytest.mark.filterwarnings("error")  # `[[]` once compiled to a regex Python warns will change meaning
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".gitignore",  # bare: anchored, so a nested .gitignore stays out
+        "data dir/notes v2.txt",  # spaces
+        "app/[id]/page.tsx",  # Next.js route: [ ] are glob syntax and must match literally
+        "a*b?.txt",
+        'say "hi".md',  # a quote must survive TOML
+    ],
+)
+def test_the_offered_line_lets_the_lane_change_exactly_that_file(path):
+    fix = lane_owners.fix_for(config(APP, CORE), CORE, path)
+    after = widened(CORE, fix.split("becomes: ", 1)[1])
+    assert lane_owners.why_not(config(APP, after), after, path) is None
+    assert after.owns[:2] == CORE.owns  # the lane keeps what it had
+    for neighbour in ("nested/" + path, "app/i/page.tsx", "aXbY.txt"):
+        if neighbour != path:
+            assert lane_owners.why_not(config(APP, after), after, neighbour) is not None, neighbour
+
+
+def test_a_windows_path_is_offered_with_forward_slashes():
+    fix = lane_owners.fix_for(config(APP, CORE), CORE, "data\\seed.json")
+    assert fix.endswith('"data/seed.json"]')
+
+
 @pytest.mark.skipif(os.name != "nt", reason="the Windows file system ignores case, so ownership does too")
 def test_case_is_ignored_on_windows():
     assert lane_owners.claim(config(APP, CORE), "SRC/Core/A.py").owner == "core"

@@ -19,7 +19,7 @@ was tried by the driving session, and Claude Code's own safety check blocked lan
 change was dropped, and the trial's `main` doesn't ignore `data/`. An approved `/wrap-up` rule hit
 the same wall (`.claude/rules/` is in no lane).
 Repo-wide files (`.gitignore`, `package.json`, rules) come up in every web project, so this is now
-`next`. Pair it with [shared-path-modes](shared-path-modes.md): an `ask` mode with a steward lane
+`next`. Pair it with [shared-path-modes](../shared-path-modes.md): an `ask` mode with a steward lane
 fits these files.
 
 **Done when:** the ownership prompt and the lane-boundary check end with the exact change that would

@@ -84,6 +84,22 @@ def test_a_file_a_more_specific_lane_owns_asks_the_wider_lane(tmp_path):
     assert_allowed(hook(lane_dir(repo, "core"), lane_dir(repo, "core") / "src/core/a.py"))
 
 
+def test_a_file_no_lane_owns_asks_with_the_exact_kit_toml_line(lane):
+    # Backlog ownership-fix-hint: the trial's .gitignore (F8, F11) stopped with no way through.
+    assert_asks(
+        hook(lane, lane / ".gitignore"),
+        "no lane owns it",
+        'its line in .claude/kit.toml becomes: owns = ["src/core/**", "tests/core/**", "/.gitignore"]',
+        "branch that isn't a lane's",
+        "lanes sync",
+    )
+
+
+def test_a_file_another_lane_owns_asks_without_offering_to_widen(lane):
+    reason = json.loads(hook(lane, lane / "src/api/routes.py").stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "his change belongs in lane 'api'" in reason and "becomes:" not in reason
+
+
 def test_relative_path_from_a_subfolder(lane):
     sub = lane / "src"
     assert_asks(run_cli(sub, "hook", "ownership", stdin=pre_tool_use(sub, "api/x.py")), "src/api/x.py")
