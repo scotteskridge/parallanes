@@ -135,3 +135,6 @@ into their project by following the README alone.
   the marker name is a marker again; a BOM before a block on line 1 is kept; a code fence without
   a language fails the README test. The five new tests failed before the fixes. The fixes are
   small and round 2 had no 🔴, so no third round (decision 79).
+- **Follow-ups the owner asked for in this PR:** the old-launcher note is said when its list of
+  callers changes (the manifest keeps the list), not on every run; and a test runs the README's
+  PowerShell install line, which is in prose, not a code block (Windows only).

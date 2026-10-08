@@ -159,3 +159,28 @@ def test_a_bom_before_the_block_on_line_one_is_kept():
     text = "﻿" + blocks.BEGIN + "\r\nold\r\n" + blocks.END + "\r\n"
     merged = blocks.merge(text, "new\n")
     assert merged.startswith("﻿" + blocks.BEGIN) and "new\r\n" in merged
+
+
+@pytest.mark.slow
+def test_the_old_launcher_note_comes_only_when_its_callers_change(tmp_path):
+    """Review round 2: the note repeated on every run until the owner acted. Now a re-run that
+    changes nothing is quiet, and each change to the list (down to none) is said once."""
+    repo = new_repo(tmp_path)
+    setup(repo)
+    old_install(repo)
+    assert "old name" in setup(repo).stdout
+    assert "old name" not in setup(repo).stdout  # nothing changed
+
+    claude = repo / "CLAUDE.md"
+    claude.write_bytes(claude.read_bytes().replace(b".claude/kit/kit", b".claude/kit/parallanes"))
+    note = next(line for line in setup(repo).stdout.splitlines() if "old name" in line)
+    assert "CLAUDE.md" not in note and "docs/ai/parallel-lanes.md" in note
+
+    for path in repo.rglob("*"):
+        if path.is_file() and ".git" not in path.relative_to(repo).parts and path.name != "manifest.json":
+            data = path.read_bytes()
+            if re.search(rb"\.claude/kit/kit\b", data):
+                path.write_bytes(re.sub(rb"\.claude/kit/kit\b", b".claude/kit/parallanes", data))
+    last = setup(repo).stdout
+    assert "nothing calls it" in last
+    assert "old name" not in setup(repo).stdout

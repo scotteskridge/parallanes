@@ -159,7 +159,8 @@ checks, skills and reviewer around them, an installer, and a CI template (plans 
 - Messages that tell an agent what to run name the launcher (`sh .claude/kit/parallanes lanes
   start <task>`), so the text runs as given.
 - Re-installing over a project from before the rename keeps the old launcher's LF rule in
-  `.gitattributes` and names the files that still call it. Managed-block markers match whole, so
+  `.gitattributes` and names the files that still call it, once each time that list changes (down
+  to "nothing calls it any more"), not on every run. Managed-block markers match whole, so
   an owner's line such as `# >>> parallanes-trial notes` isn't taken for one.
 - The README tells the story first: what Claude Code does by itself and what parallanes adds,
   what the two-lane trial showed, and a quickstart that a test runs as written.

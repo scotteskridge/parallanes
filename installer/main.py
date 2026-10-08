@@ -136,6 +136,7 @@ _MANIFEST_SHAPE = {
     "files": lambda v: isinstance(v, dict) and _strings(v.values()),
     "offered": lambda v: isinstance(v, dict) and _strings(v.values()),
     "templates": lambda v: isinstance(v, list) and _strings(v),
+    "old_launcher_callers": lambda v: isinstance(v, list) and _strings(v),
     "hooks": lambda v: isinstance(v, list),  # entries are checked by settings_hooks
 }
 
@@ -254,4 +255,6 @@ def _manifest(answers: dict, files: plan.FilePlan, hooks: list) -> bytes:
         "offered": dict(sorted(files.offered.items())),
         "hooks": hooks,
     }
+    if files.old_callers is not None:
+        data["old_launcher_callers"] = files.old_callers
     return (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")

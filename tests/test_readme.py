@@ -78,3 +78,29 @@ def run(command, cwd):
     result = subprocess.run(["sh", "-c", command], cwd=cwd, capture_output=True, text=True)
     assert result.returncode == 0, (command, result.stdout, result.stderr)
     return result
+
+
+POWERSHELL = shutil.which("powershell") or shutil.which("pwsh")
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(POWERSHELL is None, reason="needs PowerShell (Windows)")
+def test_the_powershell_install_line_runs_as_written(tmp_path):
+    """The README's Windows line, in prose, isn't in a code block the main test runs."""
+    section = README.read_text(encoding="utf-8").split("## Quickstart", 1)[1]
+    line = re.search(r"`(powershell -ExecutionPolicy Bypass -File parallanes\\install\.ps1 [^`]+)`", section)
+    assert line, "the README's PowerShell install line moved or changed"
+    words = line.group(1).split()
+    assert words[:4] == ["powershell", "-ExecutionPolicy", "Bypass", "-File"]
+    script = str(ROOT / "install.ps1")  # the clone is this checkout
+    project = tmp_path / "my projects" / "my-project"
+    project.mkdir(parents=True)
+    result = subprocess.run(
+        [POWERSHELL, *words[1:4], script, *words[5:], "--yes", "--dry-run"],
+        cwd=project.parent,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "Dry run: nothing was written." in result.stdout
+    assert str(project) in result.stdout or "my-project" in result.stdout

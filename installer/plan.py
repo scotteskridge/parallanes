@@ -71,6 +71,7 @@ class FilePlan:
     files: dict = field(default_factory=dict)  # kit-owned rel -> sha256 of what the kit wrote there
     templates: list = field(default_factory=list)  # project-owned rels the kit has rendered
     offered: dict = field(default_factory=dict)  # rel -> sha256 of the .kit-new last offered for it
+    old_callers: list | None = None  # files still calling the pre-rename launcher, while it exists
 
 
 def sha256(data: bytes) -> str:
@@ -154,14 +155,20 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
             _offer(plan, target, rel, data, None, offered, "exists; yours is kept")
     # The installer never deletes a file, so a project installed before decision 109 keeps its old
     # launcher, and the files rendered then, which call it, keep working. Naming them makes the
-    # note's "once none call it" something the owner can act on (review round 1).
+    # note something the owner can act on (review round 1); it's said when the list changes, not on
+    # every run (round 2), so the manifest keeps the list it last named.
     if old_launcher:
         callers = [rel for rel in rendered_templates(values) if rel not in BLOCK_FILES and _calls_old(target, rel)]
-        plan.notes.append(
-            f"{OLD_LAUNCHER_REL} is the old name of {LAUNCHER_REL}: both work. "
-            + (f"Still calling it: {', '.join(callers)}; " if callers else "")
-            + f"change those to {LAUNCHER_REL}, then delete it"
-        )
+        plan.old_callers = callers
+        if callers != previous.get("old_launcher_callers"):
+            plan.notes.append(
+                f"{OLD_LAUNCHER_REL} is the old name of {LAUNCHER_REL}: both work. "
+                + (
+                    f"Still calling it: {', '.join(callers)}; change those to {LAUNCHER_REL}, then delete it"
+                    if callers
+                    else "nothing calls it any more: delete it"
+                )
+            )
     return plan
 
 
