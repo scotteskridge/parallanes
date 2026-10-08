@@ -11,7 +11,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        integration branch:* dry runs, reruns where every lane exists, and runs where a lane failed.
        *Why:* it's about the main checkout, not any one lane, so it's true in each case, and a dry
        run is when it helps most. One shared function words it for both commands.
-     - *Local mode's status line has no PR field, and `gh` isn't called.* *Why:* local mode never
+     - *Local mode's status line has no PR field, and `gh` isn't called* (in `lanes status` and in
+       `parallanes next`, which reuses it). *Why:* local mode never
        opens a PR, so `PR: unknown` was noise (trial F9) and the `gh` call only cost time.
      - *The installer's next steps don't mention it.* *Why:* the installer never asks for
        `merge_mode`; local mode is switched on later in `kit.toml`, and `lanes create` is the next

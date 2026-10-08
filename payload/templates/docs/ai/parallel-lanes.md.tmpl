@@ -19,7 +19,7 @@ start.
 
 ```
 {{kit_command}} lanes create          # one worktree per lane in .claude/kit.toml
-{{kit_command}} lanes status          # every lane: folder, branch, ahead/behind, changed, no node_modules, untracked, unpushed, PR
+{{kit_command}} lanes status          # every lane: folder, branch, ahead/behind, changed, no node_modules, untracked, unpushed, PR (PR mode)
 ```
 
 Then start one Claude Code session in each lane's folder. Two to four lanes is usually the limit of
@@ -79,11 +79,10 @@ plan or task files instead.
 
 **The main checkout.** Keep it on a commit that has the kit (`.claude/kit.toml`): the lanes find
 it by that file, so while it is on an older commit (say, during `git bisect`) the lane commands
-stop with an error and the lane hooks stand down. In PR mode it can stay on `{{integration_branch}}`. In local mode, lanes
-fast-forward `{{integration_branch}}` directly, which git refuses while any folder has it checked
-out; `lanes create` and `lanes status` warn and give the command
-(`git switch --detach {{integration_branch}}`). The
-kit never moves the main checkout itself.
+stop with an error and the lane hooks stand down. In PR mode it can stay on
+`{{integration_branch}}`. In local mode, lanes fast-forward `{{integration_branch}}` directly, which
+git refuses while any folder has it checked out; `lanes create` and `lanes status` warn and give the
+command (`git switch --detach {{integration_branch}}`). The kit never moves the main checkout itself.
 
 ## The task cycle
 

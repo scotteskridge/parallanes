@@ -457,6 +457,15 @@ def test_create_in_pr_mode_never_says_to_detach(repo):
     assert "git switch --detach" not in result.stdout
 
 
+def test_create_in_pr_mode_works_with_the_main_checkout_on_an_unborn_branch(repo):
+    # Review round 1: the local-mode check asked git for the main checkout's branch in every mode,
+    # and that fails on an unborn branch, after the worktrees were made.
+    git(repo, "checkout", "-q", "--orphan", "scratch")
+    result = create(repo)
+    assert result.returncode == 0, result.stderr
+    assert "created" in lane_line(result.stdout, "core:")
+
+
 def test_status_in_local_mode_leaves_out_the_pr_field_and_never_asks_gh(tmp_path):
     # Trial F9: every lane said "PR: unknown", though local mode never opens one.
     repo = lanes_repo(tmp_path, config=LOCAL_TOML)
