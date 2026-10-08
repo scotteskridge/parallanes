@@ -107,9 +107,9 @@ into their project by following the README alone.
   the re-run says it's the old name; managed blocks under the old `claude-code-lanes-starter`
   markers are rewritten under the new ones; `kit_command` is no longer taken from the earlier
   manifest, since it would name a launcher this version doesn't ship.
-- **The command's name in messages too:** `kit lanes start`, `kit settings sync` and the like in
-  the CLI's and hooks' output now say `parallanes ...`, so what an agent is told matches what
-  it can run.
+- **The command's name in messages too:** what the CLI and hooks tell an agent to run names the
+  launcher (`sh .claude/kit/parallanes lanes start <task>`), so it runs as given (the first
+  version said a bare `parallanes ...`, which isn't on the PATH until the v0.2 plugin).
 - **The README test caught the README:** the first quickstart said `--target ../my-project`,
   one folder too high; `tests/test_readme.py` now runs the quickstart's commands as written.
 - **Two-minute test:** a fresh reader given only the README scored 4/5. Fixed from its notes:
@@ -118,5 +118,13 @@ into their project by following the README alone.
 - **Built-ins re-checked** by `claude-code-guide` against the current docs: claims 1, 2, 4, 6 hold
   as written. The desktop app's base-branch sync and PR watching aren't in the docs it read, so
   the README doesn't claim them. No built-in path ownership or task cycle exists.
-- **Not done here:** `AGENTS.md`'s title still says `claude-code-lanes-starter`. Changing it needs
-  the owner's OK on the exact line (CLAUDE.md), so it's proposed in the PR.
+- `AGENTS.md`'s title became `# parallanes: rules for any coding agent` on the owner's OK.
+- **Review round 1** (repo `reviewer` and a hands-on general reviewer, who re-ran an upgrade from
+  `main` and the quickstart): 🔴 the quickstart never said to commit, so lanes came out without
+  the kit, and the README test slipped in the commit itself. Now the README says it, the test
+  takes every command from the README, and `lanes create` refuses a lane the tip's `kit.toml`
+  doesn't declare (saying to commit, and push in PR mode). 🟠 a new folder's `git init` made
+  `master` while lanes looked for `main`: the installer now says `git init -b main` and the error
+  says how to fix it. 🟠 re-installing dropped the old launcher's LF rule; it's kept, and the note
+  names the files still calling it. 🟠 the upgrade test now starts from a real old-style install.
+  🟡 README claims matched to the trial write-up; 0.1.0 changelog names; markers match whole.

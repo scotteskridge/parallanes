@@ -5,6 +5,7 @@ import filecmp
 import os
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 from . import lane_deps
@@ -48,6 +49,18 @@ def _selected(config, names) -> list:
     return [find_lane(config, name) for name in names] if names else list(config.lanes)
 
 
+def _lanes_at(main: Path, tip: str) -> set:
+    """The lane names kit.toml declares at tip; none if it has no kit.toml or one that doesn't parse."""
+    text = git(main, "show", f"{tip}:.claude/kit.toml", check=False)
+    try:
+        lanes_table = tomllib.loads(text.removeprefix("﻿")).get("lanes", [])
+    except tomllib.TOMLDecodeError:
+        return set()
+    if not isinstance(lanes_table, list):
+        return set()
+    return {lane.get("name") for lane in lanes_table if isinstance(lane, dict)}
+
+
 def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
     """Create the named lanes (all when none are named). Returns one line per lane."""
     main = main_checkout(start)
@@ -55,7 +68,11 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
     tip = integration_tip(main, config)
     if tip is None:
         branch = config.lane_settings.integration_branch
-        raise LaneError(f"integration branch {branch!r} not found (neither origin/{branch} nor {branch})")
+        raise LaneError(
+            f"integration branch {branch!r} not found (neither origin/{branch} nor {branch}). Rename your "
+            f"branch (`git branch -m <yours> {branch}`) or set integration_branch in .claude/kit.toml"
+        )
+    at_tip = _lanes_at(main, tip)
     root = worktree_root(main, config)
     if is_nested(main, root):
         rel = Path(os.path.relpath(root, main)).as_posix()
@@ -78,6 +95,14 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
                 raise LaneError(f"registered, but {folder} is missing; run `git worktree prune`, then create again")
             if not exists and folder.exists():
                 raise LaneError(f"{folder} exists but is not this lane's worktree; move it away first")
+            if not exists and lane.name not in at_tip:
+                # The worktree is a checkout of the tip: without the lane in its kit.toml (and, after an
+                # install, without the kit) the lane can't run its own commands (plan 12 review round 1).
+                push = f", and push it to {tip.split('/', 1)[0]}" if tip.startswith("origin/") else ""
+                raise LaneError(
+                    f"not in .claude/kit.toml at {tip}, which new lanes are made from: commit the kit's "
+                    f"files and kit.toml{push}, then create again"
+                )
             if dry_run:
                 lines.append(
                     f"{lane.name}: "

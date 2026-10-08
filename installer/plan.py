@@ -15,6 +15,7 @@ with nothing half-written.
 """
 
 import hashlib
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -134,11 +135,12 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
             _offer(plan, target, rel, data, mode, offered, f"{why}; yours is kept")
 
     rendered_before = set(previous.get("templates", []))
+    old_launcher = (target / OLD_LAUNCHER_REL).is_file()
     for rel, data in rendered_templates(values).items():
         current = _read(target, rel)
         if rel in BLOCK_FILES:
             plan.templates.append(rel)
-            _block(plan, rel, current, data.decode("utf-8"))
+            _block(plan, rel, current, data.decode("utf-8"), old_launcher)
         elif current is None:
             plan.templates.append(rel)
             plan.writes.append(Write(rel, data, "create"))
@@ -151,20 +153,32 @@ def build(target: Path, values: dict, previous: dict) -> FilePlan:
         else:
             _offer(plan, target, rel, data, None, offered, "exists; yours is kept")
     # The installer never deletes a file, so a project installed before decision 109 keeps its old
-    # launcher, and its own files that call it keep working.
-    if (target / OLD_LAUNCHER_REL).is_file():
+    # launcher, and the files rendered then, which call it, keep working. Naming them makes the
+    # note's "once none call it" something the owner can act on (review round 1).
+    if old_launcher:
+        callers = [rel for rel in rendered_templates(values) if rel not in BLOCK_FILES and _calls_old(target, rel)]
         plan.notes.append(
-            f"{OLD_LAUNCHER_REL} is the old name of {LAUNCHER_REL}: both work; "
-            "delete it once none of your files call it"
+            f"{OLD_LAUNCHER_REL} is the old name of {LAUNCHER_REL}: both work. "
+            + (f"Still calling it: {', '.join(callers)}; " if callers else "")
+            + f"change those to {LAUNCHER_REL}, then delete it"
         )
     return plan
 
 
-def _block(plan: FilePlan, rel: str, current: bytes | None, body: str) -> None:
+def _calls_old(target: Path, rel: str) -> bool:
+    data = _read(target, rel)
+    return data is not None and re.search(rb"\.claude/kit/kit\b", data) is not None
+
+
+def _block(plan: FilePlan, rel: str, current: bytes | None, body: str, old_launcher: bool = False) -> None:
     try:
         text = "" if current is None else current.decode("utf-8")  # a BOM stays part of the text
         if rel == ".gitattributes":
             body = _gitattributes_body(text, body)
+            if old_launcher and body == OWNER_GITATTRIBUTES_BODY:
+                # Kept while the old launcher is: a CRLF checkout breaks it for the files that call it.
+                rule = f"{LAUNCHER_REL} text eol=lf\n"
+                body = body.replace(rule, rule + f"{OLD_LAUNCHER_REL} text eol=lf\n")
         merged = blocks.merge(text, body).encode("utf-8")
     except UnicodeDecodeError:
         raise PlanError(f"{rel}: not UTF-8 text, so the kit can't add its lines") from None

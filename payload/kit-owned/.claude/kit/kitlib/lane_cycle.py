@@ -58,7 +58,7 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
                 raise LaneError(
                     f"this lane has commits on no branch (HEAD {here[:12]}) that a new task would leave behind. "
                     f"Keep them with `git branch {lane.name}/<name>`, "
-                    f"or drop them on purpose: parallanes lanes start {task} --abandon"
+                    f"or drop them on purpose: sh .claude/kit/parallanes lanes start {task} --abandon"
                 )
             lines.append(
                 f"Abandoned commits on no branch at {here}. To get them back: git branch {lane.name}/recovered {here}"
@@ -66,7 +66,9 @@ def start(folder: Path, config, task: str, abandon: bool = False) -> list[str]:
     else:
         done, why = lane_merged.merged(top, config, current, tip)
         if not done and not abandon:
-            raise LaneError(f"{why}. To drop {current} on purpose: parallanes lanes start {task} --abandon")
+            raise LaneError(
+                f"{why}. To drop {current} on purpose: sh .claude/kit/parallanes lanes start {task} --abandon"
+            )
         sha = _rev(top, "HEAD")
         _git(top, "switch", "-q", "--detach", tip)
         _git(top, "branch", "-q", "-D", current)  # proved merged above, or abandoned on request
@@ -192,7 +194,8 @@ def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:
     if lanes.branch_of(top) != branch or _rev(top, "HEAD") != tested or tracked:
         raise Unfinished(
             f"the test command changed the lane (it should leave {branch} at {tested[:12]}, clean): "
-            "nothing was pushed or merged. Look at what it did, then run `parallanes lanes finish` again."
+            "nothing was pushed or merged. Look at what it did, then run "
+            "`sh .claude/kit/parallanes lanes finish` again."
         )
     return tip_sha
 
@@ -231,7 +234,7 @@ def _run_tests(top: Path, command: str) -> None:
     if result.returncode != 0:
         raise Unfinished(
             f"tests failed (exit {result.returncode}): nothing was pushed or merged. "
-            "Fix them, commit, and run `parallanes lanes finish` again."
+            "Fix them, commit, and run `sh .claude/kit/parallanes lanes finish` again."
         )
 
 
@@ -255,7 +258,7 @@ def _land_locally(top: Path, main: Path, config, branch: str, tip_sha: str, comm
     _git(top, "branch", "-q", "-D", branch)
     return [
         f"{integration} fast-forwarded to {sha[:12]}; {branch} deleted. "
-        "Between tasks: next, parallanes lanes start <task>."
+        "Between tasks: next, sh .claude/kit/parallanes lanes start <task>."
     ]
 
 
@@ -308,7 +311,9 @@ def _clean(top: Path) -> list[str]:
 def _task_branch(top: Path, lane) -> str:
     branch = lanes.branch_of(top)
     if branch is None:
-        raise LaneError("between tasks: no task branch here. Start one with: parallanes lanes start <task>")
+        raise LaneError(
+            "between tasks: no task branch here. Start one with: sh .claude/kit/parallanes lanes start <task>"
+        )
     _check_task_branch(branch, lane)
     return branch
 

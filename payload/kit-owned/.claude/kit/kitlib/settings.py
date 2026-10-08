@@ -255,16 +255,18 @@ def check(root: Path, config) -> list[Finding]:
     for name in LISTS:
         for rule in expected[name]:
             if rule not in current[name]:
-                message = f"missing {name} rule {rule}; run `parallanes settings sync`"
+                message = f"missing {name} rule {rule}; run `sh .claude/kit/parallanes settings sync`"
                 findings.append(Finding(path=where, line=0, check=CHECK, message=message))
         for rule in recorded[name]:
             if rule not in expected[name] and rule in current[name]:
-                message = f"{name} rule {rule} is no longer in [protected]; run `parallanes settings sync`"
+                message = (
+                    f"{name} rule {rule} is no longer in [protected]; run `sh .claude/kit/parallanes settings sync`"
+                )
                 findings.append(Finding(path=where, line=0, check=CHECK, message=message))
         for rule in _misplaced(current[name], expected[name]):
             message = (
                 f"{name} rule {rule} is out of order with the rules [protected].secrets puts around it, "
-                "so it cancels the wrong ones; run `parallanes settings sync`"
+                "so it cancels the wrong ones; run `sh .claude/kit/parallanes settings sync`"
             )
             findings.append(Finding(path=where, line=0, check=CHECK, message=message))
     return findings

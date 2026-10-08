@@ -152,7 +152,7 @@ def run_lane_router() -> int:
     except Exception as error:  # noqa: BLE001 - never a traceback; say the check failed instead
         text = (
             f"Lane check failed ({type(error).__name__}: {error}). Lane, branch and drift are unknown: "
-            "run `parallanes lanes status` before starting work, and tell the user if it fails too."
+            "run `sh .claude/kit/parallanes lanes status` before starting work, and tell the user if it fails too."
         )
     if text:
         print(text)

@@ -35,7 +35,7 @@ def quickstart():
 
 def test_the_quickstart_starts_from_the_published_repo():
     blocks, starts = quickstart()
-    assert blocks[0][0] == "bash" and blocks[0][1].strip() == CLONE
+    assert blocks[0][0] == "bash" and blocks[0][1].strip().splitlines()[0] == CLONE
     assert [kind for kind, _ in blocks].count("toml") == 1 and len(starts) == 1
 
 

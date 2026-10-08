@@ -25,7 +25,12 @@ def _bare(line: str) -> str:
 def _markers(lines: list) -> tuple[list, list]:
     found = {}
     for name in _NAMES:
-        begins = [number for number, line in enumerate(lines) if _bare(line).startswith(f"# >>> {name}")]
+        # Whole words: `# >>> parallanes-trial notes` is the owner's line, not a marker.
+        begins = [
+            number
+            for number, line in enumerate(lines)
+            if _bare(line).rstrip() == f"# >>> {name}" or _bare(line).startswith(f"# >>> {name} ")
+        ]
         ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == f"# <<< {name}"]
         if begins or ends:
             found[name] = (begins, ends)

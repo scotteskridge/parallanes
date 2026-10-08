@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs the parallanes CLI (decision 109) for kit-owned skills, which can't hold this machine's
+# Runs the parallanes CLI for kit-owned skills, which can't hold this machine's
 # interpreter path or the project's {{kit_command}}. Usage, from the project root: sh .claude/kit/parallanes <command> [args]
 # Exit codes pass through unchanged (0 done, 1 findings or unfinished, 2 refused or usage).
 kit=$(dirname "$0")

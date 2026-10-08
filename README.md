@@ -2,8 +2,8 @@
 
 **Run several Claude Code agents on one repository at once, without them stepping on each
 other.** Each agent works in its own *lane*: a git worktree that owns certain paths. An edit
-outside those paths stops and asks, and work lands only after the tests pass on the exact commit
-that will merge.
+outside those paths stops and asks, and work lands only after the tests pass on it combined with
+the latest `main`.
 
 Claude Code already gives each session its own worktree. parallanes adds the layer on top: who
 owns what, a task cycle that keeps lanes current, and the same checks in the agent's session, in
@@ -44,35 +44,35 @@ repository, with its plans, review reports and every lane merge:
 - Three times the other lane had landed first; `lanes finish` rebased onto its work before
   testing. That surfaced the one real conflict (both lanes adding to the decisions log) in the
   lane's own folder, where the agent fixed it before `main` moved.
-- When a task needed a file no lane owns (`.gitignore`), the agent asked first, the hook
-  stopped the edit, and pre-commit refused the commit. Plain worktrees have none of those stops.
+- When a task needed a file no lane owns (`.gitignore`), the agent asked first, the ownership
+  hook stopped the edit, and pre-commit refused the commit. Plain worktrees have neither the
+  hook nor the pre-commit check.
 - In four of the six tasks the reviewer found a real bug, fixed before landing.
 - It also found friction, now on the backlog: lanes inside the project silently used the main
-  checkout's `node_modules` (since fixed), and an out-of-lane edit the owner *wants* has no
+  checkout's `node_modules` (now flagged when a lane is created and in its briefing), and an out-of-lane edit the owner *wants* has no
   smooth way through yet.
 
 ## Quickstart
 
-You need git, Python 3.11+ and [Claude Code](https://code.claude.com). `gh` is optional (for
-pull requests).
+You need git, Python 3.11+ and [Claude Code](https://code.claude.com); `gh` is optional (for
+pull requests). Your project is a git repository with at least one commit on `main`. For a brand
+new one, run `git init -b main` and commit a first file.
 
-1. **Install into your project** (a new folder or an existing repo; nothing of yours is
-   overwritten, and `--dry-run` shows what it would write):
+1. **Install** from the folder that holds your project. Nothing of yours is overwritten, and
+   `--dry-run` shows what it would write. The installer asks five questions with detected
+   answers (`--yes` takes them all) and ends with a short list of what's left, such as setting
+   `test_command`, which `lanes finish` runs.
 
    ```bash
    git clone https://github.com/scotteskridge/parallanes
-   ```
-
-   ```bash
    sh parallanes/install.sh --target my-project
+   cd my-project
    ```
 
-   On Windows PowerShell: `powershell -ExecutionPolicy Bypass -File parallanes\install.ps1 --target my-project`
+   On Windows PowerShell, the install line is
+   `powershell -ExecutionPolicy Bypass -File parallanes\install.ps1 --target my-project`.
 
-   It ends with a short list of what's left, such as setting `test_command`, which
-   `lanes finish` runs.
-
-2. **Describe your lanes** in `my-project/.claude/kit.toml`:
+2. **Describe your lanes** at the end of `.claude/kit.toml`:
 
    ```toml
    [[lanes]]
@@ -86,18 +86,21 @@ pull requests).
    owns = ["public/**"]
    ```
 
-3. **Create them and start a task**, from `my-project`:
+3. **Commit, then create the lanes.** Each lane is a checkout of `main`, so it only has what's
+   committed there (pushed too, once the project has a GitHub remote):
 
    ```bash
+   git add -A
+   git commit -m "Add parallanes"
    sh .claude/kit/parallanes lanes create
    ```
 
-   Open Claude Code in `.claude/worktrees/api/`, and in a second terminal in
-   `.claude/worktrees/web/`: one agent per lane. Open each by its folder; `claude --worktree`
-   would take the lane over and delete its folder on exit. In the api lane, run
+4. **One agent per lane.** Open Claude Code in `.claude/worktrees/api/`, and in a second terminal
+   in `.claude/worktrees/web/`. Open each by its folder: `claude --worktree` would take the lane
+   over and delete its folder on exit. In the api lane, run
    `sh .claude/kit/parallanes lanes start add-book` and work as usual; the web lane does the same
-   with its own task. `/wrap-up` reviews a change, and `lanes finish` lands it. The full guide is installed as
-   `docs/ai/parallel-lanes.md`.
+   with its own task. `/wrap-up` reviews a change, and `lanes finish` lands it. The full guide
+   is installed as `docs/ai/parallel-lanes.md`.
 
 ## How it fits together
 

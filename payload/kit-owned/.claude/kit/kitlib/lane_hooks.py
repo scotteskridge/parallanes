@@ -11,7 +11,7 @@ from . import lane_deps, lane_owners, lanes
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
-ROUTER_COMMAND = "parallanes lanes status"
+ROUTER_COMMAND = "sh .claude/kit/parallanes lanes status"
 
 
 def router_text(cwd: Path) -> str:
@@ -61,7 +61,10 @@ def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]
     tip = lanes.integration_tip(root, config)
     integration = config.lane_settings.integration_branch
     if branch is None:
-        warnings.append("No task branch: between tasks. Start one with `parallanes lanes start <task>` before editing.")
+        warnings.append(
+            "No task branch: between tasks. Start one with `sh .claude/kit/parallanes lanes start <task>` "
+            "before editing."
+        )
     elif not branch.startswith(lane.name + "/"):
         warnings.append(
             f"Branch {branch!r} is not a {lane.name}/<task> branch. Check with the user before working on it."
@@ -78,7 +81,11 @@ def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]
             warnings.append(
                 f"{behind} commit(s) behind {tip}"
                 + (" (as of the last fetch). " if tip.startswith("origin/") else ". ")
-                + ("`parallanes lanes sync` brings them in." if branch else "The next task starts from the tip.")
+                + (
+                    "`sh .claude/kit/parallanes lanes sync` brings them in."
+                    if branch
+                    else "The next task starts from the tip."
+                )
             )
         if _config_differs(root, tip):
             warnings.append(
