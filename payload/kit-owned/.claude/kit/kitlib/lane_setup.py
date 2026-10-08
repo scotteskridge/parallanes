@@ -49,13 +49,24 @@ def _selected(config, names) -> list:
     return [find_lane(config, name) for name in names] if names else list(config.lanes)
 
 
-def _lanes_at(main: Path, tip: str) -> set:
-    """The lane names kit.toml declares at tip; none if it has no kit.toml or one that doesn't parse."""
+LAUNCHER_REL = ".claude/kit/parallanes"
+
+
+def _tip_problem(main: Path, tip: str) -> str:
+    """Why lanes made from tip couldn't run the kit, or "". Only a launcher installed here is
+    looked for at the tip: a checkout without one runs the kit some other way."""
+    if (main / LAUNCHER_REL).is_file() and not git(main, "ls-tree", "--name-only", tip, LAUNCHER_REL, check=False):
+        return f"{LAUNCHER_REL} isn't in {tip}, which new lanes are made from"
+    return ""
+
+
+def _lanes_at(main: Path, tip: str) -> set | None:
+    """The lane names kit.toml declares at tip: none if it has no kit.toml, None if it doesn't parse."""
     text = git(main, "show", f"{tip}:.claude/kit.toml", check=False)
     try:
         lanes_table = tomllib.loads(text.removeprefix("﻿")).get("lanes", [])
     except tomllib.TOMLDecodeError:
-        return set()
+        return None
     if not isinstance(lanes_table, list):
         return set()
     return {lane.get("name") for lane in lanes_table if isinstance(lane, dict)}
@@ -73,6 +84,7 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
             f"branch (`git branch -m <yours> {branch}`) or set integration_branch in .claude/kit.toml"
         )
     at_tip = _lanes_at(main, tip)
+    problem = _tip_problem(main, tip)
     root = worktree_root(main, config)
     if is_nested(main, root):
         rel = Path(os.path.relpath(root, main)).as_posix()
@@ -95,14 +107,23 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
                 raise LaneError(f"registered, but {folder} is missing; run `git worktree prune`, then create again")
             if not exists and folder.exists():
                 raise LaneError(f"{folder} exists but is not this lane's worktree; move it away first")
-            if not exists and lane.name not in at_tip:
-                # The worktree is a checkout of the tip: without the lane in its kit.toml (and, after an
-                # install, without the kit) the lane can't run its own commands (plan 12 review round 1).
-                push = f", and push it to {tip.split('/', 1)[0]}" if tip.startswith("origin/") else ""
-                raise LaneError(
-                    f"not in .claude/kit.toml at {tip}, which new lanes are made from: commit the kit's "
-                    f"files and kit.toml{push}, then create again"
+            if not exists:
+                # The worktree is a checkout of the tip: without the lane in its kit.toml, or without
+                # the kit, the lane can't run its own commands (plan 12 review rounds 1 and 2).
+                why = problem or (
+                    f".claude/kit.toml at {tip} doesn't parse"
+                    if at_tip is None
+                    else f"not in .claude/kit.toml at {tip}, which new lanes are made from"
+                    if lane.name not in at_tip
+                    else ""
                 )
+                if why:
+                    push = (
+                        f" (pushed to {tip.split('/', 1)[0]}, or fetched if it's there already)"
+                        if tip.startswith("origin/")
+                        else ""
+                    )
+                    raise LaneError(f"{why}: commit the kit's files and kit.toml{push}, then create again")
             if dry_run:
                 lines.append(
                     f"{lane.name}: "

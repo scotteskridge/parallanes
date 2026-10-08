@@ -618,3 +618,24 @@ def test_a_missing_integration_branch_says_how_to_fix_it(tmp_path):
     result = create(repo)
     assert result.returncode == 2
     assert "integration_branch" in result.stderr and "git branch -m" in result.stderr
+
+
+def test_create_refuses_when_the_tip_lacks_the_launcher_the_checkout_has(repo):
+    """Review round 2: kit.toml committed with the lane, the installed kit not, and the lane came
+    out unable to run `sh .claude/kit/parallanes`."""
+    write(repo, ".claude/kit/parallanes", "#!/bin/sh\n")  # installed here, not committed
+    result = create(repo, "core")
+    assert result.returncode == 2
+    assert ".claude/kit/parallanes" in result.stderr and "commit" in result.stderr
+    assert not lane_dir(repo, "core").exists()
+
+
+def test_create_says_when_the_tips_kit_toml_doesnt_parse(repo):
+    config = repo / ".claude" / "kit.toml"
+    good = config.read_text(encoding="utf-8")
+    config.write_text(good + "\nbroken = [\n", encoding="utf-8")
+    git(repo, "commit", "-q", "--no-verify", "-am", "broken")
+    git(repo, "push", "-q", "origin", "main")
+    config.write_text(good, encoding="utf-8")
+    result = create(repo, "core")
+    assert result.returncode == 2 and "doesn't parse" in result.stderr

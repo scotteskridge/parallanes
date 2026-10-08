@@ -147,3 +147,15 @@ def test_an_owners_line_that_starts_like_a_marker_isnt_one():
     text = "# >>> parallanes-trial notes\nkeep/\n"
     merged = blocks.merge(text, ".env\n")
     assert merged.startswith(text) and merged.count(blocks.BEGIN) == 1
+
+
+@pytest.mark.parametrize("gap", ["\t", " "])
+def test_a_marker_followed_by_any_space_is_still_a_marker(gap):
+    text = f"# >>> parallanes{gap}(managed)\n.env\n{blocks.END}\n"
+    assert blocks.inside(text) == [".env"]
+
+
+def test_a_bom_before_the_block_on_line_one_is_kept():
+    text = "﻿" + blocks.BEGIN + "\r\nold\r\n" + blocks.END + "\r\n"
+    merged = blocks.merge(text, "new\n")
+    assert merged.startswith("﻿" + blocks.BEGIN) and "new\r\n" in merged

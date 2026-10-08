@@ -22,15 +22,17 @@ def _bare(line: str) -> str:
     return line.rstrip("\r\n").removeprefix(_BOM)
 
 
+def _is_begin(line: str, name: str) -> bool:
+    rest = line.removeprefix(f"# >>> {name}")
+    return rest != line and (not rest or rest[0].isspace())
+
+
 def _markers(lines: list) -> tuple[list, list]:
     found = {}
     for name in _NAMES:
-        # Whole words: `# >>> parallanes-trial notes` is the owner's line, not a marker.
-        begins = [
-            number
-            for number, line in enumerate(lines)
-            if _bare(line).rstrip() == f"# >>> {name}" or _bare(line).startswith(f"# >>> {name} ")
-        ]
+        # Whole words: `# >>> parallanes-trial notes` is the owner's line, not a marker; any space
+        # may follow the name, as the prefix match before accepted (review round 2).
+        begins = [number for number, line in enumerate(lines) if _is_begin(_bare(line), name)]
         ends = [number for number, line in enumerate(lines) if _bare(line).rstrip() == f"# <<< {name}"]
         if begins or ends:
             found[name] = (begins, ends)
@@ -52,7 +54,9 @@ def merge(existing: str, body: str) -> str:
     newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
     block = "".join(line + newline for line in [BEGIN, *body.replace("\r\n", "\n").rstrip("\n").split("\n"), END])
     if begins:
-        return "".join(lines[: begins[0]]) + block + "".join(lines[ends[0] + 1 :])
+        # A BOM is part of line 1's text, so a block that starts there carries it over.
+        bom = _BOM if begins[0] == 0 and lines[0].startswith(_BOM) else ""
+        return "".join(lines[: begins[0]]) + bom + block + "".join(lines[ends[0] + 1 :])
     kept = "".join(lines)
     if not _bare(kept).strip():
         return kept + block  # empty, or just a BOM

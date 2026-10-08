@@ -128,3 +128,10 @@ into their project by following the README alone.
   says how to fix it. 🟠 re-installing dropped the old launcher's LF rule; it's kept, and the note
   names the files still calling it. 🟠 the upgrade test now starts from a real old-style install.
   🟡 README claims matched to the trial write-up; 0.1.0 changelog names; markers match whole.
+- **Review round 2** (fresh general reviewer on the round-1 fixes, reproducing each case; no 🔴):
+  🟠 a lane declared at the tip but without the launcher committed still came out broken, so
+  `lanes create` now also checks the tip has the launcher when the main checkout does. 🟡 a tip
+  `kit.toml` that doesn't parse says so; the PR-mode hint mentions fetching; a tab or NBSP after
+  the marker name is a marker again; a BOM before a block on line 1 is kept; a code fence without
+  a language fails the README test. The five new tests failed before the fixes. The fixes are
+  small and round 2 had no 🔴, so no third round (decision 79).

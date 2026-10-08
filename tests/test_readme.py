@@ -28,7 +28,8 @@ def quickstart():
     `lanes start` the prose tells the api lane to run."""
     text = README.read_text(encoding="utf-8")
     section = text.split("## Quickstart", 1)[1].split("\n## ", 1)[0]
-    blocks = re.findall(r"```(\w+)\n(.*?)```", section, re.DOTALL)
+    # \w*: a fence without a language is caught by the kind check below, not skipped (review round 2).
+    blocks = re.findall(r"```(\w*)\n(.*?)```", section, re.DOTALL)
     starts = re.findall(r"`(sh \.claude/kit/parallanes lanes start [^`]+)`", section)
     return blocks, starts
 
