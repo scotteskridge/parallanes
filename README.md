@@ -35,9 +35,10 @@ runs the whole task loop. It borrows several of lanekeeper's ideas ([notes](docs
 ## Does it work? A two-lane trial
 
 Two agents built a small web app at the same time: an `api` lane owning `server/**` and a `web`
-lane owning `public/**`, three tasks each ([write-up](docs/trial/two-lane-trial.md); the trial's
-repository, with its plans, review reports and every lane merge:
-[parallanes-trial](https://github.com/scotteskridge/parallanes-trial)).
+lane owning `public/**`, three tasks each. The [write-up](docs/trial/two-lane-trial.md) has
+every review finding; the trial's repository,
+[parallanes-trial](https://github.com/scotteskridge/parallanes-trial), has the code, its plans,
+a changelog entry per task and the commit each task landed as.
 
 - All six tasks landed on `main` in a straight line. Every finish ran the full suite on the
   exact commit that landed, 77 tests by the end.
