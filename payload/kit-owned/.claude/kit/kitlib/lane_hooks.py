@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import lane_deps, lane_owners, lanes
+from . import globs, lane_boundary, lane_deps, lane_owners, lanes
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -174,13 +174,20 @@ def ownership_reason(payload: dict) -> str | None:
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
         + ". Editing it may conflict with another lane's work."
     )
+    # Every stop says what approving does and doesn't do: in the trial (F8) the owner approved an
+    # edit and the commit was refused anyway (review rounds 1 and 2).
+    override = f"or a person sets {lane_boundary.ALLOW_VARIABLE}=1 for a local commit"
+    if globs.matches_any_file(rel, [lane_owners.POLICY]):
+        return f"{reason} No lane commits it: a person changes it on a branch that isn't a lane's."
     said = f" {fix.text[0].upper()}{fix.text[1:]}." if fix else ""
     if fix is None or not fix.widens:
-        return f"{reason} Allow only if this lane should change it.{said}"
-    # The trial's F8: the owner approved the edit, then pre-commit refused the commit anyway.
+        return (
+            f"{reason} Allow only if this lane should change it; committing it then needs a branch that "
+            f"isn't a lane's ({override}).{said}"
+        )
     return (
-        f"{reason}{said} {lane_owners.HOW_POLICY_LANDS} Approving this edit "
-        "isn't enough: committing it is refused until that change is merged and this lane is synced."
+        f"{reason}{said} {lane_owners.HOW_POLICY_LANDS} Approving this edit isn't enough: the commit is "
+        f"refused from this lane until that change is merged and the lane is synced ({override})."
     )
 
 

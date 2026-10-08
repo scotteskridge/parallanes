@@ -155,18 +155,7 @@ def judge(config, lane, path: str) -> tuple[str, Fix | None] | None:
         )
         return why, Fix("make this change from that lane instead", widens=False)
     addition = _toml_string(literal(path))
-    return "no lane owns it", Fix(f"add {addition} to lane {lane.name!r}'s owns in {POLICY}", widens=True)
-
-
-def why_not(config, lane, path: str) -> str | None:
-    """Why lane may not change path, or None when it may (shared, or the lane owns it)."""
-    judged = judge(config, lane, path)
-    return judged[0] if judged else None
-
-
-def fix_for(config, lane, path: str) -> Fix | None:
-    judged = judge(config, lane, path)
-    return judged[1] if judged else None
+    return "no lane owns it", Fix(f"add {addition} to the owns of lane {lane.name!r} in {POLICY}", widens=True)
 
 
 def literal(path: str) -> str:

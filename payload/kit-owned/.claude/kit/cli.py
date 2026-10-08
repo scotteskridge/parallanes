@@ -248,7 +248,7 @@ def check_lanes(root: Path, config, args) -> list:
     findings = lane_boundary.check(judge, lane, paths)
     findings = allowed(findings, lane_boundary.allowed_by_human(), "cross-lane", lane_boundary.ALLOW_VARIABLE)
     if findings:
-        print(lane_boundary.advice(findings), file=sys.stderr)
+        print(lane_boundary.advice(judge, lane, findings), file=sys.stderr)
     return findings
 
 

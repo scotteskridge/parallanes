@@ -20,6 +20,16 @@ def config(*lanes, shared=()):
     return SimpleNamespace(lanes=list(lanes), lane_settings=LaneSettings(shared_paths=list(shared)))
 
 
+def why_not(cfg, lane, path):
+    judged = lane_owners.judge(cfg, lane, path)
+    return judged[0] if judged else None
+
+
+def fix_for(cfg, lane, path):
+    judged = lane_owners.judge(cfg, lane, path)
+    return judged[1] if judged else None
+
+
 @pytest.mark.parametrize(
     "pattern, canonical",
     [
@@ -113,22 +123,22 @@ def test_no_lane_and_one_lane():
 
 def test_why_not_is_none_for_owned_and_shared_files():
     cfg = config(APP, CORE, shared=["src/core/shared/**"])
-    assert lane_owners.why_not(cfg, CORE, "src/core/a.py") is None
-    assert lane_owners.why_not(cfg, APP, "src/core/shared/x.py") is None  # shared paths come first
+    assert why_not(cfg, CORE, "src/core/a.py") is None
+    assert why_not(cfg, APP, "src/core/shared/x.py") is None  # shared paths come first
 
 
 def test_why_not_names_the_owner_and_why_it_wins():
-    reason = lane_owners.why_not(config(APP, CORE), APP, "src/core/a.py")
+    reason = why_not(config(APP, CORE), APP, "src/core/a.py")
     assert reason == "src/** matches it, but lane 'core' owns it: src/core/** is more specific"
-    assert lane_owners.why_not(config(APP, CORE), CORE, "src/ui/b.py") == "owned by lane 'app'"
-    assert lane_owners.why_not(config(APP, CORE), CORE, "README.md") == "no lane owns it"
+    assert why_not(config(APP, CORE), CORE, "src/ui/b.py") == "owned by lane 'app'"
+    assert why_not(config(APP, CORE), CORE, "README.md") == "no lane owns it"
 
 
 def test_why_not_refuses_a_tie_for_every_lane_in_it():
     a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
     b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
     for lane in (a, b):
-        reason = lane_owners.why_not(config(a, b), lane, "src/a.py")
+        reason = why_not(config(a, b), lane, "src/a.py")
         assert "lanes 'a' and 'b' claim it equally" in reason and "more specific" in reason
 
 
@@ -140,17 +150,17 @@ def widened(lane, fix):
     import re
     import tomllib
 
-    quoted = re.fullmatch(r'add (".*") to lane .*', fix.text).group(1)
+    quoted = re.fullmatch(r'add (".*") to the owns of lane .*', fix.text).group(1)
     return Lane(name=lane.name, owns=[*lane.owns, tomllib.loads(f"p = {quoted}")["p"]], scope="", resources={})
 
 
 def test_no_fix_when_the_lane_may_change_the_file_or_two_lanes_tie():
     cfg = config(APP, CORE, shared=["docs/**"])
-    assert lane_owners.fix_for(cfg, CORE, "src/core/a.py") is None
-    assert lane_owners.fix_for(cfg, CORE, "docs/x.md") is None
+    assert fix_for(cfg, CORE, "src/core/a.py") is None
+    assert fix_for(cfg, CORE, "docs/x.md") is None
     a = Lane(name="a", owns=["src/*.py"], scope="", resources={})
     b = Lane(name="b", owns=["src/a.p*"], scope="", resources={})
-    assert lane_owners.fix_for(config(a, b), a, "src/a.py") is None  # why_not already says how to settle it
+    assert fix_for(config(a, b), a, "src/a.py") is None  # why_not already says how to settle it
 
 
 @pytest.mark.parametrize("path", [".claude/kit.toml", ".claude\\kit.toml"])
@@ -168,8 +178,8 @@ def test_a_file_another_lane_owns_points_at_that_lane_and_never_widens():
 
 def test_a_file_no_lane_owns_gets_the_exact_addition():
     # Review round 1: the addition alone, not a whole `owns` line, which a stale lane would get wrong.
-    fix = lane_owners.fix_for(config(APP, CORE), CORE, ".gitignore")
-    assert fix == lane_owners.Fix("add \"/.gitignore\" to lane 'core''s owns in .claude/kit.toml", widens=True)
+    fix = fix_for(config(APP, CORE), CORE, ".gitignore")
+    assert fix == lane_owners.Fix("add \"/.gitignore\" to the owns of lane 'core' in .claude/kit.toml", widens=True)
     # The trial's wall (F8, F11): the lane's own branch can't carry it; the stops say how it lands.
     assert "branch that isn't a lane's" in lane_owners.HOW_POLICY_LANDS
     assert "lanes sync" in lane_owners.HOW_POLICY_LANDS
@@ -195,15 +205,15 @@ def test_a_file_no_lane_owns_gets_the_exact_addition():
     ],
 )
 def test_the_offered_addition_lets_the_lane_change_exactly_that_file(path):
-    after = widened(CORE, lane_owners.fix_for(config(APP, CORE), CORE, path))
-    assert lane_owners.why_not(config(APP, after), after, path) is None
+    after = widened(CORE, fix_for(config(APP, CORE), CORE, path))
+    assert why_not(config(APP, after), after, path) is None
     for neighbour in ("nested/" + path, "app/i/page.tsx", "aXbY.txt", "ab.txt", "x/y.txt", "important.md"):
         if neighbour != path:
-            assert lane_owners.why_not(config(APP, after), after, neighbour) is not None, neighbour
+            assert why_not(config(APP, after), after, neighbour) is not None, neighbour
 
 
 def test_a_windows_path_is_offered_with_forward_slashes():
-    fix = lane_owners.fix_for(config(APP, CORE), CORE, "data\\seed.json")
+    fix = fix_for(config(APP, CORE), CORE, "data\\seed.json")
     assert fix.text.startswith('add "data/seed.json" to')
 
 

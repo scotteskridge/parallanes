@@ -13,12 +13,17 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      - *For a file no lane owns, the fix is the lane's `owns`, with a pattern matching that file
        alone* (wildcards bracketed, a bare name anchored with `/`). Not `shared_paths`, and not a
        wider glob. *Why:* the narrowest change that lets the task through; repo-wide files get
-       their proper home with `shared-path-modes` (decision 110, step 3).
+       their proper home with `shared-path-modes`, step 3 of the v0.2 build order.
      - *The fix is the pattern to add, not the whole `owns` line* (narrows the approved "exact
        line"). *Why:* the lane's copy of `kit.toml` can be older than the integration branch's;
        a whole line pasted from it would silently drop patterns added since (review round 1).
      - A file another lane owns gets that lane's name, never an offer to widen; the policy file
        itself is offered to no lane.
+     - *Every stop says what approving does* (from review round 2): for another lane's file, the
+       commit then needs a branch that isn't a lane's; for a widening, it's refused until the
+       `kit.toml` change is merged and synced; the policy file has no "allow" wording at all. Both
+       name the local `KIT_ALLOW_CROSS_LANE=1` override for a person. *Why:* in the trial (F8) the
+       owner approved an edit and the commit was refused anyway, with nothing saying it would be.
 
 ## 2026-10-07: The kit is named `parallanes`
 

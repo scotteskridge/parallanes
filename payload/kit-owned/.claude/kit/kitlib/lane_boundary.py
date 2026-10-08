@@ -22,8 +22,6 @@ ADVICE = (
     f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks."
 )
 POLICY = lane_owners.POLICY
-# The tail of every widening fix (lane_owners.judge), so advice() can tell one from a finding's text.
-_WIDENS = f"'s owns in {POLICY}"
 
 
 def lanes_before(root, config, base: str | None, lane_name: str):
@@ -75,10 +73,12 @@ def check(config, lane, paths) -> list[Finding]:
     return sorted(findings)
 
 
-def advice(findings) -> str:
-    """What to do about findings: how a cross-lane change lands, and how a kit.toml change does when
-    a finding offers to widen a lane (only then: other stops never widen, review round 1)."""
-    if any(finding.message.endswith(_WIDENS) for finding in findings):
+def advice(config, lane, findings) -> str:
+    """What to do about check()'s findings: how a cross-lane change lands, and how a kit.toml change
+    does when a finding offers to widen the lane (only then: other stops never widen, review round 1).
+    Judged again rather than read back from the message text, so rewording a fix can't break it."""
+    fixes = (lane_owners.judge(config, lane, finding.path) for finding in findings)
+    if any(judged and judged[1] and judged[1].widens for judged in fixes):
         return f"{ADVICE} To widen a lane as a finding says: {lane_owners.HOW_POLICY_LANDS}"
     return ADVICE
 
