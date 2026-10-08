@@ -128,6 +128,32 @@ flowchart LR
 What the checks can't stop, and why, is written down in each project's
 `docs/ai/protected-paths.md`.
 
+## The task loop: plan, build, wrap up
+
+The guardrails stop agents from getting in each other's way. The three skills keep each agent's
+own work on track: the owner decides what gets built, the agent builds it, and an independent
+reviewer checks it before it lands.
+
+| Step | What it does | Why it's separate | Model |
+| --- | --- | --- | --- |
+| `/plan-feature <what to build>` | Reads the code, asks you at most five questions (each with a recommendation), writes a plan file with steps, tests and a *done when* list, then **stops** for your approval. Builds nothing | Design decisions are made by you, on paper, where they're cheap to change | Opus |
+| `/implement docs/plans/<plan>.md` | In a **fresh session**, builds the approved plan test-first, and stops if the plan doesn't settle something | The planning chat is full of options you rejected. A session that reads only the approved plan builds what you approved, not what was discussed along the way | Sonnet |
+| `/wrap-up` | Runs the full suite, has the read-only `reviewer` agent check the change against the plan and your rules (the reviewer runs on Opus), fixes what it finds, writes the changelog entry, and on your yes commits and opens the pull request (in a lane, through `lanes finish`) | The reviewer has a fresh context, so it isn't checking its own homework | Sonnet |
+
+Small one-file fixes can skip the plan: just ask, then `/wrap-up`. The installed guide,
+`docs/ai/WORKFLOW.md`, has the full loop.
+
+**Why the models differ:** planning is where judgement pays, so it runs on Opus. Once a plan is
+approved, building and wrapping up follow written steps, and Sonnet does them well for less.
+Each skill sets this with the `model:` line in its `SKILL.md`, so it happens without a hook or a
+setting. Two limits come from Claude Code itself:
+
+- The skill's model applies only to the turn it runs in. Your next message goes back to the
+  session's model, so if you push back on a plan and want Opus to revise it, switch with
+  `/model opus` first, and back with `/model sonnet` once the plan is approved.
+- If your organisation's model allowlist doesn't include the model, or auto mode doesn't support
+  it, the skill runs on the session's model instead.
+
 ## How this was built
 
 The kit was built the way it asks you to work: numbered plans, one pull request each, every one
@@ -135,6 +161,7 @@ reviewed by a fresh agent before merging, with the reasons in a decisions log.
 
 - [Plans](docs/plans/README.md) and the [design](docs/ARCHITECTURE.md)
 - [Decisions log](docs/decisions-log.md), [roadmap](docs/ROADMAP.md), [changelog](CHANGELOG.md)
+- Reviewing the code? Start with the [review guide](docs/REVIEWING.md)
 - About 1,400 tests, run in CI on Windows and Ubuntu
 
 **Next (v0.2):** a Claude Code plugin for one-line installs and updates, `/onboard`, per-lane
