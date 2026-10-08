@@ -50,6 +50,19 @@ def test_the_briefing_says_to_work_in_this_folder_not_the_main_checkout(repo):
     assert first.endswith("; read and edit files here, not in the main checkout above it)")
 
 
+def test_a_lane_beside_the_main_checkout_gets_no_above_it_clause(tmp_path):
+    # Review: "above it" would be false for a lane outside the main checkout, which has no F7 trap.
+    config = LANES_TOML.replace(
+        'integration_branch = "main"', 'integration_branch = "main"\nworktree_root = "../{project}-lanes"'
+    )
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create", "core").returncode == 0
+    folder = tmp_path / "demo-lanes" / "core"
+    first = brief(folder).splitlines()[0]
+    assert first.startswith("Lane: core (this folder is its worktree: ") and first.endswith("core)")
+    assert "main checkout" not in first
+
+
 @pytest.mark.parametrize("source", ["startup", "resume", "clear", "compact"])
 def test_every_source_gets_the_briefing(repo, source):
     assert "Lane: core" in brief(lane_dir(repo, "core"), source)
