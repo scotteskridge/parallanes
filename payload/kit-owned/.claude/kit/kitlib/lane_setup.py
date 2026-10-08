@@ -11,12 +11,14 @@ from pathlib import Path
 from . import lane_deps
 from .lanes import (
     LaneError,
+    branch_of,
     find_lane,
     git,
     integration_tip,
     is_nested,
     is_registered,
     lane_folder,
+    local_mode_blocker,
     locate,
     main_checkout,
     registered_worktrees,
@@ -152,6 +154,10 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
             errors.append(f"{lane.name}: {error}")
     if hinted:  # why, once
         lines.append(lane_deps.WHY_NESTED if any(hinted) else lane_deps.WHY)
+    # Trial F2: said where lanes are set up, not only by `lanes status`; true whatever happened to each lane.
+    blocker = local_mode_blocker(branch_of(main), config)
+    if blocker:
+        lines.append(f"! {blocker}")
     if errors:
         raise PartialCreate("\n".join(errors), lines)
     return lines

@@ -3,6 +3,20 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-08: Local mode's setup hints
+
+112. **`lanes create` warns about a main checkout that blocks local mode; `lanes status` drops the
+     PR field there** (owner's OK on Claude's recommendations, backlog `local-mode-setup-hints`).
+     - *The warning shows on every `create` run in local mode while the main checkout holds the
+       integration branch:* dry runs, reruns where every lane exists, and runs where a lane failed.
+       *Why:* it's about the main checkout, not any one lane, so it's true in each case, and a dry
+       run is when it helps most. One shared function words it for both commands.
+     - *Local mode's status line has no PR field, and `gh` isn't called.* *Why:* local mode never
+       opens a PR, so `PR: unknown` was noise (trial F9) and the `gh` call only cost time.
+     - *The installer's next steps don't mention it.* *Why:* the installer never asks for
+       `merge_mode`; local mode is switched on later in `kit.toml`, and `lanes create` is the next
+       command after that.
+
 ## 2026-10-08: The fix a lane stop offers
 
 111. **A lane stop names its fix; no `lanes allow` command** (owner's OK on Claude's
