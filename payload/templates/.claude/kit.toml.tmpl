@@ -61,6 +61,8 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 # Lanes: several agent sessions at once, each in its own git worktree with its own paths.
 # Guide: docs/ai/parallel-lanes.md. Create the folders with `{{kit_command}} lanes create`, check them
 # with `{{kit_command}} lanes status`. Uncomment and adapt; add one [[lanes]] table per lane.
+# When a lane's tests don't sit beside its code, give it their folder too (as below): a lane that
+# owns only `public/**` puts its tests in `public/`, where the web server serves them.
 #
 # [[lanes]]
 # name = "core"                     # lowercase letters, digits and '-': a folder name and branch prefix

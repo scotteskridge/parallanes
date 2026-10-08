@@ -93,6 +93,9 @@ kit never moves the main checkout itself.
 ```
 
 `/plan-feature`, `/implement` and `/wrap-up` run these for you; the commands work the same by hand.
+Those skills run only when you type them (they're `disable-model-invocation`), so a task takes
+two prompts: the work, then `/wrap-up`. A prompt that ends "then finish with /wrap-up" makes the
+agent stop and ask instead.
 They run only inside a lane folder, and refuse while tracked files have uncommitted changes.
 Untracked files don't block; each command lists them. The tests can see them, but they won't land:
 commit any that belong to the task, and put generated ones (test reports, build output) in `.gitignore`.

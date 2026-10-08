@@ -42,6 +42,14 @@ def test_briefing_between_tasks(repo):
     assert "A file another lane's more specific pattern matches is that lane's" in text
 
 
+def test_the_briefing_says_to_work_in_this_folder_not_the_main_checkout(repo):
+    # Backlog lane-guide-trial-notes (trial F7): an agent dropped the worktree part of its folder and
+    # read the main checkout's copy of a skill. Folded into the first line: the briefing has a cap.
+    first = brief(lane_dir(repo, "core")).splitlines()[0]
+    assert first.startswith("Lane: core (this folder is its worktree: ")
+    assert first.endswith("; read and edit files here, not in the main checkout above it)")
+
+
 @pytest.mark.parametrize("source", ["startup", "resume", "clear", "compact"])
 def test_every_source_gets_the_briefing(repo, source):
     assert "Lane: core" in brief(lane_dir(repo, "core"), source)
