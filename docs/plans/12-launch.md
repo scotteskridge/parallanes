@@ -92,11 +92,11 @@ into their project by following the README alone.
 | README's quickstart commands appear verbatim in a test that runs them | the README can't drift from what works |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Two-minute test and quickstart run recorded in the PR
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Two-minute test and quickstart run recorded in the PR
 - [ ] Both repos public, `v0.1.0` tagged with release notes, README links resolve
-- [ ] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
+- [x] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation
 - **The name changed to `parallanes`** (decision 109). Step 3's check found `worklanes` already
