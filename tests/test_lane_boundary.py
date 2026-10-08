@@ -49,11 +49,19 @@ def test_a_path_no_lane_owns_fails():
 def test_each_finding_ends_with_its_fix_and_the_advice_says_how_kit_toml_lands():
     # Backlog ownership-fix-hint (trial F8, F11): the owner shouldn't have to work out the edit.
     found = flagged(CORE, ["data dir/.gitignore", "src/api/b.py"])
+    findings = lane_boundary.check(config(), CORE, ["data dir/.gitignore", "src/api/b.py"])
+    found = {finding.path: finding.message for finding in findings}
     assert found["data dir/.gitignore"].endswith(
-        'becomes: owns = ["src/core/**", "tests/core/**", "data dir/.gitignore"]'
+        "; add \"data dir/.gitignore\" to lane 'core''s owns in .claude/kit.toml"
     )
-    assert found["src/api/b.py"].endswith("this change belongs in lane 'api'")
-    assert lane_owners.HOW_POLICY_LANDS in lane_boundary.ADVICE
+    assert found["src/api/b.py"].endswith("; make this change from that lane instead")
+    assert lane_owners.HOW_POLICY_LANDS in lane_boundary.advice(findings)
+
+
+def test_the_advice_mentions_widening_only_when_a_finding_offers_it():
+    # Review round 1: a stop that never offers to widen shouldn't end with how to widen.
+    advice = lane_boundary.advice(lane_boundary.check(config(), CORE, ["src/api/b.py", ".claude/kit.toml"]))
+    assert "KIT_ALLOW_CROSS_LANE" in advice and lane_owners.HOW_POLICY_LANDS not in advice
 
 
 def test_the_lane_policy_itself_offers_no_widening():

@@ -16,6 +16,8 @@ from . import gitfiles, globs
 
 POLICY = ".claude/kit.toml"
 _WILDCARDS = re.compile(r"\*\*|\*|\?|\[[^\]]*\]")
+# TOML basic strings forbid these raw (tab is allowed); a POSIX file name may hold them.
+_CONTROL = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
 
 
 def canonical(pattern: str) -> str:
@@ -108,24 +110,10 @@ def claim(config, path: str) -> Claim:
     return Owners(config).claim(path)
 
 
-def why_not(config, lane, path: str) -> str | None:
-    """Why lane may not change path, or None when it may (shared, or the lane owns it)."""
-    owners = Owners(config)
-    if owners.shared(path):
-        return None
-    found = owners.claim(path)
-    if found.owner == lane.name:
-        return None
-    if found.tied:
-        names = " and ".join(repr(name) for name, _ in found.tied)
-        patterns = ", ".join(pattern for _, pattern in found.tied)
-        return f"lanes {names} claim it equally ({patterns}); make one pattern in {POLICY} more specific"
-    if found.owner is None:
-        return "no lane owns it"
-    mine = dict(found.losers).get(lane.name)
-    if mine is None:
-        return f"owned by lane {found.owner!r}"
-    return f"{mine} matches it, but lane {found.owner!r} owns it: {found.pattern} is more specific"
+@dataclass(frozen=True)
+class Fix:
+    text: str  # a clause to follow the reason, e.g. after "; "
+    widens: bool  # True: it's a kit.toml change, so the stop also says how one lands (HOW_POLICY_LANDS)
 
 
 # kit.toml belongs to no lane, and a lane's change is judged by the kit.toml it started from
@@ -136,23 +124,49 @@ HOW_POLICY_LANDS = (
 )
 
 
-def fix_for(config, lane, path: str) -> str | None:
-    """The change that would let lane change path, to follow why_not's reason; None if there's none.
+def judge(config, lane, path: str) -> tuple[str, Fix | None] | None:
+    """(why lane may not change path, the change that would let it), or None when it may.
 
-    A file no lane owns gets the lane's `owns` line with that one file added, exact so the boundary
-    widens only as far as the task needs. A file another lane owns gets no widening: taking it would
-    move the boundary under that lane. A tie already says how to settle it.
+    The ownership hook and the boundary check both ask this, so they give the same reason and fix.
+    A file no lane owns gets the one pattern to add, matching that file alone so the boundary widens
+    only as far as the task needs; the addition, not a whole `owns` line, because the lane's copy of
+    kit.toml may be older than the integration branch's (review round 1). A file another lane owns
+    gets no widening: taking it would move the boundary under that lane. A tie already says how to
+    settle it. The policy itself is no lane's: a lane owning it could widen itself.
     """
+    if globs.matches_any_file(path, [POLICY]):
+        return "the lane policy belongs to no lane", None
     owners = Owners(config)
     if owners.shared(path):
         return None
     found = owners.claim(path)
-    if found.tied or found.owner == lane.name:
+    if found.owner == lane.name:
         return None
+    if found.tied:
+        names = " and ".join(repr(name) for name, _ in found.tied)
+        patterns = ", ".join(pattern for _, pattern in found.tied)
+        return f"lanes {names} claim it equally ({patterns}); make one pattern in {POLICY} more specific", None
     if found.owner is not None:
-        return f"this change belongs in lane {found.owner!r}"
-    owns = ", ".join(_toml_string(pattern) for pattern in [*lane.owns, literal(path)])
-    return f"to let lane {lane.name!r} change it, its line in {POLICY} becomes: owns = [{owns}]"
+        mine = dict(found.losers).get(lane.name)
+        why = (
+            f"owned by lane {found.owner!r}"
+            if mine is None
+            else f"{mine} matches it, but lane {found.owner!r} owns it: {found.pattern} is more specific"
+        )
+        return why, Fix("make this change from that lane instead", widens=False)
+    addition = _toml_string(literal(path))
+    return "no lane owns it", Fix(f"add {addition} to lane {lane.name!r}'s owns in {POLICY}", widens=True)
+
+
+def why_not(config, lane, path: str) -> str | None:
+    """Why lane may not change path, or None when it may (shared, or the lane owns it)."""
+    judged = judge(config, lane, path)
+    return judged[0] if judged else None
+
+
+def fix_for(config, lane, path: str) -> Fix | None:
+    judged = judge(config, lane, path)
+    return judged[1] if judged else None
 
 
 def literal(path: str) -> str:
@@ -164,7 +178,10 @@ def literal(path: str) -> str:
 
 
 def _toml_string(text: str) -> str:
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """A TOML basic string, with quotes, backslashes and control characters escaped."""
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    escaped = _CONTROL.sub(lambda found: f"\\u{ord(found.group()):04x}", escaped)
+    return f'"{escaped}"'
 
 
 def same_pattern(lanes) -> tuple[str, str, str, str] | None:

@@ -3,6 +3,23 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-08: The fix a lane stop offers
+
+111. **A lane stop names its fix; no `lanes allow` command** (owner's OK on Claude's
+     recommendations, backlog `ownership-fix-hint`; the third point came from review).
+     - *No command:* the ownership prompt and the boundary check print the change, and a person
+       makes it. *Why:* `kit.toml` is protected, so an agent couldn't run such a command anyway, and
+       rewriting TOML by hand is a bigger, riskier change than this item; it can come if asked for.
+     - *For a file no lane owns, the fix is the lane's `owns`, with a pattern matching that file
+       alone* (wildcards bracketed, a bare name anchored with `/`). Not `shared_paths`, and not a
+       wider glob. *Why:* the narrowest change that lets the task through; repo-wide files get
+       their proper home with `shared-path-modes` (decision 110, step 3).
+     - *The fix is the pattern to add, not the whole `owns` line* (narrows the approved "exact
+       line"). *Why:* the lane's copy of `kit.toml` can be older than the integration branch's;
+       a whole line pasted from it would silently drop patterns added since (review round 1).
+     - A file another lane owns gets that lane's name, never an offer to widen; the policy file
+       itself is offered to no lane.
+
 ## 2026-10-07: The kit is named `parallanes`
 
 109. **The kit's name is `parallanes`, not `worklanes`** (owner's choice on Claude's

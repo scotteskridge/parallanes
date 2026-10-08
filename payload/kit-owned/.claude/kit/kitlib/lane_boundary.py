@@ -19,10 +19,11 @@ CHECK = "lanes"
 ALLOW_VARIABLE = "KIT_ALLOW_CROSS_LANE"
 ADVICE = (
     f"To land a cross-lane change on purpose, a person uses a branch that isn't a lane's, or sets "
-    f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks. To widen a lane instead, " + lane_owners.HOW_POLICY_LANDS
+    f"{ALLOW_VARIABLE}=1 locally; an agent stops and asks."
 )
-# The lane policy itself: a lane that could change it could widen its own paths inside its own change.
 POLICY = lane_owners.POLICY
+# The tail of every widening fix (lane_owners.judge), so advice() can tell one from a finding's text.
+_WIDENS = f"'s owns in {POLICY}"
 
 
 def lanes_before(root, config, base: str | None, lane_name: str):
@@ -65,16 +66,21 @@ def check(config, lane, paths) -> list[Finding]:
     findings = []
     for path in paths:
         path = globs.normalize(path)
-        if globs.matches_any_file(path, [POLICY]):
-            why = "the lane policy belongs to no lane"
-        else:
-            why = lane_owners.why_not(config, lane, path)  # the hook's rule too (decision 97)
-            if why is None:
-                continue
-            fix = lane_owners.fix_for(config, lane, path)
-            why += f"; {fix}" if fix else ""
-        findings.append(Finding(path=path, line=0, check=CHECK, message=f"outside lane {lane.name!r}: {why}"))
+        judged = lane_owners.judge(config, lane, path)  # the hook's rule and fix too (decision 97)
+        if judged is None:
+            continue
+        why, fix = judged
+        message = f"outside lane {lane.name!r}: {why}" + (f"; {fix.text}" if fix else "")
+        findings.append(Finding(path=path, line=0, check=CHECK, message=message))
     return sorted(findings)
+
+
+def advice(findings) -> str:
+    """What to do about findings: how a cross-lane change lands, and how a kit.toml change does when
+    a finding offers to widen a lane (only then: other stops never widen, review round 1)."""
+    if any(finding.message.endswith(_WIDENS) for finding in findings):
+        return f"{ADVICE} To widen a lane as a finding says: {lane_owners.HOW_POLICY_LANDS}"
+    return ADVICE
 
 
 def allowed_by_human() -> bool:

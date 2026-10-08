@@ -165,17 +165,22 @@ def ownership_reason(payload: dict) -> str | None:
     rel = relative(root, cwd, target, git_bash=False)
     if rel is None:
         return _elsewhere(root, main, cwd, target, config, lane)
-    why = lane_owners.why_not(config, lane, rel)  # the boundary check's rule too (decision 97)
-    if why is None:
+    judged = lane_owners.judge(config, lane, rel)  # the boundary check's rule and fix too (decision 97)
+    if judged is None:
         return None
-    fix = lane_owners.fix_for(config, lane, rel)  # the boundary check offers the same one
-    widen = fix is not None and lane_owners.claim(config, rel).owner is None
-    return (
+    why, fix = judged
+    reason = (
         f"{rel} isn't lane {lane.name!r}'s to change: {why}. Lane {lane.name!r} owns {', '.join(lane.owns)}"
         + (f" (shared: {', '.join(config.lane_settings.shared_paths)})" if config.lane_settings.shared_paths else "")
-        + ". Editing it may conflict with another lane's work. Allow only if this lane should change it."
-        + (f" {fix[0].upper()}{fix[1:]}." if fix else "")
-        + (f" {lane_owners.HOW_POLICY_LANDS}" if widen else "")
+        + ". Editing it may conflict with another lane's work."
+    )
+    said = f" {fix.text[0].upper()}{fix.text[1:]}." if fix else ""
+    if fix is None or not fix.widens:
+        return f"{reason} Allow only if this lane should change it.{said}"
+    # The trial's F8: the owner approved the edit, then pre-commit refused the commit anyway.
+    return (
+        f"{reason}{said} {lane_owners.HOW_POLICY_LANDS} Approving this edit "
+        "isn't enough: committing it is refused until that change is merged and this lane is synced."
     )
 
 

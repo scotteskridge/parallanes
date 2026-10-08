@@ -171,7 +171,7 @@ def _within_lane(top: Path, config, lane, tip: str) -> None:
     if lane_boundary.allowed_by_human():  # PR mode: CI has no override, so a push would only go red
         why += f"{lane_boundary.ALLOW_VARIABLE} doesn't reach CI: land this from a branch that isn't a lane's."
         raise LaneError(why)
-    raise LaneError(why + lane_boundary.ADVICE)
+    raise LaneError(why + lane_boundary.advice(findings))
 
 
 def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:

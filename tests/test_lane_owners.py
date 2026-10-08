@@ -135,11 +135,13 @@ def test_why_not_refuses_a_tie_for_every_lane_in_it():
 # ---- the fix a lane stop offers (backlog ownership-fix-hint) -----------------------------------------
 
 
-def widened(lane, line):
-    """The lane with the `owns = [...]` line a fix offers, read the way kit.toml would read it."""
+def widened(lane, fix):
+    """The lane after the owner makes the change a fix offers, read the way kit.toml would read it."""
+    import re
     import tomllib
 
-    return Lane(name=lane.name, owns=tomllib.loads(line)["owns"], scope="", resources={})
+    quoted = re.fullmatch(r'add (".*") to lane .*', fix.text).group(1)
+    return Lane(name=lane.name, owns=[*lane.owns, tomllib.loads(f"p = {quoted}")["p"]], scope="", resources={})
 
 
 def test_no_fix_when_the_lane_may_change_the_file_or_two_lanes_tie():
@@ -151,19 +153,23 @@ def test_no_fix_when_the_lane_may_change_the_file_or_two_lanes_tie():
     assert lane_owners.fix_for(config(a, b), a, "src/a.py") is None  # why_not already says how to settle it
 
 
+@pytest.mark.parametrize("path", [".claude/kit.toml", ".claude\\kit.toml"])
+def test_the_lane_policy_is_never_offered_to_a_lane(path):
+    # Review round 1 (both reviewers): a lane owning kit.toml could widen itself; the check refuses it anyway.
+    assert lane_owners.judge(config(APP, CORE), CORE, path) == ("the lane policy belongs to no lane", None)
+
+
 def test_a_file_another_lane_owns_points_at_that_lane_and_never_widens():
-    for fix in (
-        lane_owners.fix_for(config(APP, CORE), CORE, "src/ui/b.py"),
-        lane_owners.fix_for(config(APP, CORE), APP, "src/core/a.py"),  # lost on specificity: still core's
-    ):
-        assert "lane 'core'" in fix or "lane 'app'" in fix
-        assert "owns =" not in fix and "change belongs in" in fix
+    for lane, path, owner in ((CORE, "src/ui/b.py", "app"), (APP, "src/core/a.py", "core")):  # 2nd: lost on specificity
+        why, fix = lane_owners.judge(config(APP, CORE), lane, path)
+        assert f"lane {owner!r} owns it" in why or why == f"owned by lane {owner!r}"  # the reason names it once
+        assert fix == lane_owners.Fix("make this change from that lane instead", widens=False)
 
 
-def test_a_file_no_lane_owns_gets_the_exact_kit_toml_line():
+def test_a_file_no_lane_owns_gets_the_exact_addition():
+    # Review round 1: the addition alone, not a whole `owns` line, which a stale lane would get wrong.
     fix = lane_owners.fix_for(config(APP, CORE), CORE, ".gitignore")
-    line = 'owns = ["src/core/**", "tests/core/**", "/.gitignore"]'
-    assert fix == f"to let lane 'core' change it, its line in .claude/kit.toml becomes: {line}"
+    assert fix == lane_owners.Fix("add \"/.gitignore\" to lane 'core''s owns in .claude/kit.toml", widens=True)
     # The trial's wall (F8, F11): the lane's own branch can't carry it; the stops say how it lands.
     assert "branch that isn't a lane's" in lane_owners.HOW_POLICY_LANDS
     assert "lanes sync" in lane_owners.HOW_POLICY_LANDS
@@ -176,23 +182,29 @@ def test_a_file_no_lane_owns_gets_the_exact_kit_toml_line():
         ".gitignore",  # bare: anchored, so a nested .gitignore stays out
         "data dir/notes v2.txt",  # spaces
         "app/[id]/page.tsx",  # Next.js route: [ ] are glob syntax and must match literally
+        "app/[...slug]/page.tsx",
         "a*b?.txt",
+        "a[!b].txt",
+        "x]y.txt",
+        "!important.md",
+        "**",
         'say "hi".md',  # a quote must survive TOML
+        "new\nline.txt",  # control characters too (review round 1): legal in a POSIX file name
+        "del\x7f.txt",
+        "tab\there.txt",
     ],
 )
-def test_the_offered_line_lets_the_lane_change_exactly_that_file(path):
-    fix = lane_owners.fix_for(config(APP, CORE), CORE, path)
-    after = widened(CORE, fix.split("becomes: ", 1)[1])
+def test_the_offered_addition_lets_the_lane_change_exactly_that_file(path):
+    after = widened(CORE, lane_owners.fix_for(config(APP, CORE), CORE, path))
     assert lane_owners.why_not(config(APP, after), after, path) is None
-    assert after.owns[:2] == CORE.owns  # the lane keeps what it had
-    for neighbour in ("nested/" + path, "app/i/page.tsx", "aXbY.txt"):
+    for neighbour in ("nested/" + path, "app/i/page.tsx", "aXbY.txt", "ab.txt", "x/y.txt", "important.md"):
         if neighbour != path:
             assert lane_owners.why_not(config(APP, after), after, neighbour) is not None, neighbour
 
 
 def test_a_windows_path_is_offered_with_forward_slashes():
     fix = lane_owners.fix_for(config(APP, CORE), CORE, "data\\seed.json")
-    assert fix.endswith('"data/seed.json"]')
+    assert fix.text.startswith('add "data/seed.json" to')
 
 
 @pytest.mark.skipif(os.name != "nt", reason="the Windows file system ignores case, so ownership does too")

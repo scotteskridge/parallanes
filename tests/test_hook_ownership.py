@@ -89,15 +89,28 @@ def test_a_file_no_lane_owns_asks_with_the_exact_kit_toml_line(lane):
     assert_asks(
         hook(lane, lane / ".gitignore"),
         "no lane owns it",
-        'its line in .claude/kit.toml becomes: owns = ["src/core/**", "tests/core/**", "/.gitignore"]',
+        "Add \"/.gitignore\" to lane 'core''s owns in .claude/kit.toml.",
         "branch that isn't a lane's",
         "lanes sync",
+        # Review round 1: approving the edit was what failed in the trial; say the commit still won't pass.
+        "Approving this edit isn't enough",
     )
+    assert (
+        "Allow only if"
+        not in json.loads(hook(lane, lane / ".gitignore").stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    )
+
+
+def test_editing_the_lane_policy_asks_without_offering_it_to_the_lane(lane):
+    # Review round 1 (both reviewers): a lane owning kit.toml could widen itself.
+    reason = json.loads(hook(lane, lane / ".claude/kit.toml").stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "the lane policy belongs to no lane" in reason and "Add " not in reason
 
 
 def test_a_file_another_lane_owns_asks_without_offering_to_widen(lane):
     reason = json.loads(hook(lane, lane / "src/api/routes.py").stdout)["hookSpecificOutput"]["permissionDecisionReason"]
-    assert "his change belongs in lane 'api'" in reason and "becomes:" not in reason
+    assert "owned by lane 'api'" in reason and "Make this change from that lane instead." in reason
+    assert "Add " not in reason and "lanes sync" not in reason
 
 
 def test_relative_path_from_a_subfolder(lane):
