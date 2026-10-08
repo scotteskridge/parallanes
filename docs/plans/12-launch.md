@@ -1,7 +1,7 @@
 # 12 — Launch
 
-**Status:** In progress
-**Branch / PR:** `plan/12-launch` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/12-launch` · https://github.com/scotteskridge/parallanes/pull/39 (and #40)
 **Builds on:** plans 00–09 and 07b (Done); decisions 73, 77, 81, 98, 104, 107, 108 (the answers), 109 (the name); backlog
 `readme-builtins-comparison` and `plugin-name` (both folded in here); ARCHITECTURE §12
 
@@ -95,7 +95,7 @@ into their project by following the README alone.
 - [x] Tests above pass locally and in CI (Windows + Ubuntu)
 - [x] Reviewer report attached to the PR; every 🔴 fixed
 - [x] Two-minute test and quickstart run recorded in the PR
-- [ ] Both repos public, `v0.1.0` tagged with release notes, README links resolve
+- [x] Both repos public, `v0.1.0` tagged with release notes, README links resolve
 - [x] CHANGELOG, ROADMAP and decisions log updated where this plan changed them
 
 ## Notes after implementation
@@ -138,3 +138,14 @@ into their project by following the README alone.
 - **Follow-ups the owner asked for in this PR:** the old-launcher note is said when its list of
   callers changes (the manifest keeps the list), not on every run; and a test runs the README's
   PowerShell install line, which is in prose, not a code block (Windows only).
+- **CI caught one test gap:** the README test's own repo had no git identity, which CI's git
+  lacks; fixed in the test, and the full suite was re-run locally with the global git config
+  hidden to match.
+- **Publishing (2026-10-08, each step on the owner's yes):** a secret scan of both repos' full
+  history found nothing (commit emails are public). The README overclaimed what the trial repo
+  holds (its reviews never became PR comments in local mode): #40. The trial repo got a README
+  note on the rename and was pushed from its checkout, since its local origin had only 3 of its 9
+  commits. Then: this repo renamed to `parallanes`, `v0.1.0` tagged and released, both repos made
+  public. A clean install from the public URL by the README worked (two lanes, `lanes start`,
+  `lanes status`), and every README link resolves signed out. The changelog dates 0.1.0 as
+  2026-10-07, when it was cut; the tag is from 2026-10-08.

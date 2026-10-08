@@ -19,7 +19,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 09 | [CI template](09-ci-template.md) | GitHub Actions workflow for installed projects: tests + rules-check + protected-path check on every push and PR | Done |
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
 | 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
-| 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `parallanes` (decisions 81, 108, 109), v0.1.0, make public | In progress |
+| 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `parallanes` (decisions 81, 108, 109), v0.1.0, make public | Done |
 
 ## Build order for v0.1 (decision 77)
 
@@ -37,7 +37,7 @@ like any other.
    [write-up](../trial/two-lane-trial.md), `lane-dependency-hint`, and `lanes-and-worktree-flag`:
    don't open lanes with `claude --worktree`, decision 107)
 6. ~~Plan 09: the CI template~~ (done)
-7. Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)
+7. ~~Plan 12: launch (with `readme-builtins-comparison` and `plugin-name`)~~ (done: [v0.1.0](https://github.com/scotteskridge/parallanes/releases/tag/v0.1.0))
 
 **v0.2:** the plugin (`ship-kit-as-plugin`), `/onboard`, plan 10, plan 11, per-lane ports
 (`lane-resources-env`, `lane-session-identity`), and the backlog items marked `later`.
