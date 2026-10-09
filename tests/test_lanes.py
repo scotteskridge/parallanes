@@ -8,7 +8,7 @@ import pytest
 from helpers import git, run_cli, write
 from kitlib import lane_setup, lanes
 from kitlib.config import load
-from lane_helpers import LANES_TOML, commit, fake_gh, lane_dir, lanes_repo, no_gh_env
+from lane_helpers import LANES_TOML, commit, fake_gh, gh_calls, lane_dir, lanes_repo, no_gh_env, scripted_gh
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
 
@@ -412,13 +412,71 @@ def test_status_reports_the_main_checkout(repo):
     assert "local mode" not in result.stdout
 
 
+LOCAL_TOML = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nmerge_mode = "local"')
+DETACH_HINT = (
+    "local mode: the main checkout has main checked out, so lanes can't fast-forward it. "
+    "Run there: git switch --detach main"
+)
+
+
 def test_status_warns_in_local_mode_when_main_holds_the_integration_branch(tmp_path):
-    config = LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nmerge_mode = "local"')
-    repo = lanes_repo(tmp_path, config=config)
+    repo = lanes_repo(tmp_path, config=LOCAL_TOML)
     result = status(repo)
     assert "git switch --detach main" in result.stdout
     git(repo, "switch", "-q", "--detach", "main")
     assert "git switch --detach" not in status(repo).stdout
+
+
+def test_create_in_local_mode_says_to_detach_the_main_checkout(tmp_path):
+    # Trial F2: only `lanes status` said so, and the first `lanes finish` failed.
+    repo = lanes_repo(tmp_path, config=LOCAL_TOML)
+    dry = create(repo, "--dry-run")
+    assert dry.returncode == 0, dry.stderr
+    assert DETACH_HINT in dry.stdout
+    first = create(repo)
+    assert first.returncode == 0, first.stderr
+    assert first.stdout.count(DETACH_HINT) == 1  # once, not once per lane
+    assert DETACH_HINT in create(repo).stdout  # a rerun: every lane already exists, still true
+    git(repo, "switch", "-q", "--detach", "main")
+    assert "git switch --detach" not in create(repo).stdout
+
+
+def test_create_in_local_mode_says_to_detach_even_when_a_lane_fails(tmp_path):
+    repo = lanes_repo(tmp_path, config=LOCAL_TOML)
+    lane_dir(repo, "api").mkdir(parents=True)  # not a worktree: api fails, core is still created
+    write(lane_dir(repo, "api"), "keep.txt", "mine\n")
+    result = create(repo)
+    assert result.returncode != 0
+    assert "api:" in result.stderr
+    assert DETACH_HINT in result.stdout
+
+
+def test_create_in_pr_mode_never_says_to_detach(repo):
+    result = create(repo)
+    assert result.returncode == 0, result.stderr
+    assert "git switch --detach" not in result.stdout
+
+
+def test_create_in_pr_mode_works_with_the_main_checkout_on_an_unborn_branch(repo):
+    # Review round 1: the local-mode check asked git for the main checkout's branch in every mode,
+    # and that fails on an unborn branch, after the worktrees were made.
+    git(repo, "checkout", "-q", "--orphan", "scratch")
+    result = create(repo)
+    assert result.returncode == 0, result.stderr
+    assert "created" in lane_line(result.stdout, "core:")
+
+
+def test_status_in_local_mode_leaves_out_the_pr_field_and_never_asks_gh(tmp_path):
+    # Trial F9: every lane said "PR: unknown", though local mode never opens one.
+    repo = lanes_repo(tmp_path, config=LOCAL_TOML)
+    assert create(repo, "core").returncode == 0
+    folder = lane_dir(repo, "core")
+    git(folder, "switch", "-q", "-c", "core/login")
+    env = scripted_gh(tmp_path / "gh", prs=[{"number": 7, "state": "OPEN", "headRefOid": head(folder)}])
+    line = lane_line(status(repo, env=env).stdout, "core")
+    assert "core/login" in line and "not pushed" in line
+    assert "PR" not in line
+    assert gh_calls(tmp_path / "gh") == []
 
 
 NESTED_NOTE = "src/core/** (core) wins over src/** (api): 1 file, e.g. src/core/a.py"

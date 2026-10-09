@@ -19,6 +19,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   lane's, then `lanes sync`. The prompt says approving the edit alone won't get it committed. For
   a file another lane owns, they point at that lane and don't offer to widen; `kit.toml` itself is
   offered to no lane.
+- Local merge mode says up front what it needs (backlog `local-mode-setup-hints`, decision 112,
+  from the two-lane trial's F2 and F9): `lanes create` gives the `git switch --detach` command
+  when the main checkout holds the integration branch, as `lanes status` already did, and
+  `lanes status` (and the lanes part of `parallanes next`) leaves out the PR field (it said
+  `PR: unknown`) and no longer calls `gh`.
 
 ### Fixed
 - A glob class holding `[`, `&&`, `~~` or `||` compiled to a regex Python warns it will read as a

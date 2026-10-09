@@ -13,6 +13,7 @@ from .lanes import (
     git,
     integration_tip,
     lane_folder,
+    local_mode_blocker,
     main_checkout,
     registered_worktrees,
     same_path,
@@ -36,7 +37,7 @@ class LaneStatus:
     untracked: int = 0  # not unfinished work: test reports and the like (decision 52)
     unpushed: int | None = None  # None: no upstream
     gone: bool = False  # pushed once, but the remote branch is gone
-    pr: str = UNKNOWN
+    pr: str | None = UNKNOWN  # None: local mode, which never opens one
     here: bool = False
     install: str | None = None  # a Node lane without node_modules (decision 103)
 
@@ -55,15 +56,13 @@ def status(start: Path, config, offline: bool = False) -> Status:
     main = main_checkout(start)
     tip = integration_tip(main, config)
     result = Status(main=main, main_branch=branch_of(main), tip=tip)
-    integration = config.lane_settings.integration_branch
-    if config.lane_settings.merge_mode == "local" and result.main_branch == integration:
-        # `git push . HEAD:<integration>` (plan 05) refuses while the branch is checked out (decision 38).
-        result.warnings.append(
-            f"local mode: the main checkout has {integration} checked out, so lanes can't fast-forward it. "
-            f"Run there: git switch --detach {integration}"
-        )
+    blocker = local_mode_blocker(result.main_branch, config)
+    if blocker:
+        result.warnings.append(blocker)
     top = toplevel(Path(start))
-    gh = None if offline else shutil.which("gh")
+    # Local mode never opens a PR, so there's nothing to ask gh (trial F9).
+    pr_mode = config.lane_settings.merge_mode == "pr"
+    gh = shutil.which("gh") if pr_mode and not offline else None
     registered = registered_worktrees(main)  # once, not once per lane: each git call costs ~35 ms on Windows
     for lane in config.lanes:
         folder = lane_folder(main, config, lane)
@@ -75,6 +74,8 @@ def status(start: Path, config, offline: bool = False) -> Status:
             continue
         changed, untracked = changes(folder)
         entry = LaneStatus(lane.name, folder, "ok", branch=branch_of(folder), changed=changed, untracked=len(untracked))
+        if not pr_mode:
+            entry.pr = None
         entry.here = top is not None and same_path(top, folder)
         entry.install = lane_deps.missing_node_modules_short(folder)
         if tip:
@@ -149,7 +150,8 @@ def format_status(result: Status) -> str:
                 parts.append("pushed branch gone from origin")
             else:
                 parts.append("not pushed" if lane.unpushed is None else f"{lane.unpushed} unpushed")
-            parts.append(lane.pr)
+            if lane.pr:
+                parts.append(lane.pr)
         lines.append(" · ".join(parts))
     lines += [f"Note: {note}" for note in result.notes]
     return "\n".join(lines)

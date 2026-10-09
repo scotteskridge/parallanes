@@ -166,6 +166,19 @@ def integration_tip(folder: Path, config) -> str | None:
     return None
 
 
+def local_mode_blocker(main_branch: str | None, config) -> str:
+    """Why lanes can't finish in local mode, or "": shared by `lanes create` and `lanes status` so
+    the setup step and the check say the same thing (trial F2)."""
+    integration = config.lane_settings.integration_branch
+    if config.lane_settings.merge_mode != "local" or main_branch != integration:
+        return ""
+    # `git push . HEAD:<integration>` (plan 05) refuses while the branch is checked out (decision 38).
+    return (
+        f"local mode: the main checkout has {integration} checked out, so lanes can't fast-forward it. "
+        f"Run there: git switch --detach {integration}"
+    )
+
+
 def is_ancestor(folder: Path, commit: str, of: str) -> bool:
     try:
         result = subprocess.run(

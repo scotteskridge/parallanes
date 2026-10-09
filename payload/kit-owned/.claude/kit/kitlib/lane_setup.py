@@ -11,12 +11,14 @@ from pathlib import Path
 from . import lane_deps
 from .lanes import (
     LaneError,
+    branch_of,
     find_lane,
     git,
     integration_tip,
     is_nested,
     is_registered,
     lane_folder,
+    local_mode_blocker,
     locate,
     main_checkout,
     registered_worktrees,
@@ -83,6 +85,10 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
             f"integration branch {branch!r} not found (neither origin/{branch} nor {branch}). Rename your "
             f"branch (`git branch -m <yours> {branch}`) or set integration_branch in .claude/kit.toml"
         )
+    # Trial F2: said where lanes are set up, not only by `lanes status`; true whatever happens to each
+    # lane. Asked before any lane is made, and only in local mode: git can't name an unborn branch.
+    local = config.lane_settings.merge_mode == "local"
+    blocker = local_mode_blocker(branch_of(main), config) if local else ""
     at_tip = _lanes_at(main, tip)
     problem = _tip_problem(main, tip)
     root = worktree_root(main, config)
@@ -152,6 +158,8 @@ def create(start: Path, config, names=(), dry_run: bool = False) -> list[str]:
             errors.append(f"{lane.name}: {error}")
     if hinted:  # why, once
         lines.append(lane_deps.WHY_NESTED if any(hinted) else lane_deps.WHY)
+    if blocker:
+        lines.append(f"! {blocker}")
     if errors:
         raise PartialCreate("\n".join(errors), lines)
     return lines
