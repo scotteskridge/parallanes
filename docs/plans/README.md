@@ -45,7 +45,7 @@ like any other.
 1. ~~`ownership-fix-hint`~~ (done)
 2. ~~Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
    `allow-variable-braced-powershell`, `protected-check-merge-commits`~~ (done)
-3. `shared-path-modes`: [plan 13](13-shared-path-modes.md) (in progress)
+3. `shared-path-modes`: [plan 13](13-shared-path-modes.md) (in progress), then `shared-zones-keep-defaults`
 4. Lane robustness: `lane-session-lock`, `hook-latency`, `kit-config-shell-guard-modes`,
    `decision-log-fragments`
 5. The plugin (`ship-kit-as-plugin`, needs a plan), then `/onboard`

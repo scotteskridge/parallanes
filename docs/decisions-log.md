@@ -28,18 +28,22 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        (a named-file `check lanes` run doesn't look at `MERGE_HEAD`; it only lists, never refuses).
        When git can't say, the hook counts the edit as an addition (it fails open, decision 41);
        the check fails closed.
-     - *Settled in implementation and review (Claude's call, for the owner to overrule):*
-       - *A steward skips only its own zones* (review round 1, both reviewers): any other zone
+     - *Settled in implementation and review (Claude's calls; the owner confirmed the first two on
+       2026-10-18):*
+       - *A steward skips only its own zones* (review round 1, both reviewers; owner's OK over "the
+         strictest table's steward wins"): any other zone
          matching the file still applies to the steward lane. *Why:* "the stricter mode wins" would
          otherwise let an `ask` zone's steward silently rewrite a file a broader `append` zone guards.
        - *A steward on an `open` zone is a load error:* every lane already changes it freely.
        - *A v0.1 `kit.toml` that never wrote `shared_paths` gets the new defaults,* so its changelog
          fragments and health reports become `append`. Stricter, never a refusal; one written
          `shared_paths` list stays exactly as it was.
-       - *Writing any `[[shared]]` table still replaces the defaults* (question 1). Uncommenting
-         only the template's repo-wide example would drop them, so the template says to uncomment
-         the default tables with it (review round 1); whether tables should add to the defaults
-         instead is backlog `shared-zones-keep-defaults`.
+       - *`[[shared]]` tables will add to the defaults, not replace them* (owner's choice on
+         Claude's recommendation, narrowing question 1's answer). Review round 1 found that writing
+         only the template's repo-wide example dropped every default shared path, so lanes'
+         wrap-up commits were refused. Until backlog `shared-zones-keep-defaults` lands, tables
+         replace the defaults and the template says to keep them; a written `shared_paths` list
+         keeps replacing them, as in v0.1.
 
 ## 2026-10-18: Protected paths in a merge commit
 
