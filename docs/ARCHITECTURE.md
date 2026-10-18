@@ -283,10 +283,11 @@ guard_kit = true
   guard**: it still protects when `settings.json` is stale, and covers PowerShell cmdlets, which
   the docs don't say deny rules cover [92]. **Fails closed:** in PreToolUse only exit 2
   blocks, so every error, a broken `kit.toml`, bad input and a mistyped hook name all exit 2 [33].
-- **Pre-commit and CI:** `parallanes check protected` reports changed protected paths and added secret
-  files; `KIT_ALLOW_PROTECTED=1` lets a human commit an intended change [32]; in CI the PR label
-  `kit:protected-change` does for protected paths (never an added secret), only on the run adding
-  it starts; the `gh` commands that add it are protected [105] [106]. `.github/workflows/**` is kit config.
+- **Pre-commit and CI:** `parallanes check protected` reports changed protected paths and added
+  secret files (a merge commit's resolution only [115]); `KIT_ALLOW_PROTECTED=1` lets a human
+  commit an intended change [32]; in CI the PR label `kit:protected-change` does for protected
+  paths (never an added secret), only on the run adding it starts; the `gh` commands that add it
+  are protected [105] [106]. `.github/workflows/**` is kit config.
 - **Stated limits** (`docs/ai/protected-paths.md` in each project): none of this stops a script that
   opens files itself. The OS-level answer is Claude Code's sandbox, which runs on macOS, Linux and
   WSL2 but **not native Windows**; the server-side answer is CI, branch protection and `CODEOWNERS`.
