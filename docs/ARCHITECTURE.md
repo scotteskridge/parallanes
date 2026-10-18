@@ -134,8 +134,19 @@ integration_branch = "main"
 merge_mode = "pr"                      # "pr" (default) or "local"           [12]
 worktree_root = ".claude/worktrees"    # or "../{project}-lanes" (Unity)    [2]
 ownership = "ask"                      # out-of-lane edit: "ask" (a permission prompt) or "off"
-shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**",
-                "docs/design/decisions-log.md", "docs/health/**"]
+
+[[shared]]                             # no lane owns these; every lane adds files   [116]
+paths = ["docs/changelog.d/**", "docs/health/**"]
+mode = "append"                        # changing or deleting an existing file asks
+
+[[shared]]
+paths = ["docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
+mode = "open"                          # any lane changes them
+
+[[shared]]                             # not a default: repo-wide files, for example
+paths = ["/.gitignore", "/package.json"]
+mode = "ask"                           # every change asks
+steward = "core"                       # except from this lane
 
 [[lanes]]
 name = "core"
@@ -182,13 +193,17 @@ checkout's instruction files in their `settings.local.json` (decision 35).
 ### Ownership
 
 A PreToolUse hook (`parallanes hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
-file with the lane's `owns` plus `shared_paths` (default: changelog fragments, backlog, plans),
-by the rule below for a file two lanes claim. It
+file with the lane's `owns` plus the shared paths (default: changelog fragments, backlog, plans),
+by the rule below for a file two lanes claim. A shared path's mode [116] decides what asks: `open`
+nothing, `append` a change to a file that existed where the task branch left the integration
+branch, `ask` every change, and never for the zone's `steward` lane. `shared_paths` in `[project]`
+(v0.1) is an `open` zone; a path in two zones takes the stricter mode, and a steward skips only
+its own zones (any other zone matching the file still applies to it). The hook
 fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
 
-**Who owns a file two lanes claim** [97]: `shared_paths` first (every lane may change them), then
+**Who owns a file two lanes claim** [97]: shared paths first (no lane owns them), then
 the lane whose matching `owns` pattern is most specific: most wildcard-free segments, then rooted
 at the project top over matching at any depth, then more literal characters, then fewer `**`,
 then fewer other wildcards. A lane owning `src/**` doesn't own `src/core/a.py` when another lane owns
@@ -207,7 +222,10 @@ both paths, and a diff that can't be computed is an error. The lanes that judge 
 its own change; a merge commit is judged on its resolution only. A person lands a cross-lane
 change on purpose from a non-lane branch, or locally with `KIT_ALLOW_CROSS_LANE=1`, which the
 protected hook blocks an agent from setting; CI has no override. It applies whatever
-`ownership` says: `off` only silences the edit prompt.
+`ownership` says: `off` only silences the edit prompt. A shared-path change that needs a person
+(by its mode) is listed on stderr, never refused [116]: the hook's prompt was the person's yes, and
+the paths were open in v0.1, so listing is still stricter. "Existed" is measured from where the
+task branch left the integration branch (the merge base), and in a merge also from `MERGE_HEAD`.
 
 ### Relation to Claude Code's own features [20]
 

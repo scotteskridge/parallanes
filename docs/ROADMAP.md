@@ -61,6 +61,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 - **MVP** `lanes finish`: tests → **PR mode** (default: push, open PR with the review report) or **local mode** (fast-forward the integration branch)
 - **MVP** Ownership: out-of-lane edits (including the main checkout and other lanes' folders) become a permission prompt (`ask`, or `off`)
 - **MVP** Each lane's `resources` (ports, editor instances) reported to its agent
+- **v0.2** Shared paths with a mode: `open`, `append` (new files free, changes ask) or `ask`, with an optional steward lane; the boundary check lists such changes instead of refusing them (plan 13, decision 116)
 - **v0.2** Per-lane ports written into each lane's environment (backlog `lane-resources-env`, `lane-session-identity`); per-lane Unity Editor setup comes with the Unity pack
 - **Later** Lane handoff notes at session end
 - **Later** Lane-aware memory: Claude Code's auto memory is shared by every lane of a repo (plan 04's live check), so lane-specific notes need their own place

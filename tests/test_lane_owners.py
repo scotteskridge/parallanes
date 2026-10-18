@@ -10,6 +10,7 @@ import pytest
 
 from kitlib import lane_owners
 from kitlib.config import Lane, LaneSettings
+from kitlib.shared_zones import Zone
 
 APP = Lane(name="app", owns=["src/**"], scope="", resources={})
 CORE = Lane(name="core", owns=["src/core/**", "tests/core/**"], scope="", resources={})
@@ -314,3 +315,84 @@ def test_the_overlap_list_stays_quick_on_a_big_repository():
     elapsed = time.perf_counter() - start
     assert sum(int(note.split(": ")[1].split(" ")[0]) for note in notes) == len(files)
     assert elapsed < 5  # about 2 s on a Windows laptop; the margin is for slow CI runners
+
+
+# ---- shared path modes (decision 116) ----------------------------------------------------------------
+
+
+def zoned(*lanes, zones):
+    return SimpleNamespace(lanes=list(lanes), lane_settings=LaneSettings(shared_paths=[], shared=tuple(zones)))
+
+
+PLATFORM = Lane(name="platform", owns=["infra/**"], scope="", resources={})
+MODES = (
+    Zone(("docs/plans/**",), "open"),
+    Zone(("docs/changelog.d/**",), "append"),
+    Zone(("migrations/**",), "append", "platform"),
+    Zone(("/.gitignore",), "ask"),
+    Zone(("/package.json",), "ask", "platform"),
+)
+
+
+def person(lane, path, existed):
+    def asked():
+        asked.calls += 1
+        return existed
+
+    asked.calls = 0
+    return lane_owners.needs_person(zoned(CORE, PLATFORM, zones=MODES), lane, path, asked), asked.calls
+
+
+@pytest.mark.parametrize(
+    "lane, path, existed, expected",
+    [
+        (CORE, "docs/plans/p.md", True, None),  # open: any change, no person
+        (CORE, "docs/changelog.d/a.md", False, None),  # append: adding is free
+        (CORE, "docs/changelog.d/a.md", True, "append-only shared path (docs/changelog.d/**)"),
+        (CORE, "migrations/1.sql", True, "lane 'platform' is its steward"),
+        (PLATFORM, "migrations/1.sql", True, None),  # the steward changes it without asking
+        (CORE, ".gitignore", False, "every change needs a person (/.gitignore)"),
+        (CORE, ".gitignore", True, "every change needs a person (/.gitignore)"),
+        (CORE, "package.json", False, "lane 'platform' is its steward"),
+        (PLATFORM, "package.json", True, None),
+        (CORE, "src/core/a.py", True, None),  # not shared: judge's question, not this one
+    ],
+)
+def test_needs_person_by_mode_steward_and_whether_the_file_existed(lane, path, existed, expected):
+    reason, _ = person(lane, path, existed)
+    if expected is None:
+        assert reason is None
+    else:
+        assert expected in reason, reason
+
+
+def test_existence_is_asked_only_where_it_matters():
+    # The hook pays a git call for it: only an append zone's file, for a lane that isn't its steward.
+    assert person(CORE, "docs/changelog.d/a.md", True)[1] == 1
+    for lane, path in ((CORE, ".gitignore"), (CORE, "docs/plans/p.md"), (PLATFORM, "migrations/1.sql")):
+        assert person(lane, path, True)[1] == 0, path
+
+
+def test_a_shared_zone_never_opens_the_lane_policy():
+    cfg = zoned(CORE, zones=[Zone((".claude/**",), "open")])
+    assert lane_owners.judge(cfg, CORE, ".claude/kit.toml") == ("the lane policy belongs to no lane", None)
+    assert lane_owners.judge(cfg, CORE, ".claude/rules/web.md") is None
+
+
+def test_every_mode_is_shared_for_the_owner_rule():
+    # A zone's files are judged by their mode, never by a lane's owns: no overlap, no refusal.
+    cfg = zoned(APP, CORE, zones=[Zone(("src/core/gen/**",), "ask")])
+    assert lane_owners.judge(cfg, APP, "src/core/gen/x.py") is None
+    assert lane_owners.overlaps(cfg, ["src/core/gen/x.py"]) == ([], [])
+
+
+def test_a_steward_is_still_asked_by_a_broader_zone_without_one():
+    # Review round 1 (both reviewers): the steward skips only its own zones.
+    cfg = zoned(PLATFORM, CORE, zones=[Zone(("/.gitignore",), "ask", "platform"), Zone(("/.git*",), "append")])
+    assert "append-only shared path (/.git*)" in lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: True)
+    assert lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: False) is None
+    # Review round 2: platform is asked by /.git* too, so core isn't told it changes it without asking.
+    told = lane_owners.needs_person(cfg, CORE, ".gitignore", lambda: True)
+    assert "every change needs a person (/.gitignore)" in told and "steward" not in told
+    alone = zoned(PLATFORM, CORE, zones=[Zone(("/.gitignore",), "ask", "platform"), Zone(("/.git*",), "open")])
+    assert "lane 'platform' is its steward" in lane_owners.needs_person(alone, CORE, ".gitignore", lambda: True)

@@ -125,19 +125,29 @@ another remote, counts as unpushed, and `sync` would rebase it.
 
 - **One session per lane folder.** Two sessions in one folder share files and mix their edits.
 - **Stay in your lane's paths.** An edit outside them asks you first (`ownership = "ask"` in
-  `kit.toml`). Shared paths (plans, backlog, changelog fragments) are open to every lane. This
+  `kit.toml`). Shared paths (plans, backlog, changelog fragments) belong to no lane; their mode
+  says what needs you ("Each shared path has a mode" below). This
   covers Claude Code's file tools only, not shell commands, and may not prompt in
   `bypassPermissions` mode. Edits from a lane to the main checkout or to another lane's folder
   ask too. When the work lands, the boundary is enforced: `lanes finish`, the pre-commit hook and
-  CI (`{{kit_command}} check lanes`) refuse a lane's change to a file it doesn't own (see the next
-  rule) outside the shared paths, and any change to `.claude/kit.toml`. To land one on purpose, a person uses a branch that isn't
+  CI (`{{kit_command}} check lanes`) refuse a lane's change to a file it doesn't own (see "When
+  two lanes' patterns match one file" below) outside the shared paths, and any change to `.claude/kit.toml`. To land one on purpose, a person uses a branch that isn't
   a lane's; `KIT_ALLOW_CROSS_LANE=1` gets a local commit or a local-mode finish through, but CI has
   no override, so a pull request needs the non-lane branch. An agent stops and asks instead.
   Each stop ends with its fix. For a file no lane owns (`.gitignore`, `package.json`), that's the
   pattern to add to the lane's `owns`, matching that file alone. A person commits it on a branch
   that isn't a lane's and merges it, then `lanes sync` brings it into the lane, because a lane's own
   branch is judged by the `kit.toml` it started from; until then, approving the edit doesn't get it
-  committed. For a file another lane owns, the fix is to do the work there.
+  committed. For a file another lane owns, the fix is to do the work there. Repo-wide files that
+  every lane touches now and then are better in an `ask` shared path with a steward (the next rule).
+- **Each shared path has a mode** (`[[shared]]` in `kit.toml`). `open`: any lane changes it
+  (plans, backlog, the decisions log). `append`: any lane adds a file, but changing or deleting one
+  that existed when the task began asks you (changelog fragments, health reports), so one lane
+  can't rewrite another's. `ask`: every change asks you (repo-wide files such as `.gitignore`).
+  A `steward` lane changes its path without asking; any other shared table matching the same file
+  still applies to it. When you say yes, the commit goes through:
+  `lanes finish`, the pre-commit hook and CI list the change for review instead of refusing it.
+  A path in two tables takes the stricter mode; `shared_paths` in `[project]` means `open`.
 - **When two lanes' patterns match one file, the more specific one owns it.** A lane owning
   `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
   the boundary check refuses them. More specific means more literal folder and file names, then a
@@ -145,7 +155,7 @@ another remote, counts as unpushed, and `sync` would rebase it.
   then more literal characters (`*.md` over `**`), then fewer wildcards. Order in `kit.toml`
   doesn't matter. The same pattern in two lanes doesn't load; two patterns equally specific for a
   file leave it with no owner until you make one more specific. `lanes create` and `lanes status` list both cases. A folder both lanes should change
-  belongs in `shared_paths`.
+  belongs in a `[[shared]]` table.
 - **No shared append-only files.** Changelog entries are fragments; backlog items are one file
   each. That removes the most common merge conflict.
 - **Don't run two tasks at once that edit the same file.** If two lanes need it, do one after the

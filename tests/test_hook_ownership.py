@@ -226,3 +226,82 @@ def test_kit_that_cannot_import_fails_open_for_the_lane_hooks(tmp_path, name, ev
     )
     assert result.returncode == 1, result
     assert "simulated: no tomllib" in result.stderr
+
+
+# ---- shared path modes (decision 116) ----------------------------------------------------------------
+
+ZONED_TOML = (
+    LANES_TOML
+    + '\n[[shared]]\npaths = ["docs/changelog.d/**"]\nmode = "append"\n'
+    + '\n[[shared]]\npaths = ["/.gitignore"]\nmode = "ask"\nsteward = "api"\n'
+)
+
+
+@pytest.fixture
+def zoned(tmp_path):
+    from helpers import git
+    from lane_helpers import commit
+
+    repo = lanes_repo(tmp_path, config=ZONED_TOML)
+    commit(repo, "docs/changelog.d/api work.md", "- api\n")
+    git(repo, "push", "-q", "origin", "main")
+    assert run_cli(repo, "lanes", "create").returncode == 0
+    return repo
+
+
+def test_adding_to_an_append_zone_is_allowed_and_editing_an_existing_file_asks(zoned):
+    core = lane_dir(zoned, "core")
+    assert_allowed(hook(core, core / "docs/changelog.d/core work.md"))
+    assert_asks(
+        hook(core, core / "docs/changelog.d/api work.md"),
+        "docs/changelog.d/api work.md",
+        "append-only shared path (docs/changelog.d/**)",
+        "lists it",
+    )
+
+
+def test_a_file_the_task_added_earlier_stays_free_to_edit(zoned):
+    from helpers import git
+    from lane_helpers import commit
+
+    core = lane_dir(zoned, "core")
+    git(core, "switch", "-q", "--no-track", "-c", "core/task", "origin/main")
+    commit(core, "docs/changelog.d/core work.md", "- core\n")
+    assert_allowed(hook(core, core / "docs/changelog.d/core work.md"))
+
+
+def test_an_ask_zone_asks_every_lane_but_its_steward(zoned):
+    core, api = lane_dir(zoned, "core"), lane_dir(zoned, "api")
+    assert_asks(hook(core, core / ".gitignore"), "every change needs a person (/.gitignore)", "lane 'api'")
+    assert "Add " not in reason_for(core, ".gitignore")  # a shared file is never offered to a lane's owns
+    assert_allowed(hook(api, api / ".gitignore"))
+
+
+def test_a_file_a_merge_brings_in_counts_as_existing(zoned):
+    # Review round 1: the boundary check counted MERGE_HEAD's files, the hook didn't.
+    from helpers import git
+    from lane_helpers import commit
+
+    core = lane_dir(zoned, "core")
+    git(core, "switch", "-q", "--no-track", "-c", "core/task", "origin/main")
+    commit(zoned, "docs/changelog.d/api later.md", "- later\n")
+    git(core, "merge", "-q", "--no-commit", "--no-ff", "main")
+    assert_asks(hook(core, core / "docs/changelog.d/api later.md"), "append-only")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="paths are case-insensitive only on Windows")
+def test_an_existing_file_named_in_another_case_still_asks(zoned):
+    core = lane_dir(zoned, "core")
+    assert_asks(hook(core, core / "Docs/Changelog.d/API WORK.md"), "append-only")
+
+
+def test_existence_fails_open_when_git_cant_say(monkeypatch, tmp_path):
+    # Decision 41: the hook fails open, so an edit git can't place counts as an addition.
+    from kitlib import gitfiles, lane_boundary, lane_hooks
+
+    def fails(*args):
+        raise gitfiles.GitError("git ls-tree failed")
+
+    monkeypatch.setattr(lane_boundary, "task_start", lambda root, config: "HEAD")
+    monkeypatch.setattr(gitfiles, "existing", fails)
+    assert lane_hooks._existed(tmp_path, None, "docs/changelog.d/a.md") is False

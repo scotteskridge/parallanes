@@ -20,6 +20,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 10 | Unity pack | Pack format docs + Unity pack (ignores, MCP, per-lane editors, reviewer items, patterns, sibling-folder worktrees) | v0.2 |
 | 11 | Evals | About five `claude -p` scenarios on the trial project (decision 80) | v0.2 |
 | 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `parallanes` (decisions 81, 108, 109), v0.1.0, make public | Done |
+| 13 | [Shared path modes](13-shared-path-modes.md) | `[[shared]]` zones in `kit.toml`: open, append or ask, with an optional steward lane; the ownership hook and the boundary check honour them (backlog `shared-path-modes`) | Done |
 
 ## Build order for v0.1 (decision 77)
 
@@ -41,10 +42,10 @@ like any other.
 
 ## Build order for v0.2 (decision 110)
 
-1. `ownership-fix-hint`
-2. Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
-   `allow-variable-braced-powershell`, `protected-check-merge-commits`
-3. `shared-path-modes`
+1. ~~`ownership-fix-hint`~~ (done)
+2. ~~Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
+   `allow-variable-braced-powershell`, `protected-check-merge-commits`~~ (done)
+3. ~~`shared-path-modes`: [plan 13](13-shared-path-modes.md)~~ (done), then `shared-zones-keep-defaults` (next)
 4. Lane robustness: `lane-session-lock`, `hook-latency`, `kit-config-shell-guard-modes`,
    `decision-log-fragments`
 5. The plugin (`ship-kit-as-plugin`, needs a plan), then `/onboard`

@@ -10,11 +10,11 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import commands, globs, lane_owners
+from . import commands, globs, lane_owners, shared_zones
 
 CONFIG_REL = Path(".claude") / "kit.toml"
 
-_TOP_LEVEL = {"project", "checks", "lanes", "protected", "hooks"}
+_TOP_LEVEL = {"project", "checks", "lanes", "protected", "hooks", "shared"}
 _PROJECT_KEYS = {
     "name": str,
     "description": str,
@@ -58,7 +58,8 @@ DEFAULT_COMMANDS = [
 ]
 # Every .env variant except the committed example: a `!` deny rule carves it out (decision 82).
 DEFAULT_SECRETS = [".env", ".env.*", "!.env.example"]
-# Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane.
+# Every lane writes its own files here (ARCHITECTURE §8), so they belong to no single lane. Their
+# modes are shared_zones.DEFAULT_ZONES (decision 116).
 DEFAULT_SHARED_PATHS = [
     "docs/changelog.d/**",
     "docs/backlog/**",
@@ -125,7 +126,18 @@ class LaneSettings:
     merge_mode: str = "pr"
     worktree_root: str = ".claude/worktrees"
     ownership: str = "ask"
-    shared_paths: list = field(default_factory=lambda: list(DEFAULT_SHARED_PATHS))
+    shared_paths: list = field(default_factory=lambda: list(DEFAULT_SHARED_PATHS))  # every zone's paths
+    # The zones with their modes (decision 116). The loader always sets it; built by hand without
+    # it, the default paths get their default modes and any other list is open, as in v0.1.
+    shared: tuple | None = None
+
+    def __post_init__(self):
+        if self.shared is None:
+            if self.shared_paths == DEFAULT_SHARED_PATHS:
+                zones = shared_zones.DEFAULT_ZONES
+            else:
+                zones = (shared_zones.Zone(tuple(self.shared_paths), "open"),) if self.shared_paths else ()
+            object.__setattr__(self, "shared", zones)
 
 
 @dataclass(frozen=True)
@@ -190,7 +202,7 @@ def lanes_only(text: str, named: str) -> Config | None:
     _check_table(project, "[project]")
     lane_keys = {key: kind for key, kind in _PROJECT_KEYS.items() if key in LaneSettings.__dataclass_fields__}
     _check_keys({key: value for key, value in project.items() if key in lane_keys}, lane_keys, "[project]")
-    lane_settings = _lane_settings(project)
+    lane_settings = _lane_settings(project, raw)
     return Config(
         project=project,
         rules=[],
@@ -221,7 +233,7 @@ def parse(text: str, where: str = CONFIG_REL.as_posix()) -> Config:
         if rule.id in seen:
             raise ConfigError(f"{CONFIG_REL.as_posix()}: duplicate rule id {rule.id!r}")
         seen.add(rule.id)
-    lane_settings = _lane_settings(project)
+    lane_settings = _lane_settings(project, raw)
     return Config(
         project=project,
         rules=rules,
@@ -250,7 +262,7 @@ _LANE_KEYS = {"name": str, "scope": str, "owns": list, "resources": dict}
 _WINDOWS_RESERVED = {"con", "prn", "aux", "nul", *(f"com{n}" for n in range(1, 10)), *(f"lpt{n}" for n in range(1, 10))}
 
 
-def _lane_settings(project: dict) -> LaneSettings:
+def _lane_settings(project: dict, raw: dict) -> LaneSettings:
     where = "[project]"
     for key in ("integration_branch", "worktree_root"):
         if key in project and not project[key].strip():
@@ -264,13 +276,21 @@ def _lane_settings(project: dict) -> LaneSettings:
         _fail(
             f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists"
         )
+    try:
+        zones = shared_zones.parse(raw.get("shared"), project.get("shared_paths"))
+    except ValueError as error:
+        _fail(str(error))
     defaults = LaneSettings()
     return LaneSettings(
         integration_branch=project.get("integration_branch", defaults.integration_branch),
         merge_mode=project.get("merge_mode", defaults.merge_mode),
         worktree_root=project.get("worktree_root", defaults.worktree_root),
         ownership=project.get("ownership", defaults.ownership),
-        shared_paths=list(project.get("shared_paths", defaults.shared_paths)),
+        # The defaults keep v0.1's order: the same paths, now in two zones.
+        shared_paths=list(
+            DEFAULT_SHARED_PATHS if zones is shared_zones.DEFAULT_ZONES else shared_zones.paths_of(zones)
+        ),
+        shared=zones,
     )
 
 
@@ -308,7 +328,14 @@ def _lanes(entries, settings: LaneSettings) -> list:
         # Neither is more specific, so the file has no owner (decision 97): nobody has decided yet.
         first, second, pattern, other = twin
         same = repr(pattern) if pattern == other else f"{pattern!r} ({other!r} is the same pattern)"
-        _fail(f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in shared_paths")
+        _fail(
+            f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in a "
+            "[[shared]] table (keep the default tables too)"
+        )
+    try:
+        shared_zones.check_stewards(settings.shared, {lane.name for lane in lanes})
+    except ValueError as error:
+        _fail(str(error))
     return lanes
 
 
