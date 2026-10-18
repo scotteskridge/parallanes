@@ -163,7 +163,7 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
     values = {name: entry["example"] for name, entry in entries.items()}
     lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
     start = lines.index("# [[lanes]]")
-    keys = ("# merge_mode =", "# worktree_root =", "# ownership =", "# shared_paths =")
+    keys = ("# merge_mode =", "# worktree_root =", "# ownership =")
     uncommented = [
         line[2:] if (i >= start and line.startswith("# ")) or line.startswith(keys) else line
         for i, line in enumerate(lines)
@@ -181,3 +181,37 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
         defaults.ownership,
         defaults.shared_paths,
     )
+
+
+def _kit_toml_with_shared_examples(tmp_path, blocks):
+    """The rendered kit.toml with the first `blocks` commented [[shared]] tables (and the lanes) uncommented."""
+    from kitlib.config import load
+
+    entries = registry()
+    values = {name: entry["example"] for name, entry in entries.items()}
+    lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
+    starts = [i for i, line in enumerate(lines) if line == "# [[shared]]"]
+    lanes = lines.index("# [[lanes]]")
+    chosen = set()
+    for start in starts[:blocks]:
+        end = start
+        while lines[end].startswith("# "):
+            chosen.add(end)
+            end += 1
+    uncommented = [
+        line[2:] if i in chosen or (i >= lanes and line.startswith("# ")) else line for i, line in enumerate(lines)
+    ]
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "kit.toml").write_text("\n".join(uncommented) + "\n", encoding="utf-8")
+    return load(tmp_path).lane_settings
+
+
+def test_rendered_kit_toml_shared_defaults_are_the_real_defaults(tmp_path):
+    from kitlib.config import LaneSettings
+
+    assert _kit_toml_with_shared_examples(tmp_path, 2).shared == LaneSettings().shared
+
+
+def test_rendered_kit_toml_repo_wide_example_loads_with_its_steward(tmp_path):
+    shared = _kit_toml_with_shared_examples(tmp_path, 3).shared
+    assert (shared[-1].paths, shared[-1].mode, shared[-1].steward) == (("/.gitignore", "/package.json"), "ask", "core")

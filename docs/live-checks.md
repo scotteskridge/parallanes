@@ -57,6 +57,7 @@ and on `run.denied_paths()`, not on what Claude says it did.
 | --- | --- |
 | `test_ask_rules.py` | Ask rules are never auto-approved in `bypassPermissions` or `acceptEdits`; a control run without the rule edits the file (decision 92) |
 | `test_installed_kit.py` | A project set up by the installer has its hooks firing from `settings.json` (SessionStart, PreToolUse on Edit and Bash, PostToolUse), the protected hook blocking a `cp` into a protected folder, and the generated deny rule refusing a Write (plan 08) |
+| `test_shared_path_modes.py` | In a lane of an installed project, a new file in an append-only shared path is written while an edit to another lane's file there is asked about (and so not made in `claude -p`); the briefing names the mode; the installed pre-commit hook lists the hand-made edit and lets the commit land (plan 13, decision 116) |
 
 Earlier live checks (plans 03–07b) were run by hand and are recorded in their plans' notes. Later
 live checks use this helper. Plan 11's evals design their own harness, but follow the same rules

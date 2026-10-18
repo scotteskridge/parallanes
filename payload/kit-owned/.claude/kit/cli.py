@@ -245,7 +245,8 @@ def check_lanes(root: Path, config, args) -> list:
             raise UsageError(f"--lane {args.lane}: no such lane in .claude/kit.toml")
         return []
     judge, lane = found
-    if args.staged and gitfiles.has_ref(root, "MERGE_HEAD"):
+    merging = args.staged and gitfiles.has_ref(root, "MERGE_HEAD")
+    if merging:
         paths = gitfiles.touched_by_merge_commit(root)  # not what the merged branch brought in
     else:
         paths = touched_paths(root, args)
@@ -253,6 +254,10 @@ def check_lanes(root: Path, config, args) -> list:
     findings = allowed(findings, lane_boundary.allowed_by_human(), "cross-lane", lane_boundary.ALLOW_VARIABLE)
     if findings:
         print(lane_boundary.advice(judge, lane, findings), file=sys.stderr)
+    start = base if args.diff else lane_boundary.task_start(root, config)
+    notes = lane_boundary.listed(judge, lane, paths, lane_boundary.existing(root, start, paths, merging))
+    if notes:
+        print(lane_boundary.say_listed(notes), file=sys.stderr)  # not findings: they don't fail the check
     return findings
 
 

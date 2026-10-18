@@ -1,6 +1,6 @@
 # 13 — Shared path modes
 
-**Status:** Draft
+**Status:** In progress
 **Branch / PR:** `plan/13-shared-path-modes` · PR link once open
 **Builds on:** backlog `shared-path-modes` (step 3 of the v0.2 build order, decision 110); decisions
 41 (the hook fails open), 96 (the boundary check fails closed), 97 (who owns a file two lanes
@@ -119,4 +119,23 @@ In a merge commit, a file present in either parent is existing. A rename is a de
 - [ ] CHANGELOG, ROADMAP, backlog item (to `done/`) and decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **Existed, in a merge:** at the merge base, or in `MERGE_HEAD`, rather than "in either parent".
+  HEAD holds the lane's own earlier additions, which the general rule treats as free; `MERGE_HEAD`
+  holds what other lanes brought in.
+- **`LaneSettings.shared_paths` stays**, now the flat list of every zone's paths (all modes are
+  shared for the owner rule). The defaults keep v0.1's order, so `test_lane_defaults` passes
+  unchanged. `LaneSettings` built by hand from a list alone gets an `open` zone (the defaults get
+  their modes), so code and tests that build it the v0.1 way behave as before.
+- **A steward on an `open` zone is an error:** every lane already changes an open zone freely.
+- **`lanes status` unchanged:** it never listed shared paths; only the session briefing shows them,
+  now by mode with each steward.
+- **Template test:** the `# shared_paths =` line left the `kit.toml` template (the `[[shared]]`
+  examples replace it), so `test_rendered_kit_toml_lane_example_loads_when_uncommented` no longer
+  uncomments a line by that key; two new tests check the `[[shared]]` examples load and equal the
+  defaults.
+- **Hook cost:** only an edit to an existing-looking file in an `append` zone, by a lane that isn't
+  its steward, pays for git calls (merge base, then `ls-tree`). When git fails, the edit counts as
+  an addition: the hook fails open (decision 41).
+- **Live check** (`tests/live/test_shared_path_modes.py`) passed on its first run: in
+  `bypassPermissions`, the hook's `ask` stopped the edit to another lane's fragment, as decision
+  92's live check found for ask rules.

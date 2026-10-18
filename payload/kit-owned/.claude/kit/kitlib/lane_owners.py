@@ -1,6 +1,7 @@
 """Who owns a file that more than one lane's `owns` matches (decision 97).
 
-Shared paths come first: every lane may change them. Otherwise the lane whose matching pattern is
+Shared paths come first: no lane owns them, and their mode says what needs a person
+(`needs_person`, decision 116). Otherwise the lane whose matching pattern is
 most specific owns the file (`specificity`). Order in kit.toml never matters, so a split doesn't
 silently depend on line order. The same pattern in two lanes is an error when kit.toml loads
 (config); two different patterns can still tie on a real file, and then no lane owns it until one is
@@ -12,7 +13,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from . import gitfiles, globs
+from . import gitfiles, globs, shared_zones
 
 POLICY = ".claude/kit.toml"
 _WILDCARDS = re.compile(r"\*\*|\*|\?|\[[^\]]*\]")
@@ -70,7 +71,9 @@ class Owners:
     """The rule for one config, compiled once: `lanes status` judges every tracked file with it."""
 
     def __init__(self, config):
-        self.shared = globs.file_matcher(config.lane_settings.shared_paths)
+        # From the zones, which say how each path is shared; shared_paths is their flat list.
+        self.shared = globs.file_matcher(shared_zones.paths_of(config.lane_settings.shared))
+        self.zones = shared_zones.Matcher(config.lane_settings.shared)
         self.lanes = []
         for lane in config.lanes:
             ranked = sorted(lane.owns, key=specificity, reverse=True)
@@ -156,6 +159,30 @@ def judge(config, lane, path: str) -> tuple[str, Fix | None] | None:
         return why, Fix("make this change from that lane instead", widens=False)
     addition = _toml_string(literal(path))
     return "no lane owns it", Fix(f"add {addition} to the owns of lane {lane.name!r} in {POLICY}", widens=True)
+
+
+def needs_person(config, lane, path: str, existed) -> str | None:
+    """Why lane's change to a shared path needs a person's yes, or None when it doesn't.
+
+    Asked only where judge() lets the change through. existed() says whether path was there when the
+    task began; it's called only for an append zone's file and a lane that isn't its steward, since
+    the hook pays a git call for it. Never a refusal: the hook asks, the boundary check lists it.
+    """
+    if globs.matches_any_file(path, [POLICY]):
+        return None  # judge() refuses it whatever zone matches
+    found = Owners(config).zones.find(path)
+    if found is None or found.mode == "open" or found.steward == lane.name:
+        return None
+    if found.mode == "append":
+        if not existed():
+            return None
+        why = (
+            f"it already exists in an append-only shared path ({found.pattern}): adding files is free, "
+            "changing or deleting one needs a person"
+        )
+    else:
+        why = f"every change needs a person ({found.pattern})"
+    return why + (f"; lane {found.steward!r} is its steward and changes it without asking" if found.steward else "")
 
 
 def literal(path: str) -> str:

@@ -118,6 +118,17 @@ def touched_by_merge_commit(root: Path) -> list[str]:
     return [path for path in theirs if path in ours]
 
 
+def existing(root: Path, ref: str, paths) -> set[str]:
+    """Which of paths are files in ref's tree. Names are literal (no glob or pathspec magic), and
+    asked in batches, so a long change list can't overflow a Windows command line."""
+    wanted, found = list(dict.fromkeys(paths)), set()
+    for start in range(0, len(wanted), 200):
+        batch = wanted[start : start + 200]
+        output = _git(root, "--literal-pathspecs", "ls-tree", "-r", "-z", "--name-only", ref, "--", *batch)
+        found.update(name for name in _names(output) if name in batch)  # a folder's files aren't asked for
+    return found
+
+
 def merge_base(root: Path, base: str) -> str:
     return _git(root, "merge-base", base, "HEAD").decode("utf-8", "replace").strip()
 

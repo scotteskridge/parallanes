@@ -3,6 +3,28 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-18: Shared path modes (plan 13)
+
+116. **A shared path is open, append or ask, with an optional steward lane** (owner's OK on
+     Claude's recommendations, plan 13, backlog `shared-path-modes`).
+     - *Shape:* a `[[shared]]` table per zone with `paths`, `mode` and an optional `steward` (a
+       lane name). `shared_paths` in `[project]` stays and means mode `open`, so a v0.1 `kit.toml`
+       behaves as before. Writing either key replaces the defaults; a path in two zones takes the
+       stricter mode. *Why:* the steward sits next to the paths it looks after, and nobody has to
+       migrate.
+     - *Defaults:* `append` for `docs/changelog.d/**` and `docs/health/**`; `open` for
+       `docs/backlog/**`, `docs/plans/**` and `docs/design/decisions-log.md`. *Why:* `/wrap-up`
+       moves backlog items and edits plans at every task's end, and the decisions log is one file
+       every lane appends to (until `decision-log-fragments`). Repo-wide files depend on the
+       stack, so the template only shows an `ask` example.
+     - *"Needs a person":* the ownership hook asks at edit time; the boundary check (pre-commit,
+       `lanes finish`, CI) passes the change and lists it, rather than refusing it. The steward
+       lane is neither asked nor listed. *Why:* these paths were fully open, so listing is still
+       stricter, and refusing would bring back the trial's F8 (the owner said yes, the commit was
+       refused). Another lane's files, unowned files and `kit.toml` are refused as before.
+     - *An existing file* is one present where the task branch left the integration branch (the
+       merge base), so a fragment the lane added earlier in the task stays free to edit.
+
 ## 2026-10-18: Protected paths in a merge commit
 
 115. **During a merge, `check protected --staged` takes only the paths that differ from both

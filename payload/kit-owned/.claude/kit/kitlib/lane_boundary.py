@@ -9,9 +9,9 @@ base that can't be diffed is an error, never a clean result.
 
 import os
 
-from kitlib import gitfiles, globs, lane_owners
+from kitlib import gitfiles, globs, lane_owners, lanes
 from kitlib.config import ConfigError, lanes_only
-from kitlib.findings import Finding
+from kitlib.findings import Finding, format_findings
 
 CHECK = "lanes"
 # For a human landing a cross-lane change on purpose; an agent setting it is blocked (kitlib.commands).
@@ -71,6 +71,55 @@ def check(config, lane, paths) -> list[Finding]:
         message = f"outside lane {lane.name!r}: {why}" + (f"; {fix.text}" if fix else "")
         findings.append(Finding(path=path, line=0, check=CHECK, message=message))
     return sorted(findings)
+
+
+def listed(config, lane, paths, existing: frozenset) -> list[Finding]:
+    """The shared-path changes that need a person's yes (decision 116): listed, never refused.
+
+    The ownership hook asked for each at edit time; listing them where the work lands shows a
+    reviewer what was approved, and shows one the hook missed (it fails open). existing: the paths
+    that were files where the task began (existing()).
+    """
+    notes = []
+    for path in paths:
+        path = globs.normalize(path)
+        if lane_owners.judge(config, lane, path) is not None:
+            continue  # check() refuses it
+        why = lane_owners.needs_person(config, lane, path, lambda path=path: path in existing)
+        if why:
+            notes.append(Finding(path=path, line=0, check=CHECK, message=f"shared, needs a person: {why}"))
+    return sorted(notes)
+
+
+def existing(root, base: str | None, paths, merging: bool = False) -> frozenset:
+    """Which paths were files where the task began: at base (where the task branch left the
+    integration branch), and in a merge, also in what the merge brings in (another lane's files)."""
+    found = gitfiles.existing(root, base, paths) if base else set()
+    if merging:
+        found |= gitfiles.existing(root, "MERGE_HEAD", paths)
+    return frozenset(found)
+
+
+def task_start(root, config) -> str | None:
+    """Where this task branch left the integration branch: what a pre-commit or named-file check
+    measures "existed" from, as `lanes finish` and CI do (decision 116). HEAD when there's no
+    integration branch to measure from or git can't say (more is listed, never less); None before a
+    new project's first commit."""
+    if not gitfiles.has_ref(root, "HEAD"):
+        return None
+    tip = lanes.integration_tip(root, config)
+    try:
+        return gitfiles.merge_base(root, tip) if tip else "HEAD"
+    except gitfiles.GitError:
+        return "HEAD"
+
+
+def say_listed(notes) -> str:
+    count = f"{len(notes)} shared-path change{'' if len(notes) == 1 else 's'}"
+    return (
+        f"parallanes: {count} that need a person's yes, allowed and listed here for review "
+        f"(the ownership hook asks for them at edit time):\n{format_findings(notes)}"
+    )
 
 
 def advice(config, lane, findings) -> str:

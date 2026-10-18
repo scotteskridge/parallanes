@@ -13,7 +13,8 @@ import pytest
 from helpers import git, run_cli, write
 from kitlib import commands, lane_boundary, lane_owners
 from kitlib.config import Lane, LaneSettings
-from lane_helpers import commit, lanes_repo
+from kitlib.shared_zones import Zone
+from lane_helpers import LANES_TOML, commit, lanes_repo
 
 CORE = Lane(name="core", owns=["src/core/**", "tests/core/**"], scope="", resources={})
 API = Lane(name="api", owns=["src/api/**"], scope="", resources={})
@@ -294,7 +295,6 @@ def test_a_merge_commit_is_judged_on_its_resolution_not_on_what_main_brought(tmp
 def test_a_commit_that_repairs_an_old_kit_toml_can_land(tmp_path):
     # Review round 2: the base's kit.toml is read only for its lanes, not checked like the current one,
     # so a rule the current kit rejects at HEAD doesn't block the commit that fixes it.
-    from lane_helpers import LANES_TOML
 
     broken = LANES_TOML + '\n[protected]\nsecrets = [".env", "!config/.env.example"]\n'
     from helpers import sync_settings
@@ -406,3 +406,113 @@ def test_staged_changes_are_checked_for_the_pre_commit_hook(tmp_path):
     git(repo, "add", "src/api/c.py")
     result = run_cli(repo, "check", "all", "--staged")
     assert result.returncode == 1 and "src/api/c.py:" in result.stdout
+
+
+# ---- shared path modes (decision 116) ----------------------------------------------------------------
+
+ZONES = (
+    Zone(("docs/changelog.d/**",), "append"),
+    Zone(("/.gitignore",), "ask"),
+    Zone(("/package.json",), "ask", "api"),
+)
+
+
+def listed(lane, paths, existing=()):
+    cfg = SimpleNamespace(lanes=[CORE, API], lane_settings=LaneSettings(shared_paths=[], shared=ZONES))
+    assert lane_boundary.check(cfg, lane, paths) == []  # a shared change is never refused
+    return {note.path: note.message for note in lane_boundary.listed(cfg, lane, paths, frozenset(existing))}
+
+
+def test_a_new_file_in_an_append_zone_is_neither_refused_nor_listed():
+    assert listed(CORE, ["docs/changelog.d/new.md"]) == {}
+
+
+def test_a_change_that_needs_a_person_is_listed_not_refused():
+    notes = listed(CORE, ["docs/changelog.d/old.md", ".gitignore", "package.json"], ["docs/changelog.d/old.md"])
+    assert list(notes) == [".gitignore", "docs/changelog.d/old.md", "package.json"]
+    assert "append-only" in notes["docs/changelog.d/old.md"]
+    assert "steward" in notes["package.json"]
+
+
+def test_the_steward_is_not_listed():
+    assert listed(API, ["package.json"], ["package.json"]) == {}
+
+
+SHARED_TOML = LANES_TOML + "".join(
+    f'\n[[shared]]\npaths = ["{zone.paths[0]}"]\nmode = "{zone.mode}"\n'
+    + (f'steward = "{zone.steward}"\n' if zone.steward else "")
+    for zone in ZONES
+)
+
+
+def shared_repo(tmp_path):
+    repo = lanes_repo(tmp_path, config=SHARED_TOML)
+    commit(repo, "docs/changelog.d/api fragment.md", "- api\n")
+    commit(repo, "package.json", "{}\n")
+    git(repo, "push", "-q", "origin", "main")
+    on_branch(repo)
+    return repo
+
+
+def assert_listed(result, *paths):
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout == ""
+    for path in paths:
+        assert f"{path}:" in result.stderr, result.stderr
+
+
+@pytest.mark.slow
+def test_editing_another_lanes_fragment_is_listed_and_passes(tmp_path):
+    repo = shared_repo(tmp_path)
+    commit(repo, "docs/changelog.d/core.md", "- core\n")
+    commit(repo, "docs/changelog.d/api fragment.md", "- rewritten\n")
+    result = check(repo, "--diff", "origin/main")
+    assert_listed(result, "docs/changelog.d/api fragment.md")
+    assert "core.md" not in result.stderr
+
+
+@pytest.mark.slow
+def test_renaming_or_deleting_an_existing_fragment_is_listed(tmp_path):
+    repo = shared_repo(tmp_path)
+    git(repo, "mv", "docs/changelog.d/api fragment.md", "docs/changelog.d/moved.md")
+    git(repo, "commit", "-q", "-m", "move")
+    result = check(repo, "--diff", "origin/main")
+    assert_listed(result, "docs/changelog.d/api fragment.md")
+    assert "moved.md" not in result.stderr
+
+
+@pytest.mark.slow
+def test_a_fragment_the_task_added_earlier_stays_free_to_edit_at_pre_commit(tmp_path):
+    repo = shared_repo(tmp_path)
+    commit(repo, "docs/changelog.d/core.md", "- core\n")
+    write(repo, "docs/changelog.d/core.md", "- core, better\n")
+    git(repo, "add", "-A")
+    result = check(repo, "--staged")
+    assert (result.returncode, result.stdout, result.stderr) == (0, "", ""), result
+
+
+@pytest.mark.slow
+def test_an_ask_zone_is_listed_at_pre_commit_and_the_steward_is_not(tmp_path):
+    repo = shared_repo(tmp_path)
+    write(repo, ".gitignore", "node_modules/\n")
+    write(repo, "package.json", '{"name": "x"}\n')
+    git(repo, "add", "-A")
+    assert_listed(check(repo, "--staged"), ".gitignore", "package.json")
+    git(repo, "switch", "-q", "-c", "api/task")
+    assert "package.json:" not in check(repo, "--staged").stderr
+
+
+@pytest.mark.slow
+def test_a_fragment_main_brought_in_counts_as_existing_in_a_merge(tmp_path):
+    repo = shared_repo(tmp_path)
+    commit(repo, "src/core/a.py", "core = 1\n")
+    git(repo, "switch", "-q", "main")
+    commit(repo, "src/core/a.py", "main = 1\n")
+    commit(repo, "docs/changelog.d/from main.md", "- main\n")
+    git(repo, "switch", "-q", "core/task")
+    merge = subprocess.run(["git", "merge", "-q", "main"], cwd=repo, capture_output=True, text=True)
+    assert merge.returncode != 0  # the conflict in src/core/a.py
+    write(repo, "src/core/a.py", "both = 1\n")
+    write(repo, "docs/changelog.d/from main.md", "- edited in the resolution\n")
+    git(repo, "add", "-A")
+    assert_listed(check(repo, "--staged"), "docs/changelog.d/from main.md")

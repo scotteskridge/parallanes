@@ -456,3 +456,20 @@ def test_the_note_warns_that_untracked_files_are_tested_but_do_not_land(local_la
     result = finish(lane, env=no_gh_env(tmp_path))
     assert "src/core/helper.py" in result.stdout
     assert "won't land" in result.stdout and "git add" in result.stdout
+
+
+def test_a_shared_change_that_needs_a_person_is_listed_and_still_lands(tmp_path):
+    # Decision 116: the owner's yes at edit time is the gate; finish lists it instead of refusing.
+    repo, lane = cycle_repo(tmp_path, mode="local")
+    git(lane, "switch", "-q", "-c", "seed", "main")
+    commit(lane, "docs/changelog.d/api work.md", "- api\n", "Another lane's fragment")
+    git(lane, "branch", "-q", "-f", "main", "seed")  # the main checkout is detached in local mode
+    git(lane, "switch", "-q", "--detach", "seed")
+    git(lane, "branch", "-q", "-D", "seed")
+    on_task(lane, base="main")
+    commit(lane, "docs/changelog.d/api work.md", "- rewritten\n", "Rewrite it")
+    result = finish(lane, env=no_gh_env(tmp_path))
+    assert result.returncode == 0, result.stderr
+    said = result.stdout + result.stderr
+    assert "docs/changelog.d/api work.md" in said and "append-only" in said
+    assert rev(repo, "main") == rev(lane)

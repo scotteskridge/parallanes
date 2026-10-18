@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import globs, lane_boundary, lane_deps, lane_owners, lanes
+from . import gitfiles, globs, lane_boundary, lane_deps, lane_owners, lanes, shared_zones
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -39,8 +39,9 @@ def router_text(cwd: Path) -> str:
     if lane.scope:
         lines.append(f"Scope: {_one_line(lane.scope)}")
     lines.append(f"Owns: {', '.join(lane.owns)}")
-    if settings.shared_paths:
-        lines.append(f"Shared with every lane: {', '.join(settings.shared_paths)}")
+    shared = shared_line(settings.shared, lane.name)
+    if shared:
+        lines.append(shared)
     if lane.resources:
         lines.append("Resources: " + ", ".join(f"{key} = {value}" for key, value in lane.resources.items()))
     branch = lanes.branch_of(root)
@@ -56,6 +57,23 @@ def router_text(cwd: Path) -> str:
         closing += " A file another lane's more specific pattern matches is that lane's."
     lines.append(f"{closing} More: {ROUTER_COMMAND}.")
     return "\n".join(lines)
+
+
+_SAYS = {"open": "open", "append": "adding files is free, changing one asks", "ask": "every change asks"}
+
+
+def shared_line(zones, lane_name: str) -> str:
+    """One briefing line for every zone, by mode (decision 116), with each steward named."""
+    parts = []
+    for mode in shared_zones.MODES:
+        named = []
+        for zone in zones:
+            if zone.mode == mode:
+                whose = "this lane" if zone.steward == lane_name else f"lane {zone.steward}"
+                named += [f"{path} (steward: {whose})" if zone.steward else path for path in zone.paths]
+        if named:
+            parts.append(f"{_SAYS[mode]}: {', '.join(dict.fromkeys(named))}")
+    return f"Shared: {'; '.join(parts)}" if parts else ""
 
 
 def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]:
@@ -170,7 +188,13 @@ def ownership_reason(payload: dict) -> str | None:
         return _elsewhere(root, main, cwd, target, config, lane)
     judged = lane_owners.judge(config, lane, rel)  # the boundary check's rule and fix too (decision 97)
     if judged is None:
-        return None
+        shared = lane_owners.needs_person(config, lane, rel, lambda: _existed(root, config, rel))
+        if shared is None:
+            return None
+        return (
+            f"{rel} is shared by every lane, but {shared}. Allow if lane {lane.name!r} should change it: "
+            "the commit then lists it for review rather than refusing it."
+        )
     why, fix = judged
     reason = (
         f"{rel} isn't lane {lane.name!r}'s to change: {why}. Lane {lane.name!r} owns {', '.join(lane.owns)}"
@@ -192,6 +216,16 @@ def ownership_reason(payload: dict) -> str | None:
         f"{reason}{said} {lane_owners.HOW_POLICY_LANDS} Approving this edit isn't enough: the commit is "
         f"refused from this lane until that change is merged and the lane is synced ({override})."
     )
+
+
+def _existed(root: Path, config, rel: str) -> bool:
+    """rel was a file where this task began (decision 116). Fails open, as the hook does (decision 41):
+    when git can't say, the edit counts as an addition and isn't asked about."""
+    try:
+        start = lane_boundary.task_start(root, config)
+        return bool(start) and bool(gitfiles.existing(root, start, [rel]))
+    except gitfiles.GitError:
+        return False
 
 
 def _elsewhere(root: Path, main: Path, cwd: Path, target: str, config, lane) -> str | None:

@@ -247,3 +247,28 @@ def test_crash_inside_the_router_tells_the_agent(monkeypatch, capsys, repo):
     assert hooks.run_lane_router() == 0
     out = capsys.readouterr().out
     assert "Lane check failed (RuntimeError: injected)" in out
+
+
+def test_the_briefing_says_how_each_shared_path_is_shared(tmp_path):
+    # Decision 116: an agent learns before editing which shared files only take new ones.
+    config = (
+        LANES_TOML
+        + '\n[[shared]]\npaths = ["docs/**"]\nmode = "append"\n'
+        + '\n[[shared]]\npaths = ["/.gitignore"]\nmode = "ask"\nsteward = "api"\n'
+    )
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create").returncode == 0
+    core = brief(lane_dir(repo, "core"))
+    expected = (
+        "Shared: adding files is free, changing one asks: docs/**; every change asks: /.gitignore (steward: lane api)"
+    )
+    assert expected in core
+    assert "/.gitignore (steward: this lane)" in brief(lane_dir(repo, "api"))
+
+
+def test_the_default_briefing_names_open_and_append_paths(repo):
+    text = brief(lane_dir(repo, "core"))
+    assert (
+        "Shared: open: docs/backlog/**, docs/plans/**, docs/design/decisions-log.md; "
+        "adding files is free, changing one asks: docs/changelog.d/**, docs/health/**"
+    ) in text

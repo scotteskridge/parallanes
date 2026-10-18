@@ -90,8 +90,8 @@ These are already on the backlog (`docs/backlog/`) or written down as limits:
   (`self-contained-decision-comments`).
 - Five files are past the project's ~300-line guideline: `config.py`, `cli.py`, `lane_cycle.py`,
   `lane_setup.py` and `commands.py`.
-- Changing a file no lane owns, such as `.gitignore` or `package.json`, is still awkward from a
-  lane (`shared-path-modes`).
+- A shared-path change that needs a person (plan 13) is only listed when the work lands, not
+  refused: the ownership hook's prompt is the gate, and it fails open and covers file tools only.
 - When the kit's code can't load, the two guard hooks block every tool call, including the edit
   that would fix it, and the message blames the Python version even when a file is broken
   (`kit-load-error-message`).

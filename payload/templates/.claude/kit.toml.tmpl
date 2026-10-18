@@ -9,8 +9,6 @@ integration_branch = "{{integration_branch}}"
 # merge_mode = "pr"                 # "pr": finished tasks become pull requests; "local": fast-forward
 # worktree_root = ".claude/worktrees"  # where lane folders go; "../{project}-lanes" puts them beside
 # ownership = "ask"                 # an edit outside the lane's paths asks you first; "off": never
-# Paths open to every lane:
-# shared_paths = ["docs/changelog.d/**", "docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md", "docs/health/**"]
 
 # Forbidden patterns: checked after every agent edit, before each commit and in CI.
 # Run them by hand with: {{kit_command}} check rules
@@ -57,6 +55,23 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 # [hooks]
 # rules_check = true                # check the [[checks.rules]] patterns after every agent edit
 # lane_router = true                # tell the agent its lane at session start
+
+# Shared paths: no one lane owns them, and every lane may add files there. Defaults shown; writing
+# any [[shared]] table (or a shared_paths list in [project], which means mode "open") replaces them.
+# A path in two tables takes the stricter mode. Guide: docs/ai/parallel-lanes.md.
+#
+# [[shared]]
+# paths = ["docs/changelog.d/**", "docs/health/**"]
+# mode = "append"                   # adding a file is free; changing or deleting one asks you
+#
+# [[shared]]
+# paths = ["docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
+# mode = "open"                     # any lane changes them
+#
+# [[shared]]
+# paths = ["/.gitignore", "/package.json"]  # repo-wide files, for example
+# mode = "ask"                      # every change asks you
+# steward = "core"                  # optional: the one lane that changes them without asking
 
 # Lanes: several agent sessions at once, each in its own git worktree with its own paths.
 # Guide: docs/ai/parallel-lanes.md. Create the folders with `{{kit_command}} lanes create`, check them
