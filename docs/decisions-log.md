@@ -3,6 +3,17 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-18: Protected paths in a merge commit
+
+115. **During a merge, `check protected --staged` takes only the paths that differ from both
+     parents** (owner's OK on Claude's recommendation, backlog `protected-check-merge-commits`),
+     through `gitfiles.touched_by_merge_commit`, as the lane-boundary check does (decision 96).
+     *Why:* the index against HEAD counts what the integration branch brought in as this commit's
+     change, so a protected file changed on `main` blocked the `git merge --continue` that
+     `lanes sync` asks for. The resolution, and anything added to the merge commit, is still
+     judged, secrets included under the CI label. The rules check has the same shape and is left
+     as it is, with backlog `rules-check-merge-commits` for the owner's call.
+
 ## 2026-10-18: PowerShell's braced variables
 
 114. **`${env:X}` is rewritten to `$env:X` before the allow-variable check splits a command**

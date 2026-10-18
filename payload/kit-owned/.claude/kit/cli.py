@@ -196,7 +196,11 @@ def touched_paths(root: Path, args) -> list[str] | None:
 
 
 def check_protected(root: Path, config, args) -> list:
-    paths = touched_paths(root, args)
+    if args.staged and gitfiles.has_ref(root, "MERGE_HEAD"):
+        # As in check_lanes: protected files main changed aren't this merge commit's change.
+        paths = gitfiles.touched_by_merge_commit(root)
+    else:
+        paths = touched_paths(root, args)
     if not paths:
         return []
     # What the change deletes, from git: the disk can differ from the index (review round 3).

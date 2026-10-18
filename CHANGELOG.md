@@ -38,6 +38,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   operator such as `$env:X += 1` or `??= 1` (backlog `allow-variable-braced-powershell`, decision
   114). Quoting either in a commit message or reading it in a condition still passes. Rarer
   PowerShell ways to set it are listed under "Known misses" in `protected-paths.md`.
+- Finishing a merge (`git merge --continue`, which `lanes sync` asks for after a conflict) no
+  longer stops at the pre-commit hook because the integration branch changed a protected file:
+  `check protected --staged` judges a merge commit on its resolution only, as the lane-boundary
+  check does (backlog `protected-check-merge-commits`, decision 115).
 
 ## [0.1.0] - 2026-10-07
 

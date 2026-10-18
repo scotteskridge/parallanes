@@ -193,6 +193,52 @@ def test_precommit_blocks_a_protected_change(tmp_path):
     assert "vendor/lib.py" in result.stdout + result.stderr
 
 
+def conflicted_merge(tmp_path):
+    """A branch mid-merge of main, which changed a protected file and conflicts on src/app.py.
+
+    `lanes sync` on a pushed branch leaves this for `git merge --continue`, which runs the pre-commit hook.
+    """
+    repo = committed_repo(tmp_path)
+    git(repo, "switch", "-q", "-c", "feature")
+    write(repo, "src/app.py", "x = 'branch'\n")
+    git(repo, "commit", "-q", "-am", "branch")
+    git(repo, "switch", "-q", "main")
+    write(repo, "src/app.py", "x = 'main'\n")
+    write(repo, "vendor/lib.py", "x = 'updated on main'\n")
+    git(repo, "commit", "-q", "-am", "main")
+    git(repo, "switch", "-q", "feature")
+    merge = subprocess.run(["git", "merge", "-q", "main"], cwd=repo, capture_output=True, text=True)
+    assert merge.returncode != 0  # the conflict in src/app.py
+    write(repo, "src/app.py", "x = 'both'\n")
+    git(repo, "add", "src/app.py")
+    return repo
+
+
+def test_a_merge_commit_is_judged_on_its_resolution_not_on_what_main_brought(tmp_path):
+    repo = conflicted_merge(tmp_path)
+    result = check(repo, "protected", "--staged")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a_protected_file_the_resolution_changes_is_still_a_finding(tmp_path):
+    repo = conflicted_merge(tmp_path)
+    write(repo, "vendor/lib.py", "x = 'edited during the merge'\n")
+    git(repo, "add", "vendor/lib.py")
+    result = check(repo, "protected", "--staged")
+    assert result.returncode == 1
+    assert "vendor/lib.py: [protected]" in result.stdout
+
+
+def test_a_secret_added_to_a_merge_commit_is_a_finding_even_with_the_label(tmp_path):
+    repo = conflicted_merge(tmp_path)
+    write(repo, "config/.env", "TOKEN=x\n")
+    git(repo, "add", "config/.env")
+    assert "config/.env" in check(repo, "protected", "--staged").stdout
+    labelled = run_cli(repo, "check", "protected", "--staged", env={**os.environ, "KIT_ALLOW_PROTECTED": "paths"})
+    assert labelled.returncode == 1
+    assert "config/.env" in labelled.stdout
+
+
 @pytest.mark.parametrize("path", ["src", "src/", ".", "", "src/vendor"])
 def test_removing_a_folder_above_an_anchored_protected_path_is_reported(path):
     # `rm -rf src` deletes src/vendor/ too.
