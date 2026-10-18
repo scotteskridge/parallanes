@@ -3,6 +3,20 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-18: PowerShell's braced variables
+
+114. **`${env:X}` is rewritten to `$env:X` before the allow-variable check splits a command**
+     (owner's OK on Claude's recommendation, backlog `allow-variable-braced-powershell`). The two
+     mean the same in PowerShell, and the existing word check then judges it. *Why:* matching the
+     raw text would block quoting it in prose (decision 34's rule), and teaching the splitter that
+     `${…}` is one word would change every protected-command check, a wider change than this
+     needs. The rewrite is used only by this check, and keeps backticks inside the braces (in the
+     drive part too: `` ${E`NV:X} `` sets it, checked live) for the tokenizer to read as escapes,
+     as PowerShell does. Its tests also found `$env:X += 1` (with a space) slipping through; the same
+     check now takes every PowerShell assignment operator (`+=`, `-=`, `*=`, `/=`, `%=`, `??=`).
+     Rarer ways that predate this (`++`, chained assignment, a cast, `Set-Content env:`) are known
+     misses, with backlog `allow-variable-powershell-assignments` (review round 1).
+
 ## 2026-10-18: The installer's dry run
 
 113. **`--dry-run` never asks; a first install prints the answers it used** (owner's OK on

@@ -290,8 +290,55 @@ def test_quoting_an_assignment_is_not_setting_it(text, shell):
         ("setx KIT_ALLOW_PROTECTED 1", "powershell"),
         ("$env:KIT_ALLOW_PROTECTED='1'", "powershell"),
         ("$Env:kit_allow_protected = 1", "powershell"),
+        ("$env:KIT_ALLOW_PROTECTED += 1", "powershell"),  # found with the braced form's tests
+        # Review round 1: every PowerShell assignment operator, spaced (`??=` sets it when unset).
+        ("$env:KIT_ALLOW_PROTECTED ??= 1", "powershell"),
+        ("$env:KIT_ALLOW_PROTECTED -= -1", "powershell"),
+        ("$env:KIT_ALLOW_PROTECTED *= 1", "powershell"),
         ("echo ${KIT_ALLOW_PROTECTED:=1}", "bash"),
     ],
 )
 def test_setting_it_in_command_position_is_still_caught(text, shell):
     assert commands.disables_checks(text, shell)
+
+
+# PowerShell's braced variable form: the splitter reads `{`/`}` as separators, so it got through
+# (found by the lane-boundary check's review, decision 96).
+@pytest.mark.parametrize(
+    "text",
+    [
+        "${env:KIT_ALLOW_PROTECTED} = 1",
+        "${env:KIT_ALLOW_PROTECTED}=1",
+        "${Env:kit_allow_cross_lane}='1'",
+        "${ENV:KIT_ALLOW_CROSS_LANE} = '1'; git commit -m x",
+        "${env:KIT_ALLOW_PROTECTED} += 1",
+        "cd sub; ${env:KIT_ALLOW_PROTECTED} = 1",
+        # Review round 1: PowerShell reads a backtick inside the braces as an escape (checked live).
+        "${env:KIT_ALLOW_PROTEC`TED}=1",
+        # Review round 2: in the drive part too (checked live; `n would be a newline, so not `nv).
+        "${E`NV:KIT_ALLOW_PROTECTED}=1",
+        "${env`:KIT_ALLOW_CROSS_LANE}=1",
+        "${env:KIT_ALLOW_PROTECTED} ??= 1",
+    ],
+)
+def test_the_braced_powershell_form_is_caught(text):
+    assert commands.disables_checks(text, "powershell")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'git commit -m "set ${env:KIT_ALLOW_PROTECTED} = 1 yourself"',
+        "Write-Host 'run with ${env:KIT_ALLOW_CROSS_LANE}=1'",
+        "echo ${env:KIT_ALLOW_PROTECTED}",
+        "if (${env:KIT_ALLOW_PROTECTED} -eq 1) { Write-Host set }",
+        "${env:OTHER_VARIABLE} = 1",
+        "${env:KIT_ALLOW_PROTECTED} -eq '1'",  # a comparison, not an assignment operator
+        "${env:KIT_ALLOW_PROTEC``TED}=1",  # a doubled backtick is a literal one: another variable
+        "${E``NV:KIT_ALLOW_PROTECTED}=1",  # likewise in the drive part: not env:
+        "${variable:KIT_ALLOW_PROTECTED}=1",  # a PowerShell variable of that name, not the environment's
+        "${function:KIT_ALLOW_PROTECTED}=1",
+    ],
+)
+def test_reading_or_quoting_the_braced_form_is_not_setting_it(text):
+    assert commands.disables_checks(text, "powershell") is None
