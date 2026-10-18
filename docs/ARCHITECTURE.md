@@ -346,10 +346,12 @@ install.ps1 / install.sh
           1. detect defaults: folder name, stack and test command from marker files, the
              integration branch from git; an earlier install's answers (in the manifest) win
           2. ask five values and whether to turn on the pre-commit check (decision 101); a
-             re-run reuses the saved answers (change a value in the files)
+             re-run reuses the saved answers (change a value in the files); --dry-run never asks
+             and takes what --yes would (decision 113)
           3. plan every write; a broken managed block or manifest, a folder or a symbolic link in
              the way stops here with nothing written
-          4. print the plan; --dry-run stops here
+          4. print the answers used (a re-run: only a pre-commit answer decided on it), then the
+             plan; --dry-run stops here
           5. write: kit-owned files (replaced only if unedited, else `.kit-new`), templates
              (an owner's existing file gets a `.kit-new`, offered once; one the kit rendered before
              is left alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude (only the

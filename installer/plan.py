@@ -1,8 +1,8 @@
 """Which files the installer writes, and what happens to each one that already exists (decision 100).
 
 Everything is decided here, before anything is written, so `--dry-run` shows exactly what a real
-run does and a problem (a broken managed block, a folder or link in the way) stops the install
-with nothing half-written.
+run with the same answers does (it takes what `--yes` would, decision 113) and a problem (a
+broken managed block, a folder or link in the way) stops the install with nothing half-written.
 
 - Kit-owned (`payload/kit-owned/`): created; replaced only if it matches the hash the manifest
   recorded when the kit wrote it (nobody edited it). Otherwise the owner's file stays and the kit's

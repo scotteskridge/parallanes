@@ -24,6 +24,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   when the main checkout holds the integration branch, as `lanes status` already did, and
   `lanes status` (and the lanes part of `parallanes next`) leaves out the PR field (it said
   `PR: unknown`) and no longer calls `gh`.
+- The installer's `--dry-run` no longer asks the setup questions (backlog
+  `installer-dry-run-prompts`, decision 113, from the two-lane trial's F1): it takes what `--yes`
+  would, so a scripted dry run works. A first install, dry or not, now prints the answers it used
+  (the five setup answers and the pre-commit check) above the file plan; a re-run shows only a
+  pre-commit answer decided on that run.
 
 ### Fixed
 - A glob class holding `[`, `&&`, `~~` or `||` compiled to a regex Python warns it will read as a

@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 from . import plan as file_plan
-from .values import KIT_COMMAND
+from .values import KIT_COMMAND, QUESTIONS
 
 
 def repo_root(target: Path) -> Path | None:
@@ -21,6 +21,24 @@ def repo_root(target: Path) -> Path | None:
         return None
     root = Path(result.stdout.strip())
     return target if target.exists() and root.resolve() == target.resolve() else root
+
+
+def answers(used: dict | None, precommit: str | None, detected: bool) -> None:
+    """The answers the files are made from: what a person most wants to check (trial F1).
+
+    used None: a re-run, whose saved answers aren't shown (decision 113).
+    """
+    print("\nAnswers:")
+    for key, question in QUESTIONS if used else ():
+        print(f"  {question}: {used[key] or '(none)'}")
+    if precommit is not None:  # asked only at a repository's root
+        print(f"  Pre-commit check: {precommit}")
+    if detected:
+        print(
+            "  (detected defaults: a real run without --yes asks for each)"
+            if used
+            else "  (assumed: a real run without --yes asks this)"
+        )
 
 
 def plan(files: file_plan.FilePlan, settings: dict, extra: dict, precommit: str) -> None:
