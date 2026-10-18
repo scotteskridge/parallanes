@@ -1,7 +1,7 @@
 # 13 — Shared path modes
 
-**Status:** In progress
-**Branch / PR:** `plan/13-shared-path-modes` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/13-shared-path-modes` · https://github.com/scotteskridge/parallanes/pull/51
 **Builds on:** backlog `shared-path-modes` (step 3 of the v0.2 build order, decision 110); decisions
 41 (the hook fails open), 96 (the boundary check fails closed), 97 (who owns a file two lanes
 claim), 111 (repo-wide files were left to this item); ARCHITECTURE §6 "Ownership", §8;
@@ -113,10 +113,10 @@ In a merge commit, a file present in either parent is existing. A rename is a de
 | `tests/live/` | The live check in step 5 |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Live check in `tests/live/` run with `--live`
-- [ ] CHANGELOG, ROADMAP, backlog item (to `done/`) and decisions log updated
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Live check in `tests/live/` run with `--live`
+- [x] CHANGELOG, ROADMAP, backlog item (to `done/`) and decisions log updated
 
 ## Notes after implementation
 - **Existed, in a merge:** at the merge base, or in `MERGE_HEAD`, rather than "in either parent".
