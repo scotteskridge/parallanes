@@ -473,3 +473,38 @@ def test_a_shared_change_that_needs_a_person_is_listed_and_still_lands(tmp_path)
     said = result.stdout + result.stderr
     assert "docs/changelog.d/api work.md" in said and "append-only" in said
     assert rev(repo, "main") == rev(lane)
+
+
+def test_shared_changes_are_listed_on_the_override_path_too(tmp_path):
+    # Review round 1: finish listed them only when the boundary check had no findings.
+    repo, lane = cycle_repo(tmp_path, mode="local")
+    git(lane, "switch", "-q", "-c", "seed", "main")
+    commit(lane, "docs/changelog.d/api work.md", "- api\n", "Another lane's fragment")
+    git(lane, "branch", "-q", "-f", "main", "seed")
+    git(lane, "switch", "-q", "--detach", "seed")
+    git(lane, "branch", "-q", "-D", "seed")
+    on_task(lane, base="main")
+    commit(lane, "docs/changelog.d/api work.md", "- rewritten\n", "Rewrite it")
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Reach into api")
+    result = finish(lane, env={**no_gh_env(tmp_path), "KIT_ALLOW_CROSS_LANE": "1"})
+    assert result.returncode == 0, result.stderr
+    said = result.stdout + result.stderr
+    assert "KIT_ALLOW_CROSS_LANE" in said and "docs/changelog.d/api work.md" in said
+
+
+def test_a_git_failure_looking_up_shared_files_refuses_finish(tmp_path, monkeypatch):
+    from kitlib import gitfiles, lane_cycle
+    from kitlib.config import load
+    from kitlib.lanes import LaneError
+
+    _, lane = cycle_repo(tmp_path, mode="local")
+    on_task(lane, base="main")
+    commit(lane, "docs/changelog.d/core.md", "- core\n", "A fragment")
+
+    def fails(*args):
+        raise gitfiles.GitError("git ls-tree failed")
+
+    monkeypatch.setattr(gitfiles, "existing", fails)
+    config = load(lane)
+    with pytest.raises(LaneError, match="can't tell which shared files existed before this task"):
+        lane_cycle._within_lane(lane, config, config.lanes[0], "main")

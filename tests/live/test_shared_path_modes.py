@@ -10,7 +10,9 @@ Then a person makes that edit by hand and commits it on the task branch: the ins
 hook must list it and let the commit through (the owner's yes is the gate, not a refusal later).
 """
 
+import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -39,6 +41,21 @@ owns = ["src/api/**"]
 """
 
 
+def _remove(path: Path) -> None:
+    """Remove path; git marks its object files read-only, which stops rmtree on Windows."""
+
+    def writable(function, name, *_):
+        os.chmod(name, stat.S_IWRITE)
+        function(name)
+
+    if not path.is_dir():
+        path.unlink()
+    elif sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable)
+    else:
+        shutil.rmtree(path, onerror=writable)
+
+
 def git(folder, *args):
     return subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True, text=True).stdout
 
@@ -46,7 +63,7 @@ def git(folder, *args):
 def lanes_project():
     folder = scratch_project("shared-path-modes")
     for child in folder.iterdir():  # a fresh install every run, in the same (trusted once) folder
-        shutil.rmtree(child) if child.is_dir() else child.unlink()
+        _remove(child)
     git(folder, "init", "-q", "-b", "main")
     git(folder, "config", "user.name", "Live Check")
     git(folder, "config", "user.email", "live@example.com")

@@ -82,9 +82,10 @@ def _zone(entry, where: str) -> Zone:
 
 
 def check_stewards(zones, lane_names) -> None:
-    for zone in zones:
+    # Numbered as parse() numbers them: [[shared]] tables come first, shared_paths' zone has no steward.
+    for number, zone in enumerate(zones, start=1):
         if zone.steward is not None and zone.steward not in lane_names:
-            raise ValueError(f"[[shared]] {list(zone.paths)!r}: steward {zone.steward!r} is not a lane")
+            raise ValueError(f"[[shared]] #{number}: steward {zone.steward!r} is not a lane")
 
 
 def paths_of(zones) -> list:
@@ -95,7 +96,7 @@ def paths_of(zones) -> list:
 @dataclass(frozen=True)
 class Match:
     mode: str
-    steward: str | None  # None also when the strictest zones name different stewards
+    steward: str | None  # for messages; None also when the deciding zones name different stewards
     pattern: str  # the first matching pattern of the strictest zone, for messages
 
 
@@ -105,12 +106,17 @@ class Matcher:
     def __init__(self, zones):
         self.zones = [(zone, [(pattern, globs.file_matcher([pattern])) for pattern in zone.paths]) for zone in zones]
 
-    def find(self, path: str) -> Match | None:
-        """How path is shared: by the strictest zone matching it (order in kit.toml never matters), or
-        None when no zone does. A steward counts only if every zone of that strictness names it, so a
-        second, stewardless `ask` zone is never loosened by the first one's steward."""
+    def find(self, path: str, lane: str | None = None) -> Match | None:
+        """How path is shared for lane: by the strictest zone matching it (order in kit.toml never
+        matters), leaving out the zones lane is steward of; None when no other zone matches.
+
+        A steward skips only its own zones: any other zone matching the path still applies, so a
+        stricter zone's steward never loosens a broader zone without one (review round 1).
+        """
         found = []
         for zone, patterns in self.zones:
+            if lane is not None and zone.steward == lane:
+                continue
             pattern = next((pattern for pattern, matches in patterns if matches(path)), None)
             if pattern is not None:
                 found.append((MODES.index(zone.mode), zone, pattern))

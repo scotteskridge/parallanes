@@ -13,7 +13,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   asks at edit time; `lanes finish`, the pre-commit hook and CI list such a change for review
   rather than refusing it, so the owner's yes gets it committed (the two-lane trial's F8). The
   defaults: changelog fragments and health reports are `append`; backlog, plans and the
-  decisions log stay `open`. `shared_paths` still works and means `open`. The `kit.toml`
+  decisions log stay `open`, so a project that never wrote `shared_paths` now gets asked before
+  one lane changes another's fragment. A written `shared_paths` list still works and means `open`.
+  A steward skips only its own tables; any other table matching the file still applies. The `kit.toml`
   template shows an `ask` zone for `.gitignore` and `package.json` as an example, and the lane
   briefing names each path's mode.
 

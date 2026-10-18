@@ -328,7 +328,7 @@ def _lanes(entries, settings: LaneSettings) -> list:
         # Neither is more specific, so the file has no owner (decision 97): nobody has decided yet.
         first, second, pattern, other = twin
         same = repr(pattern) if pattern == other else f"{pattern!r} ({other!r} is the same pattern)"
-        _fail(f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in shared_paths")
+        _fail(f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in a [[shared]] table")
     try:
         shared_zones.check_stewards(settings.shared, {lane.name for lane in lanes})
     except ValueError as error:

@@ -161,13 +161,14 @@ def _within_lane(top: Path, config, lane, tip: str) -> None:
     # kit.toml change is a finding, so this is stricter than the base, never looser.
     judge, before = found or (config, lane)
     findings = lane_boundary.check(judge, before, paths)
+    try:
+        notes = lane_boundary.notes(top, judge, before, paths, base)
+    except gitfiles.GitError as error:
+        raise LaneError(f"can't tell which shared files existed before this task, so nothing landed: {error}") from None
+    # Listed on every way through, the override's too (review round 1).
+    if notes:
+        _say([lane_boundary.say_listed(notes)])
     if not findings:
-        try:
-            notes = lane_boundary.listed(judge, before, paths, lane_boundary.existing(top, base, paths))
-        except gitfiles.GitError as error:
-            raise LaneError(f"can't tell which shared files existed, so nothing was checked: {error}") from None
-        if notes:
-            _say([lane_boundary.say_listed(notes)])
         return
     pr_mode = config.lane_settings.merge_mode == "pr"
     if lane_boundary.allowed_by_human() and not pr_mode:

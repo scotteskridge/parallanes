@@ -516,3 +516,67 @@ def test_a_fragment_main_brought_in_counts_as_existing_in_a_merge(tmp_path):
     write(repo, "docs/changelog.d/from main.md", "- edited in the resolution\n")
     git(repo, "add", "-A")
     assert_listed(check(repo, "--staged"), "docs/changelog.d/from main.md")
+
+
+def test_one_listed_change_reads_in_the_singular():
+    note = lane_boundary.listed(
+        SimpleNamespace(lanes=[CORE, API], lane_settings=LaneSettings(shared_paths=[], shared=ZONES)),
+        CORE,
+        [".gitignore"],
+        frozenset(),
+    )
+    assert "1 shared-path change that needs a person's yes" in lane_boundary.say_listed(note)
+
+
+def test_existence_is_looked_up_only_for_paths_where_it_matters(monkeypatch):
+    # Review round 1: a v0.1 kit.toml (every zone open) paid for git calls on every commit.
+    asked = []
+    monkeypatch.setattr(lane_boundary.gitfiles, "existing", lambda root, ref, paths: asked.append(list(paths)) or set())
+    cfg = SimpleNamespace(lanes=[CORE, API], lane_settings=LaneSettings(shared_paths=["docs/**"]))
+    assert lane_boundary.notes("root", cfg, CORE, ["docs/a.md", "src/core/a.py"], "base") == []
+    assert asked == []
+    zoned = SimpleNamespace(lanes=[CORE, API], lane_settings=LaneSettings(shared_paths=[], shared=ZONES))
+    paths = ["docs/changelog.d/a.md", ".gitignore", "src/core/a.py", "package.json"]
+    lane_boundary.notes("root", zoned, CORE, paths, "base", merging=True)
+    assert asked == [["docs/changelog.d/a.md"], ["docs/changelog.d/a.md"]]  # the base, then MERGE_HEAD
+
+
+def test_a_git_failure_looking_up_existence_is_not_swallowed(monkeypatch):
+    def fails(root, ref, paths):
+        raise lane_boundary.gitfiles.GitError("git ls-tree failed")
+
+    monkeypatch.setattr(lane_boundary.gitfiles, "existing", fails)
+    zoned = SimpleNamespace(lanes=[CORE, API], lane_settings=LaneSettings(shared_paths=[], shared=ZONES))
+    with pytest.raises(lane_boundary.gitfiles.GitError):
+        lane_boundary.notes("root", zoned, CORE, ["docs/changelog.d/a.md"], "base")
+
+
+def test_task_start_falls_back_to_head_when_git_cant_say(monkeypatch):
+    # Review round 1: integration_tip raises LaneError, which `check` didn't catch (a traceback).
+    def fails(folder, config):
+        raise lane_boundary.lanes.LaneError("git timed out")
+
+    monkeypatch.setattr(lane_boundary.gitfiles, "has_ref", lambda root, ref: True)
+    monkeypatch.setattr(lane_boundary.lanes, "integration_tip", fails)
+    assert lane_boundary.task_start("root", config()) == "HEAD"
+
+
+@pytest.mark.slow
+def test_existence_takes_any_number_of_long_names(tmp_path):
+    # Review round 1: batches of 200 long paths could pass Windows' 32,767-character command line.
+    repo = lanes_repo(tmp_path)
+    deep = "docs/changelog.d/" + "/".join(["a folder with a long name"] * 3)  # on disk: under MAX_PATH
+    commit(repo, f"{deep}/kept.md", "x\n")
+    long = deep + "/" + "/".join(["a folder that was never there"] * 3)
+    names = [f"{long}/fragment number {n:04d}.md" for n in range(400)] + [f"{deep}/kept.md"]  # ~70,000 characters
+    assert lane_boundary.gitfiles.existing(repo, "HEAD", names) == {f"{deep}/kept.md"}
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(os.name != "nt", reason="paths are case-insensitive only on Windows")
+def test_existence_ignores_case_on_windows(tmp_path):
+    repo = lanes_repo(tmp_path)
+    commit(repo, "docs/changelog.d/API work.md", "x\n")
+    assert lane_boundary.gitfiles.existing(repo, "HEAD", ["Docs/Changelog.d/api WORK.md"]) == {
+        "Docs/Changelog.d/api WORK.md"
+    }

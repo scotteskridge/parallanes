@@ -275,3 +275,33 @@ def test_an_ask_zone_asks_every_lane_but_its_steward(zoned):
     assert_asks(hook(core, core / ".gitignore"), "every change needs a person (/.gitignore)", "lane 'api'")
     assert "Add " not in reason_for(core, ".gitignore")  # a shared file is never offered to a lane's owns
     assert_allowed(hook(api, api / ".gitignore"))
+
+
+def test_a_file_a_merge_brings_in_counts_as_existing(zoned):
+    # Review round 1: the boundary check counted MERGE_HEAD's files, the hook didn't.
+    from helpers import git
+    from lane_helpers import commit
+
+    core = lane_dir(zoned, "core")
+    git(core, "switch", "-q", "--no-track", "-c", "core/task", "origin/main")
+    commit(zoned, "docs/changelog.d/api later.md", "- later\n")
+    git(core, "merge", "-q", "--no-commit", "--no-ff", "main")
+    assert_asks(hook(core, core / "docs/changelog.d/api later.md"), "append-only")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="paths are case-insensitive only on Windows")
+def test_an_existing_file_named_in_another_case_still_asks(zoned):
+    core = lane_dir(zoned, "core")
+    assert_asks(hook(core, core / "Docs/Changelog.d/API WORK.md"), "append-only")
+
+
+def test_existence_fails_open_when_git_cant_say(monkeypatch, tmp_path):
+    # Decision 41: the hook fails open, so an edit git can't place counts as an addition.
+    from kitlib import gitfiles, lane_boundary, lane_hooks
+
+    def fails(*args):
+        raise gitfiles.GitError("git ls-tree failed")
+
+    monkeypatch.setattr(lane_boundary, "task_start", lambda root, config: "HEAD")
+    monkeypatch.setattr(gitfiles, "existing", fails)
+    assert lane_hooks._existed(tmp_path, None, "docs/changelog.d/a.md") is False

@@ -108,7 +108,7 @@ In a merge commit, a file present in either parent is existing. A rename is a de
 | `test_lane_owners.py` (extended) | Each mode × steward × added/existing gives the right outcome; `kit.toml` in a zone is still no lane's |
 | `test_lane_boundary.py` (extended) | Append: an add passes silently, an edit or delete is listed, exit 0; ask: listed; steward: silent; a rename of an existing fragment is listed; merge commit uses either parent; paths with spaces |
 | `test_hook_ownership.py` (extended) | Asks for an existing file in an append zone, not a new one or one added earlier in the task; names the steward; v0.1 `kit.toml` unchanged |
-| `test_lane_cycle.py` (extended) | `lanes finish` prints the notes and still finishes |
+| `test_lane_finish.py` (extended) | `lanes finish` prints the notes and still finishes |
 | `test_templates.py` (extended) | Template defaults load and equal `DEFAULT_*` |
 | `tests/live/` | The live check in step 5 |
 
@@ -136,6 +136,13 @@ In a merge commit, a file present in either parent is existing. A rename is a de
 - **Hook cost:** only an edit to an existing-looking file in an `append` zone, by a lane that isn't
   its steward, pays for git calls (merge base, then `ls-tree`). When git fails, the edit counts as
   an addition: the hook fails open (decision 41).
+- **Review round 1** (repo `reviewer` + general-purpose; no 🔴): a stricter zone's steward
+  loosened a broader zone without one, now a steward skips only its own zones; uncommenting only
+  the template's repo-wide example dropped the defaults, so the template says to keep them (backlog
+  `shared-zones-keep-defaults` for the design); the hook missed `MERGE_HEAD` files and, on
+  Windows, a path in another case; existence is now looked up only where a mode needs it, from one
+  whole-tree listing (batches of paths could overflow a Windows command line: reproduced); `lanes
+  finish` lists on the override path too; a git timeout in `task_start` no longer tracebacks.
 - **Live check** (`tests/live/test_shared_path_modes.py`) passed on its first run: in
   `bypassPermissions`, the hook's `ask` stopped the edit to another lane's fragment, as decision
   92's live check found for ask rules.

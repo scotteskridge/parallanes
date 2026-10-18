@@ -23,7 +23,22 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        stricter, and refusing would bring back the trial's F8 (the owner said yes, the commit was
        refused). Another lane's files, unowned files and `kit.toml` are refused as before.
      - *An existing file* is one present where the task branch left the integration branch (the
-       merge base), so a fragment the lane added earlier in the task stays free to edit.
+       merge base), so a fragment the lane added earlier in the task stays free to edit. During a
+       merge, a file the merge brings in (`MERGE_HEAD`) counts too, in the hook and the check alike.
+       When git can't say, the hook counts the edit as an addition (it fails open, decision 41);
+       the check fails closed.
+     - *Settled in implementation and review (Claude's call, for the owner to overrule):*
+       - *A steward skips only its own zones* (review round 1, both reviewers): any other zone
+         matching the file still applies to the steward lane. *Why:* "the stricter mode wins" would
+         otherwise let an `ask` zone's steward silently rewrite a file a broader `append` zone guards.
+       - *A steward on an `open` zone is a load error:* every lane already changes it freely.
+       - *A v0.1 `kit.toml` that never wrote `shared_paths` gets the new defaults,* so its changelog
+         fragments and health reports become `append`. Stricter, never a refusal; one written
+         `shared_paths` list stays exactly as it was.
+       - *Writing any `[[shared]]` table still replaces the defaults* (question 1). Uncommenting
+         only the template's repo-wide example would drop them, so the template says to uncomment
+         the default tables with it (review round 1); whether tables should add to the defaults
+         instead is backlog `shared-zones-keep-defaults`.
 
 ## 2026-10-18: Protected paths in a merge commit
 

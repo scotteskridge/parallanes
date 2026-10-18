@@ -197,7 +197,8 @@ file with the lane's `owns` plus the shared paths (default: changelog fragments,
 by the rule below for a file two lanes claim. A shared path's mode [116] decides what asks: `open`
 nothing, `append` a change to a file that existed where the task branch left the integration
 branch, `ask` every change, and never for the zone's `steward` lane. `shared_paths` in `[project]`
-(v0.1) is an `open` zone; a path in two zones takes the stricter mode. The hook
+(v0.1) is an `open` zone; a path in two zones takes the stricter mode, and a steward skips only
+its own zones (any other zone matching the file still applies to it). The hook
 fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.

@@ -255,7 +255,7 @@ def check_lanes(root: Path, config, args) -> list:
     if findings:
         print(lane_boundary.advice(judge, lane, findings), file=sys.stderr)
     start = base if args.diff else lane_boundary.task_start(root, config)
-    notes = lane_boundary.listed(judge, lane, paths, lane_boundary.existing(root, start, paths, merging))
+    notes = lane_boundary.notes(root, judge, lane, paths, start, merging)
     if notes:
         print(lane_boundary.say_listed(notes), file=sys.stderr)  # not findings: they don't fail the check
     return findings

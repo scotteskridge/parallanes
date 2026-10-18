@@ -170,8 +170,8 @@ def needs_person(config, lane, path: str, existed) -> str | None:
     """
     if globs.matches_any_file(path, [POLICY]):
         return None  # judge() refuses it whatever zone matches
-    found = Owners(config).zones.find(path)
-    if found is None or found.mode == "open" or found.steward == lane.name:
+    found = Owners(config).zones.find(path, lane.name)
+    if found is None or found.mode == "open":
         return None
     if found.mode == "append":
         if not existed():
@@ -183,6 +183,14 @@ def needs_person(config, lane, path: str, existed) -> str | None:
     else:
         why = f"every change needs a person ({found.pattern})"
     return why + (f"; lane {found.steward!r} is its steward and changes it without asking" if found.steward else "")
+
+
+def existence_matters(config, lane, paths) -> list:
+    """The paths needs_person() would ask existed() about: an append zone's, for this lane."""
+    zones = Owners(config).zones
+    return [
+        path for path in paths if (found := zones.find(globs.normalize(path), lane.name)) and found.mode == "append"
+    ]
 
 
 def literal(path: str) -> str:

@@ -91,6 +91,14 @@ def listed(config, lane, paths, existing: frozenset) -> list[Finding]:
     return sorted(notes)
 
 
+def notes(root, config, lane, paths, base: str | None, merging: bool = False) -> list[Finding]:
+    """listed() for a real change, with git asked which files existed only where a mode makes it
+    matter (review round 1: a v0.1 kit.toml paid for it on every commit). A git failure isn't
+    swallowed: callers fail closed, as for the rest of the check."""
+    asked = lane_owners.existence_matters(config, lane, paths)
+    return listed(config, lane, paths, existing(root, base, asked, merging) if asked else frozenset())
+
+
 def existing(root, base: str | None, paths, merging: bool = False) -> frozenset:
     """Which paths were files where the task began: at base (where the task branch left the
     integration branch), and in a merge, also in what the merge brings in (another lane's files)."""
@@ -107,17 +115,17 @@ def task_start(root, config) -> str | None:
     new project's first commit."""
     if not gitfiles.has_ref(root, "HEAD"):
         return None
-    tip = lanes.integration_tip(root, config)
     try:
+        tip = lanes.integration_tip(root, config)
         return gitfiles.merge_base(root, tip) if tip else "HEAD"
-    except gitfiles.GitError:
+    except (gitfiles.GitError, lanes.LaneError):  # LaneError: git timed out or didn't start (review round 1)
         return "HEAD"
 
 
 def say_listed(notes) -> str:
-    count = f"{len(notes)} shared-path change{'' if len(notes) == 1 else 's'}"
+    count = "1 shared-path change that needs" if len(notes) == 1 else f"{len(notes)} shared-path changes that need"
     return (
-        f"parallanes: {count} that need a person's yes, allowed and listed here for review "
+        f"parallanes: {count} a person's yes, allowed and listed here for review "
         f"(the ownership hook asks for them at edit time):\n{format_findings(notes)}"
     )
 

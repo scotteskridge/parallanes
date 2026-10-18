@@ -384,3 +384,11 @@ def test_every_mode_is_shared_for_the_owner_rule():
     cfg = zoned(APP, CORE, zones=[Zone(("src/core/gen/**",), "ask")])
     assert lane_owners.judge(cfg, APP, "src/core/gen/x.py") is None
     assert lane_owners.overlaps(cfg, ["src/core/gen/x.py"]) == ([], [])
+
+
+def test_a_steward_is_still_asked_by_a_broader_zone_without_one():
+    # Review round 1 (both reviewers): the steward skips only its own zones.
+    cfg = zoned(PLATFORM, CORE, zones=[Zone(("/.gitignore",), "ask", "platform"), Zone(("/.git*",), "append")])
+    assert "append-only shared path (/.git*)" in lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: True)
+    assert lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: False) is None
+    assert "lane 'platform' is its steward" in lane_owners.needs_person(cfg, CORE, ".gitignore", lambda: False)

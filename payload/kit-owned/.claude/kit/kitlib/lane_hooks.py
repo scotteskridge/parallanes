@@ -219,11 +219,13 @@ def ownership_reason(payload: dict) -> str | None:
 
 
 def _existed(root: Path, config, rel: str) -> bool:
-    """rel was a file where this task began (decision 116). Fails open, as the hook does (decision 41):
-    when git can't say, the edit counts as an addition and isn't asked about."""
+    """rel was a file where this task began, or comes in with a merge in progress, as the boundary
+    check counts it (decision 116, review round 1). Fails open, as the hook does (decision 41): when
+    git can't say, the edit counts as an addition and isn't asked about."""
     try:
         start = lane_boundary.task_start(root, config)
-        return bool(start) and bool(gitfiles.existing(root, start, [rel]))
+        merging = gitfiles.has_ref(root, "MERGE_HEAD")
+        return bool(lane_boundary.existing(root, start, [rel], merging))
     except gitfiles.GitError:
         return False
 

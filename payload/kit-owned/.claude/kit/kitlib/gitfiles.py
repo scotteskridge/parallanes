@@ -1,5 +1,6 @@
 """Which files to check, and their text: from disk, from the git index, or changed since a base."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -119,14 +120,17 @@ def touched_by_merge_commit(root: Path) -> list[str]:
 
 
 def existing(root: Path, ref: str, paths) -> set[str]:
-    """Which of paths are files in ref's tree. Names are literal (no glob or pathspec magic), and
-    asked in batches, so a long change list can't overflow a Windows command line."""
-    wanted, found = list(dict.fromkeys(paths)), set()
-    for start in range(0, len(wanted), 200):
-        batch = wanted[start : start + 200]
-        output = _git(root, "--literal-pathspecs", "ls-tree", "-r", "-z", "--name-only", ref, "--", *batch)
-        found.update(name for name in _names(output) if name in batch)  # a folder's files aren't asked for
-    return found
+    """Which of paths are files in ref's tree, in the spelling asked for. On Windows case is
+    ignored, as the zone and lane patterns ignore it there (globs), so an edit to `Docs/A.md` finds
+    the tracked `docs/a.md` (review round 1). The whole tree is listed in one call: `ls-tree` has no
+    case-insensitive pathspec, and passing the paths could overflow a command line (review round 1).
+    Callers ask only when it matters (lane_owners.existence_matters)."""
+    wanted = list(dict.fromkeys(paths))
+    if not wanted:
+        return set()
+    fold = str.casefold if os.name == "nt" else str
+    tracked = {fold(name) for name in _names(_git(root, "ls-tree", "-r", "-z", "--name-only", ref))}
+    return {path for path in wanted if fold(path) in tracked}
 
 
 def merge_base(root: Path, base: str) -> str:

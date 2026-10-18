@@ -94,7 +94,10 @@ def test_lane_settings_built_from_shared_paths_alone_are_open():
         ('[[shared]]\npaths = [1]\nmode = "open"\n', "'paths'"),
         ('[[shared]]\npaths = ["a/**"]\n', "missing required key 'mode'"),
         ('[[shared]]\npaths = ["a/**"]\nmode = "escalate"\n', "'open', 'append', 'ask'"),
-        ('[[shared]]\npaths = ["a/**"]\nmode = "ask"\nsteward = "nobody"\n', "'nobody' is not a lane"),
+        (
+            '[[shared]]\npaths = ["a/**"]\nmode = "ask"\nsteward = "nobody"\n',
+            "[[shared]] #1: steward 'nobody' is not a lane",
+        ),
         ('[[shared]]\npaths = ["a/**"]\nmode = "ask"\nsteward = 3\n', "'steward'"),
         ('[[shared]]\npaths = ["a/**"]\nmode = "open"\nsteward = "core"\n', "open"),
         ('[[shared]]\npaths = ["a/**"]\nmode = "ask"\nowner = "core"\n', "'owner'"),
@@ -127,10 +130,15 @@ def test_the_stricter_zone_wins_whatever_the_order():
         assert matcher.find("src/a.py") is None
 
 
-def test_a_steward_counts_only_when_every_strictest_zone_names_it():
-    one = Zone(("/.gitignore",), "ask", "platform")
-    matcher = shared_zones.Matcher((one, Zone(("/.git*",), "append")))
-    assert matcher.find(".gitignore").steward == "platform"  # the append zone is less strict
-    assert shared_zones.Matcher((one, Zone(("/.git*",), "ask"))).find(".gitignore").steward is None
-    assert shared_zones.Matcher((one, Zone(("/.git*",), "ask", "core"))).find(".gitignore").steward is None
-    assert shared_zones.Matcher((one, Zone(("/.git*",), "ask", "platform"))).find(".gitignore").steward == "platform"
+def test_a_steward_skips_only_its_own_zones():
+    # Review round 1 (both reviewers): a stricter zone's steward used to loosen a broader zone with
+    # none, so lane platform rewrote an existing .gitignore that `/.git*` (append) would have asked about.
+    ask = Zone(("/.gitignore",), "ask", "platform")
+    broader = shared_zones.Matcher((ask, Zone(("/.git*",), "append")))
+    assert broader.find(".gitignore", "platform") == shared_zones.Match("append", None, "/.git*")
+    assert broader.find(".gitignore", "core") == shared_zones.Match("ask", "platform", "/.gitignore")
+    assert shared_zones.Matcher((ask,)).find(".gitignore", "platform") is None  # nothing else applies
+    other = shared_zones.Matcher((ask, Zone(("/.git*",), "ask", "core")))
+    assert other.find(".gitignore", "platform") == shared_zones.Match("ask", "core", "/.git*")
+    assert other.find(".gitignore", "api").steward is None  # two stewards: the message names neither
+    assert shared_zones.Matcher((ask, Zone(("/.git*",), "open"))).find(".gitignore", "platform").mode == "open"
