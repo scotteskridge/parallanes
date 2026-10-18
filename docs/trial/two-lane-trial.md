@@ -79,7 +79,7 @@ the lane.
 
 | # | Where | What happened | Becomes |
 | --- | --- | --- | --- |
-| F1 | install | `--dry-run` without `--yes` still asks the setup questions, so a scripted dry run stops with "no answer (input closed)". It also doesn't show the answers it would take. | [installer-dry-run-prompts](../backlog/installer-dry-run-prompts.md) |
+| F1 | install | `--dry-run` without `--yes` still asks the setup questions, so a scripted dry run stops with "no answer (input closed)". It also doesn't show the answers it would take. | [installer-dry-run-prompts](../backlog/done/installer-dry-run-prompts.md) (done, decision 113) |
 | F2 | install → lanes | In local mode the main checkout must be detached, but only `lanes status` says so. | [local-mode-setup-hints](../backlog/done/local-mode-setup-hints.md) (done, decision 112) |
 | F3 | lanes create | New lanes have no `node_modules`, and nothing says so. | [lane-dependency-hint](../backlog/done/lane-dependency-hint.md) (done, decision 103) |
 | F4 | lanes (Node) | Worse than F3: no agent noticed, because Node resolves packages up the folder tree and lanes sit inside the main checkout. Every lane silently ran the main checkout's `node_modules`, so a lane that changes a dependency would test the old version and pass. | [lane-dependency-hint](../backlog/done/lane-dependency-hint.md) (done, decision 103) |

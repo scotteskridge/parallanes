@@ -50,13 +50,14 @@ def main(argv=None) -> int:
         if saved:
             # A re-run renders the same files from the same answers.
             print("Using the answers from the earlier install (.claude/kit/manifest.json).")
-        elif not args.yes:
+        elif not (args.yes or args.dry_run):
+            # A dry run is a preview: it takes what --yes would, so a script can run it (trial F1).
             answers.update(values.ask(answers))
         # The pre-commit answer is saved only once it was given (or --yes at a repo root), so a re-run
         # never undoes a "no", and a folder that only now became a repo is still asked.
         precommit_answer = saved.get("precommit")
         if precommit_answer is None and repo == target:
-            yes = args.yes or values.confirm("Run the kit's checks before each commit?", True)
+            yes = args.yes or args.dry_run or values.confirm("Run the kit's checks before each commit?", True)
             precommit_answer = "yes" if yes else "no"
     except EOFError:
         return _stop("no answer (input closed); run with --yes to take the defaults")
@@ -79,6 +80,8 @@ def main(argv=None) -> int:
     }
     extra = {rel: data for rel, data in extra.items() if _read(target / rel) != data}
 
+    if not saved:  # saved answers can be stale: the owner edits the files after installing
+        report.answers(answers, precommit_answer, detected=args.dry_run and not args.yes)
     report.plan(files, settings_change, extra, precommit)
     if args.dry_run:
         print("\nDry run: nothing was written.")
@@ -99,7 +102,9 @@ def main(argv=None) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kit_setup.py", description="Install the kit into a project.")
     parser.add_argument("--target", default=".", help="the project folder (default: the current folder)")
-    parser.add_argument("--dry-run", action="store_true", help="print what would be written, write nothing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="print the answers and what would be written; ask nothing, write nothing"
+    )
     parser.add_argument("--yes", action="store_true", help="take every detected default without asking")
     return parser
 

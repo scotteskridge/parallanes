@@ -3,6 +3,23 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-18: The installer's dry run
+
+113. **`--dry-run` never asks; a first install prints the answers it used** (owner's OK on
+     Claude's recommendations, backlog `installer-dry-run-prompts`; the re-run exception came
+     from an existing test, see the last point).
+     - *A dry run takes what `--yes` would:* the saved answers from an earlier install, else the
+       detected defaults, and yes to the pre-commit check. *Why:* it's a preview, and the answers
+       mostly change what's in the files, not which files are written. Never asking works the
+       same in a script and a terminal; telling the two apart is unreliable on Windows (Git Bash,
+       mintty). A scripted dry run stopped with "no answer (input closed)" in the trial (F1).
+     - *The answers show on every first install, not only dry runs,* with an empty one as
+       `(none)`. *Why:* `--yes` had the same blind spot, and it's a few lines.
+     - *Not on a re-run,* which keeps its one line, "Using the answers from the earlier install".
+       *Why:* the owner edits `kit.toml` and `AGENTS.md` after installing, so the saved answers can
+       be stale; printing them would contradict the files (an existing test caught it: the
+       recommendation had said every run).
+
 ## 2026-10-08: Local mode's setup hints
 
 112. **`lanes create` warns about a main checkout that blocks local mode; `lanes status` drops the

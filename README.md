@@ -60,8 +60,8 @@ pull requests). Your project is a git repository with at least one commit on `ma
 new one, run `git init -b main` and commit a first file.
 
 1. **Install** from the folder that holds your project. Nothing of yours is overwritten, and
-   `--dry-run` shows what it would write. The installer asks five questions with detected
-   answers (`--yes` takes them all) and ends with a short list of what's left, such as setting
+   `--dry-run` shows what it would write and the answers it would use, without asking. The
+   installer asks five questions with detected answers (`--yes` takes them all) and ends with a short list of what's left, such as setting
    `test_command`, which `lanes finish` runs.
 
    ```bash

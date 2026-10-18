@@ -198,6 +198,69 @@ def test_dry_run_writes_nothing(tmp_path):
     assert ".claude/settings.json" in result.stdout
 
 
+def run_setup(target, *args, answers=""):
+    """The installer without --yes; answers is what is typed (input closes after it)."""
+    return subprocess.run(
+        [sys.executable, str(SETUP), "--target", str(target), *args], input=answers, capture_output=True, text=True
+    )
+
+
+@pytest.mark.slow
+def test_a_dry_run_with_input_closed_shows_the_detected_answers(tmp_path):
+    # Trial F1: a scripted dry run stopped with "no answer (input closed)" and never said what it'd take.
+    repo = new_repo(tmp_path)
+    (repo / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    before = tree(repo)
+    result = run_setup(repo, "--dry-run")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert tree(repo) == before
+    assert "  Project name: my project\n" in result.stdout
+    assert "  Stack (languages, frameworks, versions): Python\n" in result.stdout
+    assert "  Command that runs the tests: python -m pytest\n" in result.stdout
+    assert "  Branch where finished work lands: main\n" in result.stdout
+    assert "  Pre-commit check: yes\n" in result.stdout
+    assert "a real run without --yes asks" in result.stdout
+    assert "AGENTS.md" in result.stdout  # the file plan is still there
+
+
+@pytest.mark.slow
+def test_a_real_run_with_input_closed_still_stops(tmp_path):
+    repo = new_repo(tmp_path)
+    before = tree(repo)
+    result = run_setup(repo)
+    assert result.returncode != 0
+    assert "no answer (input closed)" in result.stdout + result.stderr
+    assert tree(repo) == before
+
+
+@pytest.mark.slow
+def test_a_first_install_shows_the_answers_it_used_and_a_rerun_does_not(tmp_path):
+    repo = new_repo(tmp_path)
+    typed = run_setup(repo, answers="\n".join(["", "", "", "make check", "", "n"]) + "\n")
+    assert typed.returncode == 0, typed.stdout + typed.stderr
+    assert "  Command that runs the tests: make check\n" in typed.stdout
+    assert "  Pre-commit check: no\n" in typed.stdout
+    # The owner edits the files after installing, so the saved answers can be stale: a re-run
+    # mustn't print "make check" while kit.toml says something else (found by an existing test).
+    config = repo / ".claude" / "kit.toml"
+    config.write_bytes(config.read_bytes().replace(b'"make check"', b'"make test"'))
+    again = run_setup(repo, "--dry-run")
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert "Using the answers from the earlier install" in again.stdout
+    assert "Answers:" not in again.stdout and "make check" not in again.stdout
+
+
+@pytest.mark.slow
+def test_a_folder_that_is_not_a_repo_shows_no_pre_commit_answer(tmp_path):
+    folder = tmp_path / "plain folder"
+    folder.mkdir()
+    result = run_setup(folder, "--dry-run")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "  Project name: plain folder\n" in result.stdout
+    assert "  Command that runs the tests: (none)\n" in result.stdout  # no marker file: nothing detected
+    assert "Pre-commit check" not in result.stdout  # not asked outside a repo root
+
+
 @pytest.mark.slow
 def test_existing_files_are_never_overwritten(tmp_path):
     repo = new_repo(tmp_path)
