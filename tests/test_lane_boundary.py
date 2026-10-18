@@ -580,3 +580,12 @@ def test_existence_ignores_case_on_windows(tmp_path):
     assert lane_boundary.gitfiles.existing(repo, "HEAD", ["Docs/Changelog.d/api WORK.md"]) == {
         "Docs/Changelog.d/api WORK.md"
     }
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(os.name != "nt", reason="paths are case-insensitive only on Windows")
+def test_existence_folds_case_as_the_patterns_do(tmp_path):
+    # Review round 2: casefold() made a new Straße.md the tracked strasse.md; globs uses lower().
+    repo = lanes_repo(tmp_path)
+    commit(repo, "docs/changelog.d/strasse.md", "x\n")
+    assert lane_boundary.gitfiles.existing(repo, "HEAD", ["docs/changelog.d/Straße.md"]) == set()

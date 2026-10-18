@@ -391,4 +391,8 @@ def test_a_steward_is_still_asked_by_a_broader_zone_without_one():
     cfg = zoned(PLATFORM, CORE, zones=[Zone(("/.gitignore",), "ask", "platform"), Zone(("/.git*",), "append")])
     assert "append-only shared path (/.git*)" in lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: True)
     assert lane_owners.needs_person(cfg, PLATFORM, ".gitignore", lambda: False) is None
-    assert "lane 'platform' is its steward" in lane_owners.needs_person(cfg, CORE, ".gitignore", lambda: False)
+    # Review round 2: platform is asked by /.git* too, so core isn't told it changes it without asking.
+    told = lane_owners.needs_person(cfg, CORE, ".gitignore", lambda: True)
+    assert "every change needs a person (/.gitignore)" in told and "steward" not in told
+    alone = zoned(PLATFORM, CORE, zones=[Zone(("/.gitignore",), "ask", "platform"), Zone(("/.git*",), "open")])
+    assert "lane 'platform' is its steward" in lane_owners.needs_person(alone, CORE, ".gitignore", lambda: True)

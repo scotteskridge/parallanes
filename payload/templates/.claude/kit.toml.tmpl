@@ -58,8 +58,9 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 
 # Shared paths: no one lane owns them, and every lane may add files there. The first two tables are
 # the defaults. Writing any [[shared]] table (or a shared_paths list in [project], which means mode
-# "open") replaces them all, so to add the third, uncomment the first two as well: without them,
-# changelog fragments, plans and backlog items belong to no lane and every lane's commit is refused.
+# "open") replaces them all, so to add the third, uncomment the first two as well: without them, a
+# lane's commit touching changelog fragments, health reports, plans, backlog or the decisions log is
+# refused.
 # A path in two tables takes the stricter mode. Guide: docs/ai/parallel-lanes.md.
 #
 # [[shared]]

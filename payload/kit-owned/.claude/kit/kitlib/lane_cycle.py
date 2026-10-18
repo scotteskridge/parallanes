@@ -161,24 +161,23 @@ def _within_lane(top: Path, config, lane, tip: str) -> None:
     # kit.toml change is a finding, so this is stricter than the base, never looser.
     judge, before = found or (config, lane)
     findings = lane_boundary.check(judge, before, paths)
+    if findings:
+        pr_mode = config.lane_settings.merge_mode == "pr"
+        if not lane_boundary.allowed_by_human() or pr_mode:
+            why = "this branch changes files outside its lane:\n" + format_findings(findings) + "\n"
+            if lane_boundary.allowed_by_human():  # PR mode: CI has no override, so a push would only go red
+                why += f"{lane_boundary.ALLOW_VARIABLE} doesn't reach CI: land this from a branch that isn't a lane's."
+                raise LaneError(why)
+            raise LaneError(why + lane_boundary.advice(judge, before, findings))
+        _say([f"{len(findings)} cross-lane change(s) allowed by {lane_boundary.ALLOW_VARIABLE}=1."])
+    # Listed on both ways through, the override's too (review round 1), and only once the change
+    # will land, so a refusal isn't preceded by "allowed" or hidden by this lookup (review round 2).
     try:
         notes = lane_boundary.notes(top, judge, before, paths, base)
     except gitfiles.GitError as error:
         raise LaneError(f"can't tell which shared files existed before this task, so nothing landed: {error}") from None
-    # Listed on every way through, the override's too (review round 1).
     if notes:
         _say([lane_boundary.say_listed(notes)])
-    if not findings:
-        return
-    pr_mode = config.lane_settings.merge_mode == "pr"
-    if lane_boundary.allowed_by_human() and not pr_mode:
-        _say([f"{len(findings)} cross-lane change(s) allowed by {lane_boundary.ALLOW_VARIABLE}=1."])
-        return
-    why = "this branch changes files outside its lane:\n" + format_findings(findings) + "\n"
-    if lane_boundary.allowed_by_human():  # PR mode: CI has no override, so a push would only go red
-        why += f"{lane_boundary.ALLOW_VARIABLE} doesn't reach CI: land this from a branch that isn't a lane's."
-        raise LaneError(why)
-    raise LaneError(why + lane_boundary.advice(judge, before, findings))
 
 
 def _test_what_lands(top: Path, branch: str, tip: str, command: str) -> str:

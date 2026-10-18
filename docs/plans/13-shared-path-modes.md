@@ -143,6 +143,11 @@ In a merge commit, a file present in either parent is existing. A rename is a de
   Windows, a path in another case; existence is now looked up only where a mode needs it, from one
   whole-tree listing (batches of paths could overflow a Windows command line: reproduced); `lanes
   finish` lists on the override path too; a git timeout in `task_start` no longer tracebacks.
+- **Review round 2** (repo `reviewer`, the fix commit only; verdict ready, no 🔴, five 🟡): a
+  stop named the steward as changing a file "without asking" when another zone still asks it;
+  the Windows case rule now folds as globs does (`lower()`, not `casefold()`); `lanes finish`
+  lists shared changes only once the change will land, so a refusal is never hidden by the lookup
+  or preceded by "allowed"; three wording fixes.
 - **Live check** (`tests/live/test_shared_path_modes.py`) passed on its first run: in
   `bypassPermissions`, the hook's `ask` stopped the edit to another lane's fragment, as decision
   92's live check found for ask rules.

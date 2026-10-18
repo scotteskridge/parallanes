@@ -24,7 +24,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        refused). Another lane's files, unowned files and `kit.toml` are refused as before.
      - *An existing file* is one present where the task branch left the integration branch (the
        merge base), so a fragment the lane added earlier in the task stays free to edit. During a
-       merge, a file the merge brings in (`MERGE_HEAD`) counts too, in the hook and the check alike.
+       merge, a file the merge brings in (`MERGE_HEAD`) counts too, in the hook and the pre-commit check
+       (a named-file `check lanes` run doesn't look at `MERGE_HEAD`; it only lists, never refuses).
        When git can't say, the hook counts the edit as an addition (it fails open, decision 41);
        the check fails closed.
      - *Settled in implementation and review (Claude's call, for the owner to overrule):*

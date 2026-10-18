@@ -165,12 +165,13 @@ def needs_person(config, lane, path: str, existed) -> str | None:
     """Why lane's change to a shared path needs a person's yes, or None when it doesn't.
 
     Asked only where judge() lets the change through. existed() says whether path was there when the
-    task began; it's called only for an append zone's file and a lane that isn't its steward, since
-    the hook pays a git call for it. Never a refusal: the hook asks, the boundary check lists it.
+    task began; it's called only when an append zone applies to this lane, since the hook pays a git
+    call for it. Never a refusal: the hook asks, the boundary check lists it.
     """
     if globs.matches_any_file(path, [POLICY]):
         return None  # judge() refuses it whatever zone matches
-    found = Owners(config).zones.find(path, lane.name)
+    zones = Owners(config).zones
+    found = zones.find(path, lane.name)
     if found is None or found.mode == "open":
         return None
     if found.mode == "append":
@@ -182,7 +183,12 @@ def needs_person(config, lane, path: str, existed) -> str | None:
         )
     else:
         why = f"every change needs a person ({found.pattern})"
-    return why + (f"; lane {found.steward!r} is its steward and changes it without asking" if found.steward else "")
+    # Named only when nothing else applies to the steward: another zone may ask it too (review round 2).
+    free = found.steward and (zones.find(path, found.steward) or _NO_ZONE).mode == "open"
+    return why + (f"; lane {found.steward!r} is its steward and changes it without asking" if free else "")
+
+
+_NO_ZONE = shared_zones.Match("open", None, "")  # what applies when no zone does
 
 
 def existence_matters(config, lane, paths) -> list:

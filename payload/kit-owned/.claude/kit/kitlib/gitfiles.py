@@ -128,7 +128,7 @@ def existing(root: Path, ref: str, paths) -> set[str]:
     wanted = list(dict.fromkeys(paths))
     if not wanted:
         return set()
-    fold = str.casefold if os.name == "nt" else str
+    fold = str.lower if os.name == "nt" else str  # lower(), as globs folds patterns (review round 2)
     tracked = {fold(name) for name in _names(_git(root, "ls-tree", "-r", "-z", "--name-only", ref))}
     return {path for path in wanted if fold(path) in tracked}
 

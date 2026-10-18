@@ -508,3 +508,23 @@ def test_a_git_failure_looking_up_shared_files_refuses_finish(tmp_path, monkeypa
     config = load(lane)
     with pytest.raises(LaneError, match="can't tell which shared files existed before this task"):
         lane_cycle._within_lane(lane, config, config.lanes[0], "main")
+
+
+def test_a_refused_finish_names_the_cross_lane_files_and_lists_nothing(tmp_path, monkeypatch):
+    # Review round 2: the shared-path lookup ran first, so its git failure hid the real stop, and a
+    # refused finish printed "allowed and listed" before refusing.
+    from kitlib import gitfiles, lane_boundary, lane_cycle
+    from kitlib.config import load
+    from kitlib.lanes import LaneError
+
+    _, lane = cycle_repo(tmp_path, mode="local")
+    on_task(lane, base="main")
+    commit(lane, "src/api/theirs.py", "t = 1\n", "Reach into api")
+
+    def fails(*args, **kwargs):
+        raise gitfiles.GitError("git ls-tree failed")
+
+    monkeypatch.setattr(lane_boundary, "notes", fails)
+    config = load(lane)
+    with pytest.raises(LaneError, match="outside its lane"):
+        lane_cycle._within_lane(lane, config, config.lanes[0], "main")
