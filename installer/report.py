@@ -34,7 +34,11 @@ def answers(used: dict | None, precommit: str | None, detected: bool) -> None:
     if precommit is not None:  # asked only at a repository's root
         print(f"  Pre-commit check: {precommit}")
     if detected:
-        print("  (detected defaults: a real run without --yes asks for each)")
+        print(
+            "  (detected defaults: a real run without --yes asks for each)"
+            if used
+            else "  (assumed: a real run without --yes asks this)"
+        )
 
 
 def plan(files: file_plan.FilePlan, settings: dict, extra: dict, precommit: str) -> None:

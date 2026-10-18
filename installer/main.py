@@ -109,7 +109,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="print what would be written (and a first install's answers); ask nothing, write nothing",
+        help="print what would be written and the answers it would use; ask nothing, write nothing",
     )
     parser.add_argument("--yes", action="store_true", help="take every detected default without asking")
     return parser

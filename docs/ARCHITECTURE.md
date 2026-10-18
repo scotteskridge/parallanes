@@ -350,7 +350,8 @@ install.ps1 / install.sh
              and takes what --yes would (decision 113)
           3. plan every write; a broken managed block or manifest, a folder or a symbolic link in
              the way stops here with nothing written
-          4. print the answers used (first install only), then the plan; --dry-run stops here
+          4. print the answers used (a re-run: only a pre-commit answer decided on it), then the
+             plan; --dry-run stops here
           5. write: kit-owned files (replaced only if unedited, else `.kit-new`), templates
              (an owner's existing file gets a `.kit-new`, offered once; one the kit rendered before
              is left alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude (only the

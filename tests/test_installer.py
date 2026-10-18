@@ -271,8 +271,11 @@ def test_a_rerun_shows_a_pre_commit_answer_decided_only_now(tmp_path):
     result = run_setup(folder, "--dry-run")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "  Pre-commit check: yes\n" in result.stdout
-    assert "a real run without --yes asks" in result.stdout
+    assert "(assumed: a real run without --yes asks this)" in result.stdout
     assert "Project name:" not in result.stdout  # the saved answers stay out (decision 113)
+    real = setup(folder)  # --yes: taken, not asked, and saved
+    assert "  Pre-commit check: yes\n" in real.stdout and "a real run without --yes" not in real.stdout
+    assert "Answers:" not in setup(folder, "--dry-run").stdout  # now saved, so nothing to show
 
 
 @pytest.mark.slow
