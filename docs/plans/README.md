@@ -41,10 +41,10 @@ like any other.
 
 ## Build order for v0.2 (decision 110)
 
-1. `ownership-fix-hint`
-2. Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
-   `allow-variable-braced-powershell`, `protected-check-merge-commits`
-3. `shared-path-modes`
+1. ~~`ownership-fix-hint`~~ (done)
+2. ~~Small fixes: `lane-guide-trial-notes`, `local-mode-setup-hints`, `installer-dry-run-prompts`,
+   `allow-variable-braced-powershell`, `protected-check-merge-commits`~~ (done)
+3. `shared-path-modes` (next; needs a plan)
 4. Lane robustness: `lane-session-lock`, `hook-latency`, `kit-config-shell-guard-modes`,
    `decision-log-fragments`
 5. The plugin (`ship-kit-as-plugin`, needs a plan), then `/onboard`
