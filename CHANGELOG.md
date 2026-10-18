@@ -41,7 +41,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Finishing a merge (`git merge --continue`, which `lanes sync` asks for after a conflict) no
   longer stops at the pre-commit hook because the integration branch changed a protected file:
   `check protected --staged` judges a merge commit on its resolution only, as the lane-boundary
-  check does (backlog `protected-check-merge-commits`, decision 115).
+  check does (backlog `protected-check-merge-commits`, decision 115). What a merge brings in is
+  left to CI; `protected-paths.md` says so in its layers table and under "Known misses".
 
 ## [0.1.0] - 2026-10-07
 
