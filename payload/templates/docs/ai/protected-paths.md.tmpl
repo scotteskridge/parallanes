@@ -81,7 +81,7 @@ more than it is:
 - These rarer PowerShell ways to set a `KIT_ALLOW_*` variable: `$env:X++` or `++$env:X`, a chained
   or multiple assignment (`$a = $env:X = 1`), a type cast in front (`[string]$env:X = 1`),
   `Set-Content env:X` or `Copy-Item env:A env:X`, and a provider path inside the braces
-  (`${env:\X}`).
+  (`${env:\X}`, `${Microsoft.PowerShell.Core\Environment::X}`).
 
 ## A real boundary
 

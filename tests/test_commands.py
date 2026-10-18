@@ -335,6 +335,9 @@ def test_the_braced_powershell_form_is_caught(text):
         "${env:OTHER_VARIABLE} = 1",
         "${env:KIT_ALLOW_PROTECTED} -eq '1'",  # a comparison, not an assignment operator
         "${env:KIT_ALLOW_PROTEC``TED}=1",  # a doubled backtick is a literal one: another variable
+        "${E``NV:KIT_ALLOW_PROTECTED}=1",  # likewise in the drive part: not env:
+        "${variable:KIT_ALLOW_PROTECTED}=1",  # a PowerShell variable of that name, not the environment's
+        "${function:KIT_ALLOW_PROTECTED}=1",
     ],
 )
 def test_reading_or_quoting_the_braced_form_is_not_setting_it(text):
