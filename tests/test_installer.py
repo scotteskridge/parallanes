@@ -251,6 +251,31 @@ def test_a_first_install_shows_the_answers_it_used_and_a_rerun_does_not(tmp_path
 
 
 @pytest.mark.slow
+def test_yes_shows_the_answers_and_calls_them_taken_not_asked(tmp_path):
+    repo = new_repo(tmp_path)
+    dry = setup(repo, "--dry-run")  # setup() passes --yes
+    assert "  Project name: my project\n" in dry.stdout
+    assert "a real run without --yes asks" not in dry.stdout
+    real = setup(repo)
+    assert "  Project name: my project\n" in real.stdout and "  Pre-commit check: yes\n" in real.stdout
+
+
+@pytest.mark.slow
+def test_a_rerun_shows_a_pre_commit_answer_decided_only_now(tmp_path):
+    # Review round 1: a folder that became a repo after the first install is asked about the
+    # pre-commit check on the re-run, and the dry run took "yes" without saying so.
+    folder = tmp_path / "plain folder"
+    folder.mkdir()
+    setup(folder)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=folder, check=True)
+    result = run_setup(folder, "--dry-run")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "  Pre-commit check: yes\n" in result.stdout
+    assert "a real run without --yes asks" in result.stdout
+    assert "Project name:" not in result.stdout  # the saved answers stay out (decision 113)
+
+
+@pytest.mark.slow
 def test_a_folder_that_is_not_a_repo_shows_no_pre_commit_answer(tmp_path):
     folder = tmp_path / "plain folder"
     folder.mkdir()

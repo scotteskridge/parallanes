@@ -18,7 +18,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      - *Not on a re-run,* which keeps its one line, "Using the answers from the earlier install".
        *Why:* the owner edits `kit.toml` and `AGENTS.md` after installing, so the saved answers can
        be stale; printing them would contradict the files (an existing test caught it: the
-       recommendation had said every run).
+       recommendation had said every run). The exception to the exception: a pre-commit answer
+       decided on this run (the folder became a repo since) is shown, since a dry run would
+       otherwise take "yes" for a question the real run asks (review round 1).
 
 ## 2026-10-08: Local mode's setup hints
 

@@ -80,8 +80,12 @@ def main(argv=None) -> int:
     }
     extra = {rel: data for rel, data in extra.items() if _read(target / rel) != data}
 
-    if not saved:  # saved answers can be stale: the owner edits the files after installing
-        report.answers(answers, precommit_answer, detected=args.dry_run and not args.yes)
+    # Saved answers can be stale (the owner edits the files after installing), so a re-run shows
+    # only a pre-commit answer decided now: a folder that became a repo since (review round 1).
+    shown = None if saved else answers
+    new_precommit = precommit_answer if saved.get("precommit") is None else None
+    if shown or new_precommit:
+        report.answers(shown, new_precommit, detected=args.dry_run and not args.yes)
     report.plan(files, settings_change, extra, precommit)
     if args.dry_run:
         print("\nDry run: nothing was written.")
@@ -103,7 +107,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kit_setup.py", description="Install the kit into a project.")
     parser.add_argument("--target", default=".", help="the project folder (default: the current folder)")
     parser.add_argument(
-        "--dry-run", action="store_true", help="print the answers and what would be written; ask nothing, write nothing"
+        "--dry-run",
+        action="store_true",
+        help="print what would be written (and a first install's answers); ask nothing, write nothing",
     )
     parser.add_argument("--yes", action="store_true", help="take every detected default without asking")
     return parser

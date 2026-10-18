@@ -23,10 +23,13 @@ def repo_root(target: Path) -> Path | None:
     return target if target.exists() and root.resolve() == target.resolve() else root
 
 
-def answers(used: dict, precommit: str | None, detected: bool) -> None:
-    """The answers the files are made from: what a person most wants to check (trial F1)."""
+def answers(used: dict | None, precommit: str | None, detected: bool) -> None:
+    """The answers the files are made from: what a person most wants to check (trial F1).
+
+    used None: a re-run, whose saved answers aren't shown (decision 113).
+    """
     print("\nAnswers:")
-    for key, question in QUESTIONS:
+    for key, question in QUESTIONS if used else ():
         print(f"  {question}: {used[key] or '(none)'}")
     if precommit is not None:  # asked only at a repository's root
         print(f"  Pre-commit check: {precommit}")

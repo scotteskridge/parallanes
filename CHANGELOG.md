@@ -27,7 +27,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The installer's `--dry-run` no longer asks the setup questions (backlog
   `installer-dry-run-prompts`, decision 113, from the two-lane trial's F1): it takes what `--yes`
   would, so a scripted dry run works. A first install, dry or not, now prints the answers it used
-  (project name, stack, test command, branch, pre-commit check) above the file plan.
+  (the five setup answers and the pre-commit check) above the file plan; a re-run shows only a
+  pre-commit answer decided on that run.
 
 ### Fixed
 - A glob class holding `[`, `&&`, `~~` or `||` compiled to a regex Python warns it will read as a
