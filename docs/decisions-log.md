@@ -13,6 +13,11 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      `lanes sync` asks for. The resolution, and anything added to the merge commit, is still
      judged, secrets included under the CI label. The rules check has the same shape and is left
      as it is, with backlog `rules-check-merge-commits` for the owner's call.
+     - *The hook trusts MERGE_HEAD* (review round 1, both reviewers): a protected change or secret
+       committed without the hook, then merged with `git merge --no-commit`, passes pre-commit.
+       *Why it stays:* CI's `--diff` judges the whole pull request; a merge that doesn't stop
+       never ran pre-commit anyway; the lane-boundary check has trusted it since decision 96.
+       Stated in `protected-paths.md`; a tighter rule is backlog `merge-head-trust`.
 
 ## 2026-10-18: PowerShell's braced variables
 

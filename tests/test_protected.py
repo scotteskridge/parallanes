@@ -193,8 +193,8 @@ def test_precommit_blocks_a_protected_change(tmp_path):
     assert "vendor/lib.py" in result.stdout + result.stderr
 
 
-def conflicted_merge(tmp_path):
-    """A branch mid-merge of main, which changed a protected file and conflicts on src/app.py.
+def conflicted_merge(tmp_path, main_deletes=False):
+    """A branch mid-merge of main, which changed (or deleted) a protected file and conflicts on src/app.py.
 
     `lanes sync` on a pushed branch leaves this for `git merge --continue`, which runs the pre-commit hook.
     """
@@ -204,7 +204,10 @@ def conflicted_merge(tmp_path):
     git(repo, "commit", "-q", "-am", "branch")
     git(repo, "switch", "-q", "main")
     write(repo, "src/app.py", "x = 'main'\n")
-    write(repo, "vendor/lib.py", "x = 'updated on main'\n")
+    if main_deletes:
+        git(repo, "rm", "-q", "vendor/lib.py")
+    else:
+        write(repo, "vendor/lib.py", "x = 'updated on main'\n")
     git(repo, "commit", "-q", "-am", "main")
     git(repo, "switch", "-q", "feature")
     merge = subprocess.run(["git", "merge", "-q", "main"], cwd=repo, capture_output=True, text=True)
@@ -214,16 +217,28 @@ def conflicted_merge(tmp_path):
     return repo
 
 
-def test_a_merge_commit_is_judged_on_its_resolution_not_on_what_main_brought(tmp_path):
-    repo = conflicted_merge(tmp_path)
+@pytest.mark.parametrize("main_deletes", [False, True])
+def test_a_merge_commit_is_judged_on_its_resolution_not_on_what_main_brought(tmp_path, main_deletes):
+    repo = conflicted_merge(tmp_path, main_deletes)
     result = check(repo, "protected", "--staged")
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_a_protected_file_the_resolution_changes_is_still_a_finding(tmp_path):
+def test_the_precommit_hook_lets_the_merge_finish(tmp_path):
     repo = conflicted_merge(tmp_path)
-    write(repo, "vendor/lib.py", "x = 'edited during the merge'\n")
-    git(repo, "add", "vendor/lib.py")
+    install_hook(repo)
+    result = subprocess.run(["git", "commit", "-q", "--no-edit"], cwd=repo, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("edit", ["change", "delete"])
+def test_a_protected_file_the_resolution_changes_is_still_a_finding(tmp_path, edit):
+    repo = conflicted_merge(tmp_path)
+    if edit == "delete":
+        git(repo, "rm", "-q", "-f", "vendor/lib.py")  # both parents still have it
+    else:
+        write(repo, "vendor/lib.py", "x = 'edited during the merge'\n")
+        git(repo, "add", "vendor/lib.py")
     result = check(repo, "protected", "--staged")
     assert result.returncode == 1
     assert "vendor/lib.py: [protected]" in result.stdout

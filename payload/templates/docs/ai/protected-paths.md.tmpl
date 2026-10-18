@@ -11,7 +11,7 @@ CI, required reviews and branch protection.
 | --- | --- | --- | --- |
 | Deny rules (main protection) | `.claude/settings.json`, written by `{{kit_command}} settings sync` | Claude's Edit/Write tools on protected paths; reads and edits of secrets; the shell file commands Claude Code recognizes (`sed`, `tee`, redirections); protected commands in the form written in `kit.toml`, also inside `&&`, `;`, pipes and subshells | Commands with options in between (`git -C . push --force`, `git push origin main --force`); writes by any program or script |
 | Hook (backstop) | `{{kit_command}} hook protected`, before every tool call | Protected commands with reordered flags, `git -C`, wrappers (`env`, `sudo`, `timeout`), flag clusters (`-xdf`); edits to protected paths even if `settings.json` drifted; the targets of common file commands (`rm`, `mv`, `cp`, `git rm`, `git mv`, `git restore`, `Set-Content`, `Remove-Item`, `Out-File`, redirections); the agent switching the checks off (`--no-verify`, `KIT_ALLOW_PROTECTED`, `core.hooksPath`) | The misses listed below |
-| Pre-commit | `.githooks/pre-commit` → `{{kit_command}} check all --staged` | A commit that changes a protected path or adds a secret file, from anyone; `kit.toml` and `settings.json` drifting apart | `git commit --no-verify` by a human; machines without the hook enabled |
+| Pre-commit | `.githooks/pre-commit` → `{{kit_command}} check all --staged` | A commit that changes a protected path or adds a secret file, from anyone; `kit.toml` and `settings.json` drifting apart | `git commit --no-verify` by a human; machines without the hook enabled; what a merge brings in (a merge commit is judged on its resolution only, the merged branch is left to CI); a merge that doesn't stop, which never runs the hook |
 | CI | `.github/workflows/kit.yml`: `check all --diff origin/<base>` on every pull request | The same, for every pull request; nothing it checks can be skipped locally | A merge, unless its jobs are required checks (see "The server" below) |
 
 Where the hook and the deny rules cover the same thing (Claude's file tools, the shell file
@@ -82,6 +82,9 @@ more than it is:
   or multiple assignment (`$a = $env:X = 1`), a type cast in front (`[string]$env:X = 1`),
   `Set-Content env:X` or `Copy-Item env:A env:X`, and a provider path inside the braces
   (`${env:\X}`, `${Microsoft.PowerShell.Core\Environment::X}`).
+- Before a pull request, a protected change or secret file made in a commit that skipped the
+  hook (`--no-verify`, `git commit-tree`, a stash) and then merged with `git merge --no-commit`:
+  pre-commit judges a merge commit on its resolution only. CI judges the whole pull request.
 
 ## A real boundary
 
