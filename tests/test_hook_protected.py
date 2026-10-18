@@ -401,6 +401,7 @@ def test_more_redirect_forms_are_caught(repo, command):
     [
         ("KIT_ALLOW_PROTECTED+=1 git commit -m x", "Bash"),
         ("New-Item -Path Env: -Name KIT_ALLOW_PROTECTED -Value 1", "PowerShell"),
+        ("${env:KIT_ALLOW_CROSS_LANE} = 1; git commit -m x", "PowerShell"),  # decision 114
     ],
 )
 def test_more_ways_of_setting_the_allow_variable_are_blocked(repo, command, tool):

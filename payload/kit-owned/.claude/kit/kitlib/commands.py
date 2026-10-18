@@ -270,6 +270,7 @@ _SETS_IN_CODE = re.compile(
     rf"\$\{{(?:{_ALLOW_ALTERNATIVES}):?=|SetEnvironmentVariable\(\s*['\"](?:{_ALLOW_ALTERNATIVES})\b",
     re.IGNORECASE,
 )
+_BRACED_ENV = re.compile(r"\$\{(env:[A-Za-z_][A-Za-z0-9_]*)\}", re.IGNORECASE)
 _PREFIX_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\+?=")
 _DECLARERS = {"export", "declare", "typeset", "local", "readonly", "set", "setx"}
 _ENV_CMDLETS = {"set-item", "new-item", "si", "ni"}
@@ -293,7 +294,7 @@ def _sets_allow_variable(words: list[str]) -> bool:
         return False
     first, args = words[i].lower(), [word.lower() for word in words[i + 1 :]]
     if any(first.startswith("$env:" + name) for name in _ALLOW_NAMES):  # `$env:X = 1`, `$env:X='1'`
-        return "=" in first or bool(args) and args[0].startswith("=")
+        return "=" in first or bool(args) and args[0].startswith(("=", "+="))
     if first in _DECLARERS:  # `export X=1`, `set X=1`, `setx X 1`
         return any(re.match(rf"(?:{_ALLOW_ALTERNATIVES})([+:]?=|$)", arg) for arg in args)
     if first in _ENV_CMDLETS:  # `Set-Item env:X 1`, `New-Item -Path Env: -Name X`
@@ -305,6 +306,11 @@ def _sets_allow_variable(words: list[str]) -> bool:
 def disables_checks(text: str, shell: str) -> str | None:
     """Why text would switch the kit's local checks off, or None."""
     if _SETS_IN_CODE.search(text):
+        return _ALLOW_REASON
+    # PowerShell's `${env:X}` is `$env:X`, but the splitter reads its braces as separators. Rewritten
+    # in place, a quoted mention stays inside its quoted word and still passes.
+    unbraced = _BRACED_ENV.sub(r"$\1", text)
+    if unbraced != text and any(_sets_allow_variable(words) for words in tokenize(unbraced, shell)):
         return _ALLOW_REASON
     for words in tokenize(text, shell):
         if _sets_allow_variable(words):
