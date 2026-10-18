@@ -78,6 +78,10 @@ more than it is:
   the session's own project.
 - On Windows, whether Claude Code's deny rules cover PowerShell cmdlets isn't documented; the hook
   covers the common ones, best effort.
+- Setting a `KIT_ALLOW_*` variable in PowerShell other than by a plain assignment to `$env:X` or
+  `${env:X}`: `$env:X++`, a chained or multiple assignment (`$a = $env:X = 1`), a type cast in
+  front (`[string]$env:X = 1`), `Set-Content env:X`, or a provider path inside the braces
+  (`${env:\X}`).
 
 ## A real boundary
 

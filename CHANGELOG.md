@@ -34,9 +34,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A glob class holding `[`, `&&`, `~~` or `||` compiled to a regex Python warns it will read as a
   nested set or a set operation; they're escaped now and keep matching literally.
 - The protected hook now catches an agent setting `KIT_ALLOW_PROTECTED` or `KIT_ALLOW_CROSS_LANE`
-  with PowerShell's braced form, `${env:KIT_ALLOW_PROTECTED} = 1`, and with `$env:X += 1`
-  (backlog `allow-variable-braced-powershell`, decision 114). Quoting either in a commit message
-  or reading it in a condition still passes.
+  with PowerShell's braced form, `${env:KIT_ALLOW_PROTECTED} = 1`, and with a spaced compound
+  operator such as `$env:X += 1` or `??= 1` (backlog `allow-variable-braced-powershell`, decision
+  114). Quoting either in a commit message or reading it in a condition still passes. Rarer
+  PowerShell ways to set it are listed under "Known misses" in `protected-paths.md`.
 
 ## [0.1.0] - 2026-10-07
 
