@@ -270,8 +270,9 @@ _SETS_IN_CODE = re.compile(
     rf"\$\{{(?:{_ALLOW_ALTERNATIVES}):?=|SetEnvironmentVariable\(\s*['\"](?:{_ALLOW_ALTERNATIVES})\b",
     re.IGNORECASE,
 )
-# A backtick inside the braces is an escape PowerShell drops (`${env:A`B}` is `$env:AB`).
-_BRACED_ENV = re.compile(r"\$\{(env:[A-Za-z0-9_`]+)\}", re.IGNORECASE)
+# Backticks are kept: PowerShell reads one inside the braces as an escape (`${E`NV:A`B}` is
+# `$ENV:AB`, a doubled one is a literal backtick), and so does the tokenizer the rewrite feeds.
+_BRACED_ENV = re.compile(r"\$\{([A-Za-z`]+:[A-Za-z0-9_`]+)\}")
 # PowerShell's assignment operators: `=`, `+=`, `-=`, `*=`, `/=`, `%=` and `??=` (sets it when unset).
 _ASSIGNMENT_OPERATOR = re.compile(r"(?:[-+*/%]|\?\?)?=")
 _PREFIX_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\+?=")
@@ -312,7 +313,7 @@ def disables_checks(text: str, shell: str) -> str | None:
         return _ALLOW_REASON
     # PowerShell's `${env:X}` is `$env:X`, but the splitter reads its braces as separators. Rewritten
     # in place, a quoted mention stays inside its quoted word and still passes.
-    unbraced = _BRACED_ENV.sub(lambda braced: "$" + braced.group(1).replace("`", ""), text)
+    unbraced = _BRACED_ENV.sub(r"$\1", text)
     if unbraced != text and any(_sets_allow_variable(words) for words in tokenize(unbraced, shell)):
         return _ALLOW_REASON
     for words in tokenize(text, shell):

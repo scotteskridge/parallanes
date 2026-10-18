@@ -315,6 +315,9 @@ def test_setting_it_in_command_position_is_still_caught(text, shell):
         "cd sub; ${env:KIT_ALLOW_PROTECTED} = 1",
         # Review round 1: PowerShell reads a backtick inside the braces as an escape (checked live).
         "${env:KIT_ALLOW_PROTEC`TED}=1",
+        # Review round 2: in the drive part too (checked live; `n would be a newline, so not `nv).
+        "${E`NV:KIT_ALLOW_PROTECTED}=1",
+        "${env`:KIT_ALLOW_CROSS_LANE}=1",
         "${env:KIT_ALLOW_PROTECTED} ??= 1",
     ],
 )
@@ -331,6 +334,7 @@ def test_the_braced_powershell_form_is_caught(text):
         "if (${env:KIT_ALLOW_PROTECTED} -eq 1) { Write-Host set }",
         "${env:OTHER_VARIABLE} = 1",
         "${env:KIT_ALLOW_PROTECTED} -eq '1'",  # a comparison, not an assignment operator
+        "${env:KIT_ALLOW_PROTEC``TED}=1",  # a doubled backtick is a literal one: another variable
     ],
 )
 def test_reading_or_quoting_the_braced_form_is_not_setting_it(text):

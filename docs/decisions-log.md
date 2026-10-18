@@ -10,8 +10,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      mean the same in PowerShell, and the existing word check then judges it. *Why:* matching the
      raw text would block quoting it in prose (decision 34's rule), and teaching the splitter that
      `${…}` is one word would change every protected-command check, a wider change than this
-     needs. The rewrite is used only by this check, and drops backticks inside the braces as
-     PowerShell does. Its tests also found `$env:X += 1` (with a space) slipping through; the same
+     needs. The rewrite is used only by this check, and keeps backticks inside the braces (in the
+     drive part too: `` ${E`NV:X} `` sets it, checked live) for the tokenizer to read as escapes,
+     as PowerShell does. Its tests also found `$env:X += 1` (with a space) slipping through; the same
      check now takes every PowerShell assignment operator (`+=`, `-=`, `*=`, `/=`, `%=`, `??=`).
      Rarer ways that predate this (`++`, chained assignment, a cast, `Set-Content env:`) are known
      misses, with backlog `allow-variable-powershell-assignments` (review round 1).
