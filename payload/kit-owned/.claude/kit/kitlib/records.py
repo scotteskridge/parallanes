@@ -7,6 +7,7 @@ dataclasses, `__init__` and the field tuple are generated as code for each class
 `__init__` made `lane_owners.overlaps` on 100,000 files a third slower.
 """
 
+import keyword
 import operator
 
 
@@ -33,7 +34,7 @@ def _build(cls, order: bool):
     # defined (dataclasses would accept a forward reference): at import, every hook would fail.
     names = tuple(cls.__annotations__)
     for name in names:
-        if not name.isidentifier():
+        if not name.isidentifier() or keyword.iskeyword(name):
             raise TypeError(f"{cls.__name__}: field {name!r} is not an identifier")
     scope = {"__record_set": object.__setattr__, "__record_missing": _MISSING}
     params, body = [], []

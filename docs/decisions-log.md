@@ -71,6 +71,16 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        not plainly normal goes to git. And `worktreeConfig`, which Claude Code's desktop worktrees
        turn on (this repo has it), sent every hook back to git; `config.worktree` is now read. The
        generated `__init__` uses names no field can take.
+     - *Review round 3 (two 🔴):* a crafted `.git` beside its own kit.toml (a symlinked HEAD, or
+       `objects/` git can't search) still moved the root; and on POSIX a `.git` that is a FIFO hung
+       every hook until its 30 s timeout let the call through. Every file gitdisk reads is now read
+       only if it is a small regular file (no symlink, FIFO or device; 64 KB at most), and
+       `objects/` and `refs/` must be searchable. Structurally: `find_root` keeps a disk root only
+       if no folder above it holds a kit.toml, or it is a normal lane of that folder's checkout
+       (git dir in `<folder>/.git/worktrees/`); anything else asks git. `relativeWorktrees` is
+       read from disk, not sent to git. While fixing it, a half-applied edit to this repo's dev
+       hook (a name used before its import) made the guard fail closed and block every tool twice;
+       the owner added the missing lines. Edits to the hook's modules now go in import-first.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 

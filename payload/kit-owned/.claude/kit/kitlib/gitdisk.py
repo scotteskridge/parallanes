@@ -10,6 +10,7 @@ also asks git when the answer here holds no kit.toml.
 """
 
 import os
+import stat
 from pathlib import Path
 
 UNKNOWN = object()  # this layout is git's to answer
@@ -26,6 +27,10 @@ _GIT_ENV = (
 # there. Not on Windows, where a walk can't leave its drive.
 _CHECK_DEVICE = os.name != "nt"
 _HEX = frozenset("0123456789abcdef")
+_LIMIT = 65536  # bytes: more than any `.git` file, HEAD or config git writes; bigger asks git
+# Extensions this module understands: worktreeConfig (read below) and relativeWorktrees (relative
+# `gitdir:` and `commondir` paths, which git_dirs already resolves).
+_EXTENSIONS = ("worktreeconfig", "relativeworktrees")
 
 
 def _device(folder: Path) -> int:
@@ -60,10 +65,10 @@ def git_dirs(top: Path) -> tuple[Path, Path] | None:
         if (dot / "commondir").exists():
             return None
         return (dot, dot) if _is_repository(dot) else None
-    try:
-        text = dot.read_text(encoding="utf-8").rstrip("\r\n")
-    except (OSError, UnicodeDecodeError):
+    text = _read(dot)
+    if not text:
         return None
+    text = text.rstrip("\r\n")
     # git takes the whole file but its line ending, and the path exactly as written after "gitdir: ".
     path = text.removeprefix("gitdir: ")
     if path == text or not path or path != path.strip() or "\n" in path or "\r" in path:
@@ -71,24 +76,44 @@ def git_dirs(top: Path) -> tuple[Path, Path] | None:
     git_dir = Path(os.path.normpath(top / path))
     if not _valid_head(git_dir):
         return None
-    try:
-        common = (git_dir / "commondir").read_text(encoding="utf-8").rstrip("\r\n")
-    except FileNotFoundError:
-        common_dir = git_dir  # a separate git dir, or a submodule's own checkout
-    except (OSError, UnicodeDecodeError):
+    common = _read(git_dir / "commondir", missing="")
+    if common is None:
         return None
+    if not common:
+        common_dir = git_dir  # no commondir: a separate git dir, or a submodule's own checkout
     else:
+        common = common.rstrip("\r\n")
         if not common or common != common.strip():
             return None
         common_dir = Path(os.path.normpath(git_dir / common))
     return (git_dir, common_dir) if _is_repository(common_dir) else None
 
 
+def _read(path: Path, missing=None) -> str | None:
+    """The text of a small regular file; `missing` when there is none; None for anything else.
+
+    Never follows a symlink and never reads a FIFO or a device: a FIFO `.git` hung every hook until
+    its timeout let the call through (review round 3), and git itself skips a symlinked HEAD.
+    """
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return missing
+    except OSError:
+        return None
+    if not stat.S_ISREG(info.st_mode) or info.st_size > _LIMIT:
+        return None
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read(_LIMIT)
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
 def _is_repository(folder: Path) -> bool:
-    """objects/, refs/, a config and a HEAD as `git init` writes them."""
+    """objects/ and refs/ git can search, a config and a HEAD as `git init` writes them."""
     return (
-        (folder / "objects").is_dir()
-        and (folder / "refs").is_dir()
+        all(os.access(folder / name, os.X_OK) and (folder / name).is_dir() for name in ("objects", "refs"))
         and (folder / "config").is_file()
         and _valid_head(folder)
     )
@@ -96,10 +121,10 @@ def _is_repository(folder: Path) -> bool:
 
 def _valid_head(git_dir: Path) -> bool:
     """A HEAD exactly as git writes it: `ref: refs/...`, or a lowercase object id."""
-    try:
-        head = (git_dir / "HEAD").read_text(encoding="utf-8").rstrip("\n")
-    except (OSError, UnicodeDecodeError):
+    head = _read(git_dir / "HEAD")
+    if head is None:
         return False
+    head = head.rstrip("\n")
     if head.startswith("ref: refs/"):
         return head == head.strip()
     return len(head) in (40, 64) and _HEX.issuperset(head)
@@ -112,22 +137,16 @@ def _moves_worktree(git_dir: Path, common: Path) -> bool:
     on), the worktree's own `config.worktree` is read the same way. Loose by design: a false alarm
     only means asking git.
     """
-    try:
-        text = (common / "config").read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+    text = _read(common / "config")
+    if text is None:
         return True
     unclear, per_worktree = _read_config(text, extensions_allowed=True)
     if unclear:
         return True
     if not per_worktree:
         return False
-    try:
-        text = (git_dir / "config.worktree").read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return False
-    except (OSError, UnicodeDecodeError):
-        return True
-    return _read_config(text, extensions_allowed=False)[0]
+    text = _read(git_dir / "config.worktree", missing="")
+    return text is None or _read_config(text, extensions_allowed=False)[0]
 
 
 def _read_config(text: str, extensions_allowed: bool) -> tuple[bool, bool]:
@@ -154,7 +173,8 @@ def _read_config(text: str, extensions_allowed: bool) -> tuple[bool, bool]:
         if section == "core" and key == "repositoryformatversion" and value not in ("0", "1"):
             return True, per_worktree
         if section == "extensions":
-            if not extensions_allowed or key != "worktreeconfig":
+            if not extensions_allowed or key not in _EXTENSIONS:
                 return True, per_worktree  # objectformat, refstorage, ...: git's to read
-            per_worktree = not false
+            if key == "worktreeconfig":
+                per_worktree = not false
     return False, per_worktree

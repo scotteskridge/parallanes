@@ -4,6 +4,7 @@ Validation is strict (decision 24): an unknown key or a wrong type is an error n
 typo can't silently switch a rule off.
 """
 
+import os
 import re
 import tomllib
 from pathlib import Path
@@ -159,9 +160,10 @@ def find_root(start: Path) -> Path:
     """
     start = Path(start).resolve()
     top = gitdisk.toplevel(start)
-    # A disk answer without the kit's config goes to git too: a `.git` git would reject can't
-    # take the protected guard's kit.toml away (review round 2). Free on the normal layout.
-    if top is gitdisk.UNKNOWN or (top is not None and not (top / CONFIG_REL).is_file()):
+    # A disk answer the kit's config doesn't vouch for goes to git too: a `.git` git would reject
+    # can't take the protected guard's kit.toml away (review rounds 2, 3). A few stats on the
+    # normal layout.
+    if top is gitdisk.UNKNOWN or (top is not None and not _disk_root_stands(top)):
         top = _git_toplevel(start)
     if top is not None:
         return top
@@ -169,6 +171,28 @@ def find_root(start: Path) -> Path:
         if (folder / CONFIG_REL).is_file():
             return folder
     return start
+
+
+def _disk_root_stands(top: Path) -> bool:
+    """Whether find_root may keep the root read from disk: it holds the kit's config, and no folder
+    above it does, unless it is a normal lane of that folder's checkout (its git dir in
+    `<folder>/.git/worktrees/`). A crafted `.git` beside its own kit.toml inside a project then
+    goes to git, whatever the disk checks missed (review round 3), so the project's [protected]
+    can't be swapped for the crafted one."""
+    if not (top / CONFIG_REL).is_file():
+        return False
+    outer = next((folder for folder in top.parents if (folder / CONFIG_REL).is_file()), None)
+    if outer is None:
+        return True
+    dirs = gitdisk.git_dirs(top)
+    if dirs is None:
+        return False
+    git_dir, common = dirs
+    return _same(common, outer / ".git") and _same(git_dir.parent, common / "worktrees")
+
+
+def _same(a: Path, b: Path) -> bool:
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
 
 
 def _git_toplevel(start: Path) -> Path | None:

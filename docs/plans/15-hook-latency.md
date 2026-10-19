@@ -155,3 +155,10 @@ Where the time goes, per call:
   has no kit.toml, and only a plainly normal `.git` is read from disk. Claude Code's desktop
   worktrees turn on `extensions.worktreeConfig`, which round 1's fix sent to git on every call (this
   repo included); `config.worktree` is now read instead.
+- **Review round 3** (general-purpose; two 🔴): a crafted `.git` beside its own kit.toml (symlinked
+  HEAD, unsearchable `objects/`) still moved the root, and a FIFO `.git` hung every hook on POSIX.
+  gitdisk now reads only small regular files and checks search permission; `find_root` keeps a
+  disk root only when no folder above it holds a kit.toml, or it is a normal lane of that folder's
+  checkout. Checked on WSL (Python 3.14) by script, since the POSIX tests skip on Windows. A
+  half-applied edit (a name used before its import) broke this repo's dev hook twice, blocking
+  every tool until the owner added the line.

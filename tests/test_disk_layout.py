@@ -5,6 +5,7 @@ three more to find the lane. On the normal layout the answers come from `.git` a
 `gitdir:` / `commondir` files; any other layout falls back to git, so it is slower, never wrong.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -354,3 +355,92 @@ def test_claude_code_worktree_config_keeps_the_disk_answer(lane, no_git_after):
     assert same(find_root(main), main)
     top, found_main = lanes.locate(lane)
     assert same(top, lane) and same(found_main, main)
+
+
+# ---- review round 3 --------------------------------------------------------------------------------
+
+
+def _valid_crafted_dot_git(folder: Path) -> None:
+    write(folder, ".git/HEAD", "ref: refs/heads/main\n")
+    write(folder, ".git/config", "[core]\n\tbare = false\n")
+    (folder / ".git" / "objects").mkdir()
+    (folder / ".git" / "refs").mkdir()
+
+
+def test_a_head_symlink_asks_git(tmp_path):
+    # git checks HEAD with lstat: a symlink not into refs/ makes it skip the folder.
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    _valid_crafted_dot_git(repo / "sub")
+    (repo / "sub" / ".git" / "HEAD").unlink()
+    write(repo / "sub", ".git/realhead", "ref: refs/heads/main\n")
+    try:
+        os.symlink("realhead", repo / "sub" / ".git" / "HEAD")
+    except OSError:
+        pytest.skip("this machine can't create symlinks")
+    assert gitdisk.toplevel(repo / "sub") is gitdisk.UNKNOWN
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX permissions")
+@pytest.mark.parametrize("folder", ["objects", "refs"])
+def test_a_git_dir_folder_git_cannot_search_asks_git(tmp_path, folder):
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    _valid_crafted_dot_git(repo / "sub")
+    (repo / "sub" / ".git" / folder).chmod(0o600)
+    try:
+        assert gitdisk.toplevel(repo / "sub") is gitdisk.UNKNOWN
+    finally:
+        (repo / "sub" / ".git" / folder).chmod(0o755)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs a FIFO")
+def test_a_dot_git_that_is_no_regular_file_never_hangs(tmp_path):
+    # Reading a FIFO blocks for ever, and the hook's 30 s timeout would let the call through.
+    repo = make_repo(tmp_path)
+    (repo / "sub").mkdir()
+    os.mkfifo(repo / "sub" / ".git")
+    code = (
+        "import sys; sys.path.insert(0, sys.argv[1]); from pathlib import Path; "
+        "from kitlib.config import find_root; print(find_root(Path(sys.argv[2])))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(Path(config_module.__file__).parent.parent), str(repo / "sub")],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert same(Path(result.stdout.strip()), repo), result
+
+
+def test_a_root_inside_another_kit_project_asks_git(tmp_path, monkeypatch):
+    # A crafted `.git` beside its own kit.toml, inside a project: whatever made the disk accept it,
+    # git decides, so the outer project's [protected] can't be swapped for the inner one's.
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    write(repo, "sub/.claude/kit.toml", "")
+    monkeypatch.setattr(gitdisk, "toplevel", lambda start: repo / "sub")
+    assert same(find_root(repo / "sub"), repo)
+
+
+def test_a_lane_inside_the_main_checkout_still_needs_no_git(lane, no_git):
+    assert same(find_root(lane / "src"), lane)
+
+
+def test_relative_worktree_paths_keep_the_disk_answer(tmp_path, no_git_after):
+    repo = lanes_repo(tmp_path, origin=False)
+    rel = repo / ".claude" / "worktrees" / "rel"
+    added = subprocess.run(
+        ["git", "worktree", "add", "-q", "--relative-paths", "--detach", str(rel)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if added.returncode != 0:
+        pytest.skip(f"this git has no --relative-paths: {added.stderr.strip()}")
+    no_git_after()
+    assert same(find_root(repo), repo)
+    assert same(find_root(rel), rel)

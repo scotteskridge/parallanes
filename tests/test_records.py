@@ -106,3 +106,10 @@ def test_field_names_the_generated_code_might_use():
 
     odd = Odd(1, 2)
     assert (odd.self, odd._set, odd._MISSING) == (1, 2, [])
+
+
+def test_a_keyword_field_name_is_a_type_error():
+    # Unreachable through annotation syntax, but a generated __init__ would be a SyntaxError.
+    namespace = {"__annotations__": {"class": int}}
+    with pytest.raises(TypeError):
+        record(type("Kw", (), namespace))
