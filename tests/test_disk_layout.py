@@ -123,7 +123,9 @@ def test_garbled_dot_git_file_falls_back(lane):
     assert lanes.locate(lane) == (None, None)
 
 
-def test_separate_git_dir_still_goes_through_git(tmp_path):
+def test_separate_git_dir_main_checkout_matches_git(tmp_path):
+    # Its main checkout is read from disk (no commondir: the git dir is the common one); its lanes
+    # go to git, which test_lanes.py covers.
     repo = lanes_repo(tmp_path, origin=False)
     git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'git store'}")
     assert same(find_root(repo / "src"), repo)
@@ -148,3 +150,128 @@ def test_find_root_loads_no_subprocess_module_on_the_normal_layout(tmp_path):
 
 def _refuse(*args, **kwargs):
     raise AssertionError(f"started a process: {args[0] if args else kwargs.get('args')}")
+
+
+# ---- review round 1: layouts git answers differently -------------------------------------------------
+
+
+def test_a_dot_git_holding_only_head_is_not_a_repository(tmp_path):
+    # git also needs objects/ and refs/: a stray HEAD file must not move the root (and with it the
+    # protected guard's kit.toml) into a subfolder.
+    repo = make_repo(tmp_path)
+    write(repo, "sub/.git/HEAD", "ref: refs/heads/main\n")
+    write(repo, "sub/.git/config", "[core]\n\tbare = false\n")  # else the missing config alone asks git
+    assert same(find_root(repo / "sub"), git_toplevel(repo / "sub"))
+    assert same(find_root(repo / "sub"), repo)
+
+
+def test_crossing_a_filesystem_boundary_asks_git(tmp_path, monkeypatch):
+    # git stops at a mount point unless GIT_DISCOVERY_ACROSS_FILESYSTEM is set; the walk can't
+    # tell what git would do there, so it asks.
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    (repo / "mounted").mkdir()
+    monkeypatch.setattr(gitdisk, "_CHECK_DEVICE", True)
+    monkeypatch.setattr(gitdisk, "_device", lambda folder: 2 if same(folder, repo / "mounted") else 1)
+    assert gitdisk.toplevel(repo / "mounted") is gitdisk.UNKNOWN
+
+
+def test_the_same_filesystem_is_answered_from_disk(tmp_path, monkeypatch):
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    (repo / "sub").mkdir()
+    monkeypatch.setattr(gitdisk, "_CHECK_DEVICE", True)
+    monkeypatch.setattr(gitdisk, "_device", lambda folder: 1)
+    assert same(gitdisk.toplevel(repo / "sub"), repo)
+
+
+def test_git_common_dir_in_the_environment_asks_git(tmp_path, monkeypatch):
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)  # first: git itself would obey the variable while building it
+    monkeypatch.setenv("GIT_COMMON_DIR", str(tmp_path))
+    assert gitdisk.toplevel(repo) is gitdisk.UNKNOWN
+
+
+@pytest.mark.parametrize("inside", [".git", ".git/refs"])
+def test_a_folder_inside_dot_git_is_no_working_tree(tmp_path, inside):
+    repo = make_repo(tmp_path)
+    assert lanes.locate(repo / inside) == (None, None)  # as git rev-parse answers there
+
+
+def test_a_bare_repository_is_no_working_tree(tmp_path):
+    bare = tmp_path / "bare repo.git"
+    git(tmp_path, "init", "-q", "--bare", str(bare))
+    assert lanes.locate(bare) == (None, None)
+
+
+def test_core_worktree_in_a_separate_git_dir_sends_the_question_to_git(tmp_path):
+    repo = make_repo(tmp_path)
+    git(repo, "init", "-q", f"--separate-git-dir={tmp_path / 'git store'}")
+    (repo / "elsewhere").mkdir()
+    git(repo, "config", "core.worktree", str(repo / "elsewhere"))
+    assert same(find_root(repo), git_toplevel(repo))
+
+
+def test_per_worktree_config_sends_the_question_to_git(lane):
+    git(lane, "config", "extensions.worktreeConfig", "true")
+    git(lane, "config", "--worktree", "core.worktree", str(lane / "src"))
+    assert same(find_root(lane), git_toplevel(lane))
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["\tbare = true", "\tbare", "[core] bare = true", "\tbare = true ; note", "\tBare=yes", "\tworktree = ../x"],
+)
+def test_config_lines_that_move_the_working_tree(tmp_path, line):
+    from kitlib import gitdisk
+
+    dot = tmp_path / ".git"
+    write(tmp_path, ".git/config", f"[core]\n\trepositoryformatversion = 0\n{line}\n")
+    assert gitdisk._moves_worktree(dot)
+
+
+def test_an_ordinary_config_does_not_move_the_working_tree(tmp_path):
+    from kitlib import gitdisk
+
+    write(tmp_path, ".git/config", '[core]\n\tbare = false\n\tlogallrefupdates = true\n[remote "origin"]\n')
+    assert not gitdisk._moves_worktree(tmp_path / ".git")
+
+
+def test_a_dot_git_file_naming_a_folder_that_is_no_repository(tmp_path):
+    repo = make_repo(tmp_path)
+    write(repo, "sub/gd/HEAD", "ref: refs/heads/main\n")
+    write(repo, "sub/.git", "gitdir: gd\n")
+    assert same(find_root(repo / "sub"), repo)
+
+
+def test_a_dot_git_whose_head_names_nothing_is_no_repository(tmp_path):
+    repo = make_repo(tmp_path)
+    write(repo, "sub/.git/HEAD", "not a ref\n")
+    write(repo, "sub/.git/config", "[core]\n\tbare = false\n")
+    (repo / "sub" / ".git" / "objects").mkdir()
+    (repo / "sub" / ".git" / "refs").mkdir()
+    assert same(find_root(repo / "sub"), git_toplevel(repo / "sub"))
+    assert same(find_root(repo / "sub"), repo)
+
+
+def test_the_protected_guard_still_blocks_from_under_a_fake_dot_git(tmp_path):
+    # Both reviewers' round-1 repro: a hook cwd below a `.git` git rejects must still find the
+    # project's kit.toml, so a protected path stays blocked.
+    import json
+
+    from helpers import RULES_TOML
+
+    repo = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n')
+    write(repo, "sub/.git/HEAD", "ref: refs/heads/main\n")
+    write(repo, "sub/.git/config", "[core]\n\tbare = false\n")
+    payload = {
+        "cwd": str(repo / "sub"),
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Edit",
+        "tool_input": {"file_path": str(repo / "vendor" / "lib.py")},
+    }
+    result = run_cli(repo / "sub", "hook", "protected", stdin=json.dumps(payload))
+    assert result.returncode == 2, result

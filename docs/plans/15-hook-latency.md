@@ -140,3 +140,13 @@ Where the time goes, per call:
 - **Lane guide not changed:** the venv-shim note went to the decisions log, since `python-path` is
   the installer's business, not the lane guide's.
 - **Live check** (`tests/live/test_hook_latency.py`) passed on its first run.
+- **Review round 1** (repo `reviewer` + general-purpose; one 🔴, found by both): a `.git` holding
+  only a `HEAD` counted as a repository, so from a hook cwd below one the protected guard lost
+  kit.toml and allowed a protected edit that `main` blocks. `gitdisk` now checks what git checks
+  (`objects/`, `refs/`, a valid HEAD), and asks git for more layouts: `GIT_COMMON_DIR`,
+  `core.worktree` behind a `.git` file, per-worktree config, `[include]`, any `bare` that isn't
+  false, a cwd inside a git dir or a bare repository, a mount point crossed (POSIX). Also: tests
+  that a broken `protected.py` / `reviewer_hook.py` still blocks and a broken `rules_check.py`
+  doesn't; the module tests forbid `dataclasses` and `inspect`; `records` generates `__init__`
+  (the generic one made the full suite's 100,000-file overlap test a third slower); the launcher
+  takes a backslash-only path. Gaps already on `main` went to backlog `protected-guard-root-gaps`.

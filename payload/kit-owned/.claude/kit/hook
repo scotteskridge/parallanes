@@ -9,6 +9,7 @@
 # call (decision 120). `${0%/*}` is `dirname` for the `sh "<path>/hook"` form settings.json uses.
 case "$0" in
     */*) kit=${0%/*} ;;
+    *\\*) kit=${0%\\*} ;; # a Windows path typed by hand, as `dirname` took it (review round 1)
     *) kit=. ;;
 esac
 case "$1" in

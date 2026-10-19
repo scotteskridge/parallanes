@@ -28,7 +28,9 @@ def record(cls=None, *, order: bool = False):
 
 
 def _build(cls, order: bool):
-    # Not cls.__dict__["__annotations__"]: from Python 3.14 annotations are made on first access (PEP 649).
+    # Not cls.__dict__["__annotations__"]: from Python 3.14 annotations are made on first access
+    # (PEP 649). That access evaluates them, so a field's annotation must name something already
+    # defined (dataclasses would accept a forward reference): at import, every hook would fail.
     names = tuple(cls.__annotations__)
     for name in names:
         if not name.isidentifier():

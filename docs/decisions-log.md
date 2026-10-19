@@ -8,17 +8,25 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
 120. **The per-call hooks find the project root and the lane from disk, load only what they use,
      and the launcher forks nothing** (owner's OK on Claude's recommendations, plan 15, backlog
      `hook-latency`). Measured first: on Windows each git call costs ~70 ms, the kit's imports
-     ~130 ms and the `sh` launcher ~180 ms; protected took ~540 ms a call, ownership ~810 ms.
+     ~130 ms and the `sh` launcher ~170 ms (the plan's first run: protected ~540 ms a call,
+     ownership ~810 ms; the before/after run below measured the same code at 506 and 752).
      - *Root and lane from disk, git as the fallback:* the root is the nearest folder holding
        `.git`; a lane's main checkout comes from its `.git` file's `gitdir:` and that folder's
-       `commondir` (git's documented layout) when the common dir is `<main>/.git`. Any other layout
-       (`GIT_DIR` / `GIT_WORK_TREE` set, a separate git dir, a submodule, a file that doesn't parse)
-       runs today's git calls: slower, never wrong. *Why not a cache:* nothing outlives a hook call,
-       and a cache file can go stale (decision 35).
+       `commondir` (git's documented layout) when the common dir is `<main>/.git`. A `.git` counts
+       only as git counts it (`objects/`, `refs/`, a HEAD naming a ref or commit). Anything else
+       asks git as before: slower, never wrong. That is a git variable set (`GIT_DIR`,
+       `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_CEILING_DIRECTORIES`, `GIT_DISCOVERY_ACROSS_FILESYSTEM`),
+       `core.worktree`, a true `core.bare`, a per-worktree config or an `[include]` in the repository's
+       config, a submodule (its config sets `core.worktree`), a lane whose main checkout isn't
+       `<main>/.git`'s folder, a walk that starts inside a git dir or crosses a mount point (POSIX),
+       or a `.git` file that doesn't parse. A separate git dir's own checkout is read from disk (no
+       `commondir`: the git dir is the common one). *Why not a cache:* nothing outlives a hook
+       call, and a cache file can go stale (decision 35).
      - *Keep `sh .claude/kit/hook <name>`*, minus its forks. The ~150 ms target counts the hook's
-       own time (Python start to exit); `sh`'s own start (~90 ms on Windows) is a floor the kit
-       doesn't control. *Why:* a different settings command needs re-checking how Claude Code runs
-       hooks on every OS and migrating every installed settings.json, for ~90 ms.
+       own time (Python start to exit); `sh`'s own start (~45 ms on Windows; the launcher adds ~70 ms
+       in all now, ~170 before) is a floor the kit doesn't control. *Why:* a different settings
+       command needs re-checking how Claude Code runs hooks on every OS and migrating every
+       installed settings.json, for ~45 ms.
      - *Two regression tests:* the modules each hook loads (exact, never flaky) and a generous
        import-time limit (catches a slow import nobody listed).
      - *Result* (`tools/hook_timing.py`, medians of 15, through the launcher; own time in brackets):
@@ -43,6 +51,15 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        (PEP 649), so `records` reads `cls.__annotations__`. CI tests 3.11 and 3.13 only.
      - *Not changed:* a venv's `python.exe` on Windows is a launcher shim that adds ~65 ms a call;
        the installer records whichever Python ran it.
+     - *Review round 1 (both reviewers, the same 🔴; Claude's calls):* the walk took any `.git`
+       holding a `HEAD` as a repository, where git also wants `objects/`, `refs/` and a valid HEAD.
+       From a hook cwd below such a folder the root moved there, kit.toml went missing and the
+       protected guard let a `vendor/**` edit through that `main` blocks. It now checks what git
+       checks, and the other layouts the reviewers found git answering differently ask git
+       (listed above). A generated `__init__` in `records` (as dataclasses do) keeps the 100,000-
+       file overlap check at main's speed; the launcher takes a backslash-only path as `dirname`
+       did. Gaps on `main` the reviewers found, not this change's: backlog
+       `protected-guard-root-gaps`.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 

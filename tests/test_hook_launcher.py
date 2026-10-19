@@ -111,3 +111,12 @@ def test_launcher_run_by_a_bare_name_from_its_own_folder(tmp_path):
     result = subprocess.run(["sh", "hook", "protected"], cwd=kit, input="{}", capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     assert "['hook', 'protected']" in result.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a backslash path is a Windows spelling")
+def test_launcher_run_by_a_backslash_path(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    result = subprocess.run(["sh", str(kit / "hook"), "protected"], input="{}", capture_output=True, text=True)
+    assert "\\" in str(kit / "hook")
+    assert result.returncode == 0, result.stderr
+    assert "['hook', 'protected']" in result.stdout

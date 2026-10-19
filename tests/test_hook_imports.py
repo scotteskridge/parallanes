@@ -7,12 +7,13 @@ slow import nobody listed).
 """
 
 import json
+import shutil
 import subprocess
 import sys
 
 import pytest
 
-from helpers import CLI, make_repo, run_cli
+from helpers import CLI, RULES_TOML, make_repo, run_cli
 from lane_helpers import lane_dir, lanes_repo
 
 # The CLI commands' modules: no hook uses them.
@@ -29,6 +30,8 @@ CLI_ONLY = {
     "kitlib.lane_merged",
     "kitlib.next_facts",
 }
+# A hook-path class back on @dataclass would bring these (~40 ms).
+HEAVY = {"dataclasses", "inspect", "argparse", "subprocess"}
 LANE_CODE = {"kitlib.lane_hooks", "kitlib.lanes", "kitlib.lane_boundary", "kitlib.session_lock", "kitlib.lane_deps"}
 # Only the session-start briefing needs these.
 ROUTER_ONLY = {"kitlib.session_lock", "kitlib.lane_deps"}
@@ -70,21 +73,21 @@ def test_protected_loads_neither_the_cli_nor_the_lane_code_nor_subprocess(tmp_pa
     for tool, tool_input in (("Bash", {"command": "git status"}), ("Edit", {"file_path": str(repo / "a.py")})):
         code, modules = loaded(tmp_path, repo, "protected", "PreToolUse", tool_input, tool)
         assert code == 0
-        assert unwanted(modules, CLI_ONLY | LANE_CODE | {"subprocess", "kitlib.rules_check"}) == []
+        assert unwanted(modules, CLI_ONLY | LANE_CODE | HEAVY | {"kitlib.rules_check"}) == []
 
 
 def test_rules_check_loads_no_lane_code_nor_subprocess(tmp_path):
     repo = make_repo(tmp_path)
     code, modules = loaded(tmp_path, repo, "rules-check", "PostToolUse", {"file_path": str(repo / "a.py")})
     assert code == 0
-    assert unwanted(modules, CLI_ONLY | LANE_CODE | {"subprocess"}) == []
+    assert unwanted(modules, CLI_ONLY | LANE_CODE | HEAVY) == []
 
 
 def test_reviewer_guard_loads_no_cli_or_lane_code(tmp_path):
     repo = make_repo(tmp_path)
     code, modules = loaded(tmp_path, repo, "reviewer-bash", "PreToolUse", {"command": "git status"}, "Bash")
     assert code == 0
-    assert unwanted(modules, CLI_ONLY | LANE_CODE | {"subprocess"}) == []
+    assert unwanted(modules, CLI_ONLY | LANE_CODE | HEAVY) == []
 
 
 @pytest.mark.slow
@@ -95,7 +98,7 @@ def test_ownership_in_a_lane_starts_no_process_and_skips_the_briefing_code(tmp_p
     for target in ("src/core/x.py", "src/api/x.py"):  # allowed, then asked
         code, modules = loaded(tmp_path, lane, "ownership", "PreToolUse", {"file_path": str(lane / target)})
         assert code == 0
-        assert unwanted(modules, CLI_ONLY | ROUTER_ONLY | {"subprocess", "kitlib.rules_check"}) == []
+        assert unwanted(modules, CLI_ONLY | ROUTER_ONLY | HEAVY | {"kitlib.rules_check"}) == []
 
 
 @pytest.mark.slow
@@ -137,3 +140,36 @@ def test_hook_path_imports_stay_under_the_limit():
     assert min(ratios) < IMPORT_RATIO_LIMIT, (
         f"the hook path's imports took {min(ratios):.2f}x the standard modules' (limit {IMPORT_RATIO_LIMIT}x)"
     )
+
+
+# ---- a broken module keeps each hook's failure policy (review round 1) -------------------------------
+# Imports moved into each hook: a fault in the module a hook now imports itself must still block in
+# the guards and never block in the others.
+
+
+@pytest.mark.parametrize(
+    "module, name, tool, tool_input, code",
+    [
+        ("protected", "protected", "Write", {"file_path": "vendor/x.py"}, 2),
+        ("reviewer_hook", "reviewer-bash", "Bash", {"command": "git status"}, 2),
+        ("rules_check", "rules-check", "Edit", {"file_path": "a.py"}, 1),
+    ],
+)
+def test_a_broken_module_keeps_the_hooks_failure_policy(tmp_path, module, name, tool, tool_input, code):
+    kit = tmp_path / "kit copy"
+    shutil.copytree(CLI.parent, kit, ignore=shutil.ignore_patterns("__pycache__"))
+    with open(kit / "kitlib" / f"{module}.py", "a", encoding="utf-8") as handle:
+        handle.write("\nraise RuntimeError('broken module')\n")
+    project = make_repo(tmp_path, config=RULES_TOML + '\n[protected]\npaths = ["vendor/**"]\n')
+    absolute = {key: str(project / value) if key == "file_path" else value for key, value in tool_input.items()}
+    payload = {"cwd": str(project), "hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": absolute}
+    result = subprocess.run(
+        [sys.executable, str(kit / "cli.py"), "hook", name],
+        cwd=project,
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert result.returncode == code, result
+    assert "broken module" in result.stderr and "Traceback" not in result.stderr
