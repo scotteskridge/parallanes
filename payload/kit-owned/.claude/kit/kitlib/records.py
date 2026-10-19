@@ -2,7 +2,9 @@
 
 `dataclasses` imports `inspect` (~40 ms on Windows), and the hooks load the config's classes on every
 tool call (decision 120). Only what the kit uses: fields from annotations, defaults, `Factory`
-defaults, `__post_init__`, frozen attributes, equality, hashing and optional ordering.
+defaults, `__post_init__`, frozen attributes, equality, hashing and optional ordering. Like
+dataclasses, `__init__` and the field tuple are generated as code for each class: a generic
+`__init__` made `lane_owners.overlaps` on 100,000 files a third slower.
 """
 
 import operator
@@ -28,37 +30,35 @@ def record(cls=None, *, order: bool = False):
 def _build(cls, order: bool):
     # Not cls.__dict__["__annotations__"]: from Python 3.14 annotations are made on first access (PEP 649).
     names = tuple(cls.__annotations__)
-    defaults = []
+    for name in names:
+        if not name.isidentifier():
+            raise TypeError(f"{cls.__name__}: field {name!r} is not an identifier")
+    scope = {"_set": object.__setattr__, "_MISSING": _MISSING}
+    params, body = [], []
     for name in names:
         default = cls.__dict__.get(name, _MISSING)
-        if default is _MISSING and any(d is not _MISSING for d in defaults):
-            raise TypeError(f"{cls.__name__}: field {name!r} without a default follows one with a default")
-        defaults.append(default)
-        if isinstance(default, Factory):
+        if default is _MISSING:
+            if params and "=" in params[-1]:
+                raise TypeError(f"{cls.__name__}: field {name!r} without a default follows one with a default")
+            params.append(name)
+        elif isinstance(default, Factory):
             delattr(cls, name)  # the instance always has its own value
-    post_init = getattr(cls, "__post_init__", None)
-
-    def __init__(self, *args, **kwargs):
-        if len(args) > len(names):
-            raise TypeError(f"{cls.__name__}() takes {len(names)} arguments, {len(args)} given")
-        values = dict(zip(names, args, strict=False))
-        for name, value in kwargs.items():
-            if name not in names:
-                raise TypeError(f"{cls.__name__}() got an unexpected argument {name!r}")
-            if name in values:
-                raise TypeError(f"{cls.__name__}() got {name!r} twice")
-            values[name] = value
-        for name, default in zip(names, defaults, strict=True):
-            if name not in values:
-                if default is _MISSING:
-                    raise TypeError(f"{cls.__name__}() missing argument {name!r}")
-                values[name] = default.make() if isinstance(default, Factory) else default
-            object.__setattr__(self, name, values[name])
-        if post_init is not None:
-            post_init(self)
-
-    def _values(self):
-        return tuple(getattr(self, name) for name in names)
+            scope[f"_make_{name}"] = default.make
+            params.append(f"{name}=_MISSING")
+            body.append(f"    if {name} is _MISSING:\n        {name} = _make_{name}()")
+        else:
+            scope[f"_default_{name}"] = default
+            params.append(f"{name}=_default_{name}")
+        body.append(f"    _set(self, {name!r}, {name})")
+    if hasattr(cls, "__post_init__"):
+        body.append("    self.__post_init__()")
+    fields = "".join(f"self.{name}, " for name in names)
+    source = (
+        f"def __init__(self, {', '.join(params)}):\n" + "\n".join(body or ["    pass"]) + "\n"
+        f"def _values(self):\n    return ({fields})\n"
+    )
+    exec(source, scope)  # built only from the class's own field names, checked as identifiers above
+    _values = scope["_values"]
 
     def __repr__(self):
         return f"{cls.__name__}({', '.join(f'{name}={getattr(self, name)!r}' for name in names)})"
@@ -76,7 +76,7 @@ def _build(cls, order: bool):
         raise AttributeError(f"cannot delete field {name!r}: {cls.__name__} is frozen")
 
     methods = {
-        "__init__": __init__,
+        "__init__": scope["__init__"],
         "__repr__": __repr__,
         "__eq__": __eq__,
         "__hash__": __hash__,
