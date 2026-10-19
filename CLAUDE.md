@@ -10,7 +10,9 @@
   under ~100 lines.
 - **Standing permission to push and merge (owner, 2026-10-07):** push any branch except `main`
   without asking. Merge a PR with `gh pr merge --merge --delete-branch` once the owner has said
-  in chat that it's approved and every CI check is green (or decision 95 applies). Never push to
-  `main` directly, force-push, or merge a PR the owner hasn't approved.
+  in chat that it's approved and the full suite and both ruff commands passed locally on the
+  pushed commit; CI need not finish first (decision 118). Report CI's result when it lands and fix
+  a red run with a follow-up PR. Never push to `main` directly, force-push, or merge a PR the
+  owner hasn't approved.
 - When compacting, keep: the task, the approved plan, files changed, latest test results, open
   questions.

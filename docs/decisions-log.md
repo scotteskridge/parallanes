@@ -3,6 +3,18 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: Merging on local evidence
+
+118. **An approved PR merges once the full suite and both ruff commands passed locally on the
+     pushed commit, without waiting for CI** (owner's call, on Claude's recommendation; replaces
+     decision 95's docs-only exception, which this covers). CI still runs on every push; a red
+     run after the merge is reported and fixed with a follow-up PR. *Why:* one developer, and
+     turnaround matters more than keeping `main` green at every moment: the CI wait (about 4
+     minutes for the Windows full suite) came on every PR. The risk accepted: a failure only
+     Linux or another Python version shows reaches `main` first, as in plans 04 and 12. `main`
+     has no branch protection, so `gh pr merge --auto` also merges at once (PR 53). Affects
+     `CLAUDE.md`'s standing permission only.
+
 ## 2026-10-19: The full suite runs once per push
 
 117. **The local full suite runs once before a branch is pushed, not before every commit; the
