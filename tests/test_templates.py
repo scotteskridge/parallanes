@@ -155,26 +155,52 @@ def test_rendered_kit_toml_protects_with_the_documented_defaults(tmp_path):
     assert "Read(.env)" in rules["deny"] and "Bash(git push --force *)" in rules["deny"]
 
 
-def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
-    # The commented lane settings and [[lanes]] example are what owners copy; they must be valid.
-    from kitlib.config import LaneSettings, load
+def examples() -> dict:
+    """The TOML examples in docs/ai/kit-toml.md, by the name in the comment above each (plan 16)."""
+    entries = registry()
+    values = {name: entry["example"] for name, entry in entries.items()}
+    text = render(read("docs/ai/kit-toml.md"), values, set(entries))
+    found = dict(re.findall(r"<!-- example: ([a-z-]+) -->\n```toml\n(.*?)```", text, re.DOTALL))
+    assert found, "docs/ai/kit-toml.md has no marked examples"
+    return found
+
+
+def _kit_toml_with(tmp_path, *names):
+    """The rendered kit.toml with the named examples from docs/ai/kit-toml.md added, then loaded.
+    The project-lanes example's keys go into the existing [project] table."""
+    from kitlib.config import load
 
     entries = registry()
     values = {name: entry["example"] for name, entry in entries.items()}
-    lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
-    start = lines.index("# [[lanes]]")
-    keys = ("# merge_mode =", "# worktree_root =", "# ownership =", "# shared_defaults =")
-    uncommented = [
-        line[2:] if (i >= start and line.startswith("# ")) or line.startswith(keys) else line
-        for i, line in enumerate(lines)
-    ]
+    text = render(read(".claude/kit.toml"), values, set(entries))
+    found = examples()
+    for name in names:
+        block = found[name]
+        if name == "project-lanes":
+            text = text.replace("[project]\n", block, 1)
+        else:
+            text += "\n" + block
     (tmp_path / ".claude").mkdir()
-    (tmp_path / ".claude" / "kit.toml").write_text("\n".join(uncommented) + "\n", encoding="utf-8")
-    config = load(tmp_path)
+    (tmp_path / ".claude" / "kit.toml").write_text(text, encoding="utf-8")
+    return load(tmp_path)
+
+
+def test_every_kit_toml_example_is_documented_and_loads(tmp_path):
+    # The examples are what owners copy; together they must make a valid config.
+    assert set(examples()) == {"project-lanes", "rules", "hooks", "shared-defaults", "shared-repo-wide", "lanes"}
+    config = _kit_toml_with(tmp_path, *examples())
+    assert [rule.id for rule in config.rules] == ["no-print"]
+    assert config.hooks.switched_off == frozenset()
+
+
+def test_kit_toml_lane_example_loads_with_the_documented_defaults(tmp_path):
+    from kitlib.config import LaneSettings
+
+    config = _kit_toml_with(tmp_path, "project-lanes", "lanes")
     assert [lane.name for lane in config.lanes] == ["core", "api"]
     defaults = LaneSettings()
     settings = config.lane_settings
-    # The commented values are documented as the defaults: they must be.
+    # The values shown are documented as the defaults: they must be.
     assert (settings.merge_mode, settings.worktree_root, settings.ownership, settings.shared_paths) == (
         defaults.merge_mode,
         defaults.worktree_root,
@@ -183,51 +209,33 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
     )
 
 
-def _kit_toml_with_shared_examples(tmp_path, blocks):
-    """The rendered kit.toml with the commented [[shared]] tables numbered in `blocks` (from 0), and the
-    lanes, uncommented."""
-    from kitlib.config import load
-
-    entries = registry()
-    values = {name: entry["example"] for name, entry in entries.items()}
-    lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
-    starts = [i for i, line in enumerate(lines) if line == "# [[shared]]"]
-    lanes = lines.index("# [[lanes]]")
-    chosen = set()
-    for start in (starts[block] for block in blocks):
-        end = start
-        while lines[end].startswith("# "):
-            chosen.add(end)
-            end += 1
-    uncommented = [
-        line[2:] if i in chosen or (i >= lanes and line.startswith("# ")) else line for i, line in enumerate(lines)
-    ]
-    (tmp_path / ".claude").mkdir()
-    (tmp_path / ".claude" / "kit.toml").write_text("\n".join(uncommented) + "\n", encoding="utf-8")
-    return load(tmp_path).lane_settings
-
-
 REPO_WIDE_EXAMPLE = ("/.gitignore", "/package.json")
 
 
-def test_rendered_kit_toml_shared_defaults_are_the_real_defaults(tmp_path):
+def test_kit_toml_shared_defaults_are_the_real_defaults(tmp_path):
     from kitlib.config import LaneSettings
 
-    assert _kit_toml_with_shared_examples(tmp_path, [0, 1]).shared == LaneSettings().shared
+    assert _kit_toml_with(tmp_path, "shared-defaults", "lanes").lane_settings.shared == LaneSettings().shared
 
 
-def test_rendered_kit_toml_repo_wide_example_loads_with_its_steward(tmp_path):
+def test_kit_toml_repo_wide_example_loads_with_its_steward(tmp_path):
     from kitlib.config import LaneSettings
     from kitlib.shared_zones import Zone
 
-    shared = _kit_toml_with_shared_examples(tmp_path, [0, 1, 2]).shared
+    shared = _kit_toml_with(tmp_path, "shared-defaults", "shared-repo-wide", "lanes").lane_settings.shared
     assert shared == (*LaneSettings().shared, Zone(REPO_WIDE_EXAMPLE, "ask", "core"))
 
 
-def test_rendered_kit_toml_repo_wide_example_alone_keeps_the_defaults(tmp_path):
-    # Plan 13's review round 1: uncommenting only this example dropped every default shared path.
+def test_kit_toml_repo_wide_example_alone_keeps_the_defaults(tmp_path):
+    # Plan 13's review round 1: using only this example dropped every default shared path.
     from kitlib.config import LaneSettings
     from kitlib.shared_zones import Zone
 
-    shared = _kit_toml_with_shared_examples(tmp_path, [2]).shared
+    shared = _kit_toml_with(tmp_path, "shared-repo-wide", "lanes").lane_settings.shared
     assert shared == (Zone(REPO_WIDE_EXAMPLE, "ask", "core"), *LaneSettings().shared)
+
+
+def test_installed_kit_toml_stays_short():
+    # Plan 16: the reference moved to docs/ai/kit-toml.md; the file a new user opens stays a page.
+    words = len(read(".claude/kit.toml").split())
+    assert words < 250, f"kit.toml template is {words} words"
