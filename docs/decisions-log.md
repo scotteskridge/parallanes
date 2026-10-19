@@ -81,6 +81,12 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        read from disk, not sent to git. While fixing it, a half-applied edit to this repo's dev
        hook (a name used before its import) made the guard fail closed and block every tool twice;
        the owner added the missing lines. Edits to the hook's modules now go in import-first.
+     - *Review round 4: no 🔴 or 🟠.* Its two 🟡, kept as they are: a `.git/config` with a key git
+       calls malformed is still read from disk (the guard ends on the same folder as `main`, where
+       git fails and the kit.toml fallback answers; only the ask-only lane hooks see the
+       difference). And `find_root`'s check for an outer kit.toml costs ~2–4 ms a call, and sends a
+       kit project nested inside another kit project (a submodule with its own install) to git:
+       slower there, never wrong.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 

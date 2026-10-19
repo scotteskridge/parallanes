@@ -112,7 +112,7 @@ Where the time goes, per call:
 
 ## Done when
 - [x] Tests above pass locally (CI reported after the merge, decision 118)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Reviewer report attached to the PR; every 🔴 fixed
 - [x] Each hook's time per call measured on Windows and Linux, before and after, in the decisions
       log; protected and ownership under ~150 ms of their own time on Windows, or the log says why
 - [x] Live check: one `claude -p` session in a scratch project with lanes, asserting the protected
@@ -162,3 +162,4 @@ Where the time goes, per call:
   checkout. Checked on WSL (Python 3.14) by script, since the POSIX tests skip on Windows. A
   half-applied edit (a name used before its import) broke this repo's dev hook twice, blocking
   every tool until the owner added the line.
+- **Review round 4** (general-purpose): no 🔴 or 🟠; two 🟡 recorded in decision 120.
