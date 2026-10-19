@@ -3,6 +3,17 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: The full suite runs once per push
+
+117. **The local full suite runs once before a branch is pushed, not before every commit; the
+     fast set and both ruff commands still run before each commit** (owner's OK on Claude's
+     recommendation, after PR 52). *Why:* PR 52 ran the 4-minute full suite three times, once per
+     review-round commit, and on Windows it mostly repeated what CI's matrix runs again on every
+     push. CI stays the merge gate: it is the only clean machine, Linux and more than one Python
+     version, and it caught what local runs couldn't (a test hiding git by dropping a PATH
+     folder in plan 04, tests without a git identity in plan 12). Affects
+     `AGENTS.md` "Checking your work" only; the installed templates are unchanged.
+
 ## 2026-10-18: Shared path modes (plan 13)
 
 116. **A shared path is open, append or ask, with an optional steward lane** (owner's OK on
