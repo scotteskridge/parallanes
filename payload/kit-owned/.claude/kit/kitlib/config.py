@@ -159,15 +159,22 @@ def find_root(start: Path) -> Path:
     Read from disk on the normal layouts; git answers the others (decision 120).
     """
     start = Path(start).resolve()
-    top = gitdisk.toplevel(start)
+    # A cwd that is gone (a lane removed under a running session), or one git can't start in, is
+    # answered from the nearest folder above it git could start in, as that folder would be: the
+    # nearest kit.toml above a missing folder could be a nested one the disk check would reject,
+    # and pathlib raises for a file in a folder it can't search (review rounds 1, 2).
+    here = start
+    while not (os.path.isdir(here) and os.access(here, os.X_OK)) and here != here.parent:
+        here = here.parent
+    top = gitdisk.toplevel(here)
     # A disk answer the kit's config doesn't vouch for goes to git too: a `.git` git would reject
     # can't take the protected guard's kit.toml away (review rounds 2, 3). A few stats on the
     # normal layout.
     if top is gitdisk.UNKNOWN or (top is not None and not _disk_root_stands(top)):
-        top = _git_toplevel(start)
+        top = _git_toplevel(here)
     if top is not None:
         return top
-    for folder in (start, *start.parents):
+    for folder in (here, *here.parents):
         if (folder / CONFIG_REL).is_file():
             return folder
     return start
