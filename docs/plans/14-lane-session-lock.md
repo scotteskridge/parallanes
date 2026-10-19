@@ -1,7 +1,7 @@
 # 14 — Claude Code session locks on lanes
 
-**Status:** Approved
-**Branch / PR:** `plan/14-lane-session-lock` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/14-lane-session-lock` · https://github.com/scotteskridge/parallanes/pull/55
 **Builds on:** backlog `lane-session-lock` (step 4 of the v0.2 build order, decision 110); decision
 107 (lanes are opened by their folder; `claude --worktree <lane>` warned against); decision 40 (the
 lane-router briefs and never blocks); decision 45 (`lanes remove` protects ignored work);
@@ -97,11 +97,11 @@ So the backlog item's "check live first" is answered: the warning at start is po
 | `lanes remove` with a leftover lock and uncommitted changes | Refused for the changes; the lock stays |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Live check in `tests/live/` run with `--live`: the warning reaches a `--worktree` session, and
+- [x] Tests above pass locally (CI reported after the merge, decision 118)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] Live check in `tests/live/` run with `--live`: the warning reaches a `--worktree` session, and
       `lanes remove` clears the lock it leaves
-- [ ] CHANGELOG, ARCHITECTURE §6/§15 and decisions log updated
+- [x] CHANGELOG, ARCHITECTURE §6/§15 and decisions log updated
 
 ## Notes after implementation
 - **As planned**, with the three recommendations (decision 119). `lanes.worktree_locks` reads each
