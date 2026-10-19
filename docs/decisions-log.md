@@ -3,6 +3,30 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: Easier setup (plan 16)
+
+All three decided on Claude's recommendation, with the owner's OK.
+
+121. **The installer asks for a profile, solo or lanes, and the default is solo.** It asks "Run
+     several agents at once, each in its own lane? [y/N]", and `--profile solo|lanes` answers it
+     for scripts. The answer is saved in the manifest like the others. Solo leaves the lane-router
+     and ownership hooks out of settings.json. A re-run with `--profile lanes` adds them back. Going
+     from lanes back to solo is by hand, since the installer never deletes. *Why:* solo is useful
+     on its own, doesn't pay for the ownership hook on every edit (~270 ms on Windows) and is the
+     shortest install. *What would change it:* if most people come to the kit for lanes.
+122. **The installer and `lanes suggest` guess lanes from the folders, and write them only on a
+     yes.** The guess uses tracked folders: `src/<x>/` or top-level folders, with `tests/<x>/`
+     folded in, and 2–5 lanes or none. This revises decision 101's "no lane questions": the owner
+     still decides, but with a draft in front of them instead of a blank table. `/onboard` can
+     propose better splits later. *What would change it:* if the guess is wrong on the trial
+     project and two others.
+123. **The installer may offer to commit its own files, and then to create the lanes.** It offers
+     only interactively, and only at a repository root that has a commit and had no changes before
+     the install, so the commit holds only the kit's files. It runs the pre-commit hook and never
+     pushes. With lanes and no `origin` remote it then offers `lanes create`; with an `origin` it
+     says to push first. `--yes` and `--dry-run` never commit. *Why:* "commit, then create" was the
+     step most easily missed in the quickstart (plan 12's README test caught it).
+
 ## 2026-10-19: Hook latency (plan 15)
 
 120. **The per-call hooks find the project root and the lane from disk, load only what they use,
