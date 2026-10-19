@@ -46,13 +46,13 @@ def toplevel(start: Path):
     if any(os.environ.get(name) for name in _GIT_ENV):
         return UNKNOWN
     start = Path(start).resolve()
-    # A cwd that is gone (a lane removed under a running session): git can't start there, so the
-    # caller falls back as it did before plan 15. A walk from it would answer for a parent instead.
-    if not start.is_dir():
+    # A folder that is gone or can't be read: git can't start there, so neither does the walk.
+    # os.path.isdir, not Path.is_dir: on Python 3.11 that raises for an unsearchable parent.
+    if not os.path.isdir(start):
         return UNKNOWN
     device = _device(start) if _CHECK_DEVICE else None
     if _CHECK_DEVICE and device is None:
-        return UNKNOWN
+        return UNKNOWN  # without the start's device the walk couldn't see a mount point
     for folder in (start, *start.parents):
         if folder.name == ".git" or (folder / "HEAD").exists():
             return UNKNOWN  # inside a git dir, or maybe a bare repository: git knows

@@ -2,13 +2,14 @@
 
 PR 56 read the filesystem of the cwd with an unguarded os.stat on macOS/Linux, so the missing
 folder raised out of find_root: the protected guard blocked every call and the fail-open hooks
-reported an error. Before it, git couldn't start there either and find_root fell back to the
-kit.toml walk; that is the answer kept here. `_CHECK_DEVICE` is forced on so Windows runs the
-POSIX path too.
+reported an error. Now the root is what the nearest existing folder above the cwd gets, so a nested
+kit.toml there can't replace the project's (review round 1). `_CHECK_DEVICE` is forced on so
+Windows runs the POSIX path too.
 """
 
 import io
 import json
+import os
 import sys
 
 import pytest
@@ -82,5 +83,41 @@ def test_hooks_run_normally_from_a_missing_cwd(repo, device_check, monkeypatch, 
 
 def test_the_protected_guard_still_blocks_a_protected_path_from_a_missing_cwd(repo, device_check, monkeypatch, capsys):
     code, output = _run_hook(monkeypatch, "protected", repo / "gone", repo / "vendor" / "lib.py", capsys)
+    assert code == 2
+    assert "Blocked by the kit's protected-paths guard" in output
+
+
+# ---- review round 1 --------------------------------------------------------------------------------
+
+
+def test_a_nested_kit_toml_above_a_missing_cwd_cant_take_the_guard(repo, device_check, monkeypatch, capsys):
+    # The nearest kit.toml above a missing cwd is a nested one with no [protected]: the project's
+    # own config must still decide, as it does for an existing cwd there.
+    write(repo, "sub/.claude/kit.toml", (repo / ".claude" / "kit.toml").read_text().split("[protected]")[0])
+    assert lanes.same_path(find_root(repo / "sub" / "gone"), find_root(repo / "sub"))
+    assert lanes.same_path(find_root(repo / "sub" / "gone"), repo)
+    code, output = _run_hook(monkeypatch, "protected", repo / "sub" / "gone", repo / "vendor" / "lib.py", capsys)
+    assert code == 2
+    assert "Blocked by the kit's protected-paths guard" in output
+
+
+def test_a_start_whose_filesystem_cant_be_read_asks_git(repo, monkeypatch):
+    # Without the start's device the walk can't see a mount point, so it mustn't answer.
+    (repo / "sub").mkdir()
+    monkeypatch.setattr(gitdisk, "_CHECK_DEVICE", True)
+    monkeypatch.setattr(gitdisk, "_device", lambda folder: None)
+    assert gitdisk.toplevel(repo / "sub") is gitdisk.UNKNOWN
+
+
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="POSIX permissions, not as root")
+def test_a_cwd_below_an_unsearchable_folder_still_finds_the_root(repo, monkeypatch, capsys):
+    locked = repo / "locked"
+    (locked / "inner").mkdir(parents=True)
+    locked.chmod(0)
+    try:
+        assert lanes.same_path(find_root(locked / "inner"), repo)
+        code, output = _run_hook(monkeypatch, "protected", locked / "inner", repo / "vendor" / "lib.py", capsys)
+    finally:
+        locked.chmod(0o755)
     assert code == 2
     assert "Blocked by the kit's protected-paths guard" in output
