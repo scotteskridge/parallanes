@@ -21,7 +21,7 @@ from . import plan
 from .values import confirm
 
 KIT_TOML = ".claude/kit.toml"
-COMMIT_MESSAGE = "Add parallanes"
+FIRST_COMMIT, UPDATE_COMMIT = "Add parallanes", "Update parallanes"
 
 
 def git(target: Path, *args: str) -> subprocess.CompletedProcess:
@@ -94,10 +94,18 @@ def plan_lanes(
     return outcome
 
 
-def offer_commit(target: Path, written: list, read=input) -> str:
+def offer_commit(target: Path, written: list, message: str, read=input) -> str:
     """Commit the paths this install wrote, on a yes: 'committed', 'declined', 'nothing' (asked
     nothing: a re-run that changed nothing) or 'failed' (git's output printed, the paths unstaged).
     Never `git add -A`: only what the kit wrote goes in. Runs the pre-commit hook."""
+    if not written:
+        return "nothing"
+    # First: `git status` doesn't list ignored files, so they'd look committed (review round 2).
+    ignored = git(target, "check-ignore", "--", *written).stdout.splitlines()
+    if ignored:  # the owner's .gitignore covers them: `git add` would refuse
+        named = ", ".join(ignored[:3]) + (f" and {len(ignored) - 3} more" if len(ignored) > 3 else "")
+        print(f"\nNo commit offered: your .gitignore ignores {named}; commit the kit's files yourself.")
+        return "ignored"
     status = git(target, "status", "--porcelain", "--untracked-files=all", "--", *written)
     if status.returncode != 0 or not status.stdout.strip():
         return "nothing"
@@ -113,25 +121,27 @@ def offer_commit(target: Path, written: list, read=input) -> str:
     others = [path for path in staged if path and path not in written]
     if added.returncode == 0 and others:
         added = subprocess.CompletedProcess([], 1, "", f"other files are staged too: {', '.join(others)}\n")
-    done = added if added.returncode != 0 else git(target, "commit", "-q", "-m", COMMIT_MESSAGE)
+    done = added if added.returncode != 0 else git(target, "commit", "-q", "-m", message)
     if done.returncode != 0:
         git(target, "reset", "-q", "--", *written)  # the index as it was: the owner's, not half the kit's
         print(f"The commit failed; nothing was committed:\n{done.stdout}{done.stderr}", file=sys.stderr)
         return "failed"
-    print(f"Committed the kit's files: {COMMIT_MESSAGE!r}")
+    print(f"Committed the kit's files: {message!r}")
     return "committed"
 
 
-def after_install(target: Path, written: list, lanes: list, origin: bool, read=input) -> dict:
+def after_install(target: Path, written: list, lanes: list, origin: bool, first: bool, read=input) -> dict:
     """The commit offer, then (lanes, no origin) the `lanes create` one: {"committed", "created"}.
     Input closing at either keeps what was done and says so (review round 1)."""
     done = {"committed": False, "created": False}
     try:
-        done["committed"] = offer_commit(target, written, read) == "committed"
+        result = offer_commit(target, written, FIRST_COMMIT if first else UPDATE_COMMIT, read)
     except EOFError:
         print("\nNo answer (input closed): nothing committed.")
         return done
-    if done["committed"] and lanes and not origin:
+    # "nothing": the kit's paths are as committed already, so the next steps needn't ask (review round 2).
+    done["committed"] = result in ("committed", "nothing")
+    if result == "committed" and lanes and not origin:  # offered once, after the commit it needs
         try:
             done["created"] = offer_lanes_create(target, read)
         except EOFError:

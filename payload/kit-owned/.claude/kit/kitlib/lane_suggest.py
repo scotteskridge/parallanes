@@ -59,7 +59,8 @@ def suggest(paths, integration_branch: str = "main") -> tuple[list, str]:
     try:
         config.parse(project + to_toml(lanes))
     except config.ConfigError as error:
-        return [], f"the folders don't make valid lanes ({error}); write them by hand"
+        reason = str(error).removeprefix(f"{config.CONFIG_REL.as_posix()}: ")  # nothing is in kit.toml yet
+        return [], f"the folders don't make valid lanes ({reason}); write them by hand"
     return lanes, ""
 
 

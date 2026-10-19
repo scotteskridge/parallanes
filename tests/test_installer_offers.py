@@ -188,6 +188,26 @@ def test_a_rerun_with_nothing_new_offers_nothing_and_lists_the_lane_folders(tmp_
     assert COMMIT not in again.stdout and ADD not in again.stdout
     steps = again.stdout.split("Next:")[1]
     assert ".claude/worktrees/server" in steps and "lanes create" not in steps
+    assert "Commit the kit's files" not in steps  # review round 2: it is committed
+
+
+def test_no_commit_offer_when_the_owners_gitignore_covers_a_kit_path(tmp_path):
+    repo = project(tmp_path)
+    (repo / ".gitignore").write_text(".claude/\n", encoding="utf-8")
+    git(repo, "add", ".gitignore")
+    git(repo, "commit", "-q", "-m", "ignore")
+    result = setup(repo, stdin=FIRST + "y\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert COMMIT not in result.stdout and "The commit failed" not in result.stderr
+    assert "No commit offered: your .gitignore ignores" in result.stdout
+
+
+def test_a_rerun_that_adds_lanes_commits_them_as_an_update(tmp_path):
+    repo = project(tmp_path)
+    assert setup(repo, stdin="\n" * 5 + "n\n" + "y\n" + "y\n").returncode == 0  # solo, committed
+    result = setup(repo, "--profile", "lanes", stdin="y\n" + "y\n" + "n\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert git(repo, "log", "-1", "--format=%s").strip() == "Update parallanes"
 
 
 def test_input_closing_at_the_create_question_keeps_the_commit_and_says_so(tmp_path):

@@ -119,7 +119,9 @@ def main(argv=None) -> int:
     done.update(committed=False, created=False, origin=repo == target and offers.has_origin(target))
     written = [w.rel for w in files.writes if w.kind != "kit-new"] + _settings_paths(settings_change)
     written += [rel for rel in extra if rel != PYTHON_PATH_REL]  # python-path is gitignored
-    done.update(offers.after_install(target, written, done["lanes"], done["origin"]) if committable else {})
+    done.update(
+        offers.after_install(target, written, done["lanes"], done["origin"], first=not previous) if committable else {}
+    )
     report.next_steps(target, files, precommit, done)
     return 0
 
