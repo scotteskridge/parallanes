@@ -14,7 +14,9 @@ canary with an effect of its own (a marker file, a block in `permission_denials`
 import json
 import os
 import shutil
+import stat
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,6 +58,25 @@ def scratch_project(name: str) -> Path:
     folder = Path(tempfile.gettempdir()) / "kit-live" / name
     folder.mkdir(parents=True, exist_ok=True)
     return folder
+
+
+def remove_tree(path: Path) -> None:
+    """Remove path; git marks its object files read-only, which stops rmtree on Windows."""
+
+    def writable(function, name, *_):
+        os.chmod(name, stat.S_IWRITE)
+        function(name)
+
+    if not path.is_dir():
+        path.unlink()
+    elif sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=writable)
+    else:
+        shutil.rmtree(path, onerror=writable)
+
+
+def git(folder, *args):
+    return subprocess.run(["git", *args], cwd=folder, check=True, capture_output=True, text=True).stdout
 
 
 def is_trusted(folder: Path, claude_config: Path | None = None) -> bool:

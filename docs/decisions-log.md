@@ -3,6 +3,37 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: Claude Code session locks on lanes (plan 14)
+
+119. **The kit recognises Claude Code's `claude session <name> (pid N)` worktree lock on a lane**
+     (owner's OK on Claude's recommendations, plan 14, backlog `lane-session-lock`). A live probe
+     (Claude Code 2.1.293, Windows) showed `claude --worktree <lane>` writes the lock before
+     SessionStart hooks run, with `claude.exe`'s own pid, and a `-p` run leaves it behind.
+     - *Running or leftover* is decided by whether the pid is alive: `os.kill(pid, 0)` on
+       macOS/Linux, `OpenProcess` through `ctypes` on Windows (never `os.kill` there: it ends the
+       process). When it can't tell, the session counts as running. *Why:* one call per OS; asking
+       whether it is this session's ancestor needs a process-table walk per OS for little gain.
+     - *The lane-router warns* in the briefing's Warnings: a running lock says that if it is this
+       session, Claude Code deletes the lane's folder on exit, so tell the user now; a leftover
+       says it doesn't affect the session and gives `git worktree unlock "<folder>"`. *Why:* the
+       agent relays it before the delete can happen (decision 107).
+     - *`lanes remove` clears a leftover lock itself* (`git worktree unlock`, said in its output)
+       after its usual checks, and refuses a running one with the pid and what to do. *Why:* the
+       leftover is the known case and the fix is one safe command; making the owner type it is lag.
+     - *Only that reason counts:* an owner's own `git worktree lock` is never named or cleared.
+     - *Review round 1 (both reviewers; Claude's calls):* the leftover warning first pointed at
+       `lanes remove`, which can't run inside the lane and elsewhere deletes it, for a lock that
+       does the session no harm; it now gives `git worktree unlock`. A pid outside 1..2^31-1
+       counts as running (`os.kill` overflowed on POSIX and crashed `lanes status`; Windows' DWORD
+       cut it to another pid); only ASCII digits are read. The running warning is hedged ("if
+       that is this session"): a reused pid can make an old lock look live. A missing lane folder
+       under Claude Code's lock gets `git worktree unlock` before `git worktree prune`; an owner's lock
+       there is left out (round 2: git's lock marks a folder on a drive that isn't mounted, which
+       looks the same). The running warning puts "tell the user now" before the hedge (round 2). *Known
+       limits:* a zombie counts as running (cautious); a lock written in WSL or a container looks
+       ended from Windows or the host (the lane guide says to run `lanes remove` where the session
+       ran).
+
 ## 2026-10-19: Merging on local evidence
 
 118. **An approved PR merges once the full suite and both ruff commands passed locally on the

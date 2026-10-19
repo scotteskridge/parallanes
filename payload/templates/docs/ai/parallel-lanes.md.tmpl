@@ -34,7 +34,8 @@ lane's own changes to ignored files (`.env`, local settings, build output) are l
 <lane>` makes the folder again; then `git switch <lane>/<task>` in it to carry on. Run `claude`
 from inside the lane folder instead (in a terminal: `cd` there first). An unnamed `claude
 --worktree`, or one with lanes outside the project, makes a separate worktree that isn't a lane;
-the session is told so.
+the session is told so. If a lane is opened with the flag anyway, the session's briefing says so
+(it sees Claude Code's lock on the lane), so the agent can warn you before you exit.
 
 `lanes create` makes each lane folder from the latest `{{integration_branch}}` (`origin/{{integration_branch}}` in PR
 mode, the local branch in local mode; it never fetches), with no branch checked out until a task
@@ -178,9 +179,15 @@ another remote, counts as unpushed, and `sync` would rebase it.
 `{{kit_command}} lanes remove <lane>` deletes its worktree. It refuses if there are uncommitted changes, or
 ignored files that may hold work (a changed `.env`, local settings, build output; not caches such as
 `__pycache__` or `node_modules`); it lists them, and `--force` deletes them anyway. The lane's entry stays in `kit.toml` until you delete it.
-If git says it "cannot remove a locked working tree" with the reason `claude session <lane>`, a
-`claude --worktree` session left a lock behind: once no session runs there, clear it with
-`git worktree unlock <lane folder>` and run the command again.
+A `claude --worktree` session locks the lane (reason `claude session <lane> (pid N)`), and a
+headless `claude -p` run leaves that lock behind. `lanes status` shows it, and `lanes remove`
+clears it itself once that process has ended (after its other checks), saying so. While the
+session still runs, it refuses: close the session first. A lock you set yourself with
+`git worktree lock` is never touched. "Ended" means no process with that pid exists here, so run
+`lanes remove` where the session ran: a lock written by a session in WSL or a container looks
+ended from Windows or the host. If a lane's folder is gone while Claude Code's lock is still on it,
+git won't prune it until `git worktree unlock "<lane folder>"`; `lanes status` and `lanes remove`
+say so.
 
 ## Lanes or agent teams?
 

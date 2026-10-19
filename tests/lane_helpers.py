@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -88,6 +89,21 @@ def commit(repo: Path, rel: str, text: str, message: str = "change") -> str:
 
 def lane_dir(repo: Path, name: str) -> Path:
     return repo / ".claude" / "worktrees" / name
+
+
+def lock_lane(repo: Path, name: str, reason: str) -> None:
+    git(repo, "worktree", "lock", "--reason", reason, str(lane_dir(repo, name)))
+
+
+def finished_process() -> subprocess.Popen:
+    """A process that has exited: what a leftover Claude Code lock names (plan 14).
+
+    Keep the returned object for the whole test: on Windows its open handle stops the pid being
+    given to a new process, which would make the lock read as running (review round 1).
+    """
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    return child
 
 
 def fake_gh(folder: Path, response) -> dict:

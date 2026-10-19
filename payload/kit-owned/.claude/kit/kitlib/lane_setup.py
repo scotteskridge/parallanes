@@ -8,7 +8,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from . import lane_deps
+from . import lane_deps, session_lock
 from .lanes import (
     LaneError,
     branch_of,
@@ -20,6 +20,7 @@ from .lanes import (
     lane_folder,
     local_mode_blocker,
     locate,
+    lock_reason,
     main_checkout,
     registered_worktrees,
     same_path,
@@ -272,6 +273,12 @@ def remove(start: Path, config, name: str, force: bool = False) -> str:
     top = toplevel(Path(start))
     if top is not None and same_path(top, folder):
         raise LaneError(f"{name}: can't remove the lane this command runs in; run it from another folder")
+    if not folder.is_dir():
+        # git never prunes a locked worktree, so prune alone would leave it (review round 1). Only
+        # Claude Code's lock: an owner's marks a folder on a drive that isn't mounted (round 2).
+        claude_lock = session_lock.pid_of(lock_reason(main, folder)) is not None
+        unlock = f'git worktree unlock "{folder}", then ' if claude_lock else ""
+        raise LaneError(f"{name}: {folder} is gone but git still records it. Run: {unlock}git worktree prune")
     changes = git(folder, "status", "--porcelain").splitlines()
     if changes:
         raise LaneError(f"{name}: {len(changes)} uncommitted change(s) in {folder}; commit or discard them first")
@@ -284,8 +291,33 @@ def remove(start: Path, config, name: str, force: bool = False) -> str:
                 f"{name}: removing {folder} would delete ignored files: {shown}. "
                 "Save what you need, then run again with --force"
             )
-    git(main, "worktree", "remove", *(["--force"] if force else []), str(folder))
-    return f"{name}: removed {folder}"
+    cleared = _clear_leftover_session_lock(main, folder, name)
+    try:
+        git(main, "worktree", "remove", *(["--force"] if force else []), str(folder))
+    except LaneError as error:
+        if cleared:  # say what already changed (review round 1)
+            raise LaneError(cleared + str(error)) from None
+        raise
+    return cleared + f"{name}: removed {folder}"
+
+
+def _clear_leftover_session_lock(main: Path, folder: Path, name: str) -> str:
+    """Unlock a lock a finished `claude --worktree` run left (decision 119); refuse a running one.
+
+    Runs after remove's own checks, so a refusal for uncommitted work leaves the lock as it was. An
+    owner's own lock isn't Claude Code's: git refuses it with the owner's reason, as before.
+    """
+    lock = session_lock.find(main, folder)
+    if lock is None:
+        return ""
+    if lock.running:
+        raise LaneError(
+            f"{name}: a Claude Code session (pid {lock.pid}) holds {folder}'s `claude --worktree "
+            f"{name}` lock: close that session first. If it has ended, run: "
+            f'git worktree unlock "{folder}"'
+        )
+    git(main, "worktree", "unlock", str(folder))
+    return f"{name}: cleared a leftover Claude Code session lock (pid {lock.pid})\n"
 
 
 def ignored_work(main: Path, folder: Path) -> list[str]:
