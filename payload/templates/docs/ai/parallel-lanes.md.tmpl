@@ -148,9 +148,11 @@ another remote, counts as unpushed, and `sync` would rebase it.
   still applies to it. When you say yes, the commit goes through:
   `lanes finish`, the pre-commit hook and CI list the change for review instead of refusing it.
   A path in two tables takes the stricter mode. The defaults (fragments and health reports
-  `append`; plans, backlog and the decisions log `open`) stay when you write tables;
-  `shared_defaults = false` in `[project]` drops them. `shared_paths` in `[project]` means `open`
-  and replaces the defaults unless `shared_defaults = true`.
+  `append`; plans, backlog and the decisions log `open`) stay when you write tables, so a table
+  can make a default stricter but can't loosen it or give it a steward (the default still
+  applies; a table that tries on a default pattern doesn't load). For that, set
+  `shared_defaults = false` in `[project]` and write every table you want. `shared_paths` in
+  `[project]` means `open` and replaces the defaults unless `shared_defaults = true`.
 - **When two lanes' patterns match one file, the more specific one owns it.** A lane owning
   `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
   the boundary check refuses them. More specific means more literal folder and file names, then a

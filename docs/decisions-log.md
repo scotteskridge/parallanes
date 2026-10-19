@@ -10,8 +10,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      - *Shape:* a `[[shared]]` table per zone with `paths`, `mode` and an optional `steward` (a
        lane name). `shared_paths` in `[project]` stays and means mode `open`, so a v0.1 `kit.toml`
        behaves as before. Tables add to the defaults, a `shared_paths` list replaces them (see the
-       last bullet); a path in two zones takes the stricter mode. *Why:* the steward sits next to the paths it looks after, and nobody has to
-       migrate.
+       last bullet); a path in two zones takes the stricter mode. *Why:* the steward sits next to
+       the paths it looks after, and nobody has to migrate.
      - *Defaults:* `append` for `docs/changelog.d/**` and `docs/health/**`; `open` for
        `docs/backlog/**`, `docs/plans/**` and `docs/design/decisions-log.md`. *Why:* `/wrap-up`
        moves backlog items and edits plans at every task's end, and the decisions log is one file
@@ -45,9 +45,15 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
          were refused. `shared_defaults = false` in `[project]` drops the defaults (to loosen one,
          or share nothing). A written `shared_paths` list still replaces them, as in v0.1, unless
          `shared_defaults = true` is written too; written, that key always decides. A table
-         exactly repeating a default is dropped, so following plan 13's template ("uncomment the
-         defaults too") still loads the same. *Why:* the common case is one extra table, and it
-         should never cost the defaults; the key name sits beside `shared_paths`.
+         exactly repeating a default zone loads (the default isn't added twice), so following plan
+         13's template ("uncomment the defaults too") still loads the same. *Why:* the common case
+         is one extra table, and it should never cost the defaults; the key name sits beside
+         `shared_paths`.
+         - *A table giving a default pattern a steward or a looser mode doesn't load* (review
+           round 1, general reviewer): the default zone still matches, so the steward was asked
+           anyway, with nothing saying why; the error points at `shared_defaults = false`. Only the
+           same pattern is caught; an overlapping one (`docs/changelog.d/core/**`) is documented in
+           the lane guide. The briefing lists a pattern under its strictest mode only.
 
 ## 2026-10-18: Protected paths in a merge commit
 

@@ -194,15 +194,17 @@ checkout's instruction files in their `settings.local.json` (decision 35).
 ### Ownership
 
 A PreToolUse hook (`parallanes hook ownership`) on Edit, Write, MultiEdit and NotebookEdit compares the
-file with the lane's `owns` plus the shared paths (default: changelog fragments, backlog, plans),
+file with the lane's `owns` plus the shared paths (default: changelog fragments, health reports,
+backlog, plans, the decisions log),
 by the rule below for a file two lanes claim. A shared path's mode [116] decides what asks: `open`
 nothing, `append` a change to a file that existed where the task branch left the integration
 branch, `ask` every change, and never for the zone's `steward` lane. `shared_paths` in `[project]`
 (v0.1) is an `open` zone. Written tables add to the default zones; a written `shared_paths` list
 replaces them, and `shared_defaults` in `[project]`, when written, decides either way. A path in
-two zones takes the stricter mode, and a steward skips only
-its own zones (any other zone matching the file still applies to it). The hook
-fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
+two zones takes the stricter mode, and a steward skips only its own zones (any other zone matching
+the file still applies to it), so a table can't loosen a default or give it a steward: one that
+repeats a default pattern that way doesn't load. The hook fails open (decision 41). From a lane,
+edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown
 (`permissionDecision: "ask"`), so a human decides. Ownership reduces conflicts; it isn't security.
 

@@ -59,8 +59,8 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 
 # Shared paths: no one lane owns them, and every lane may add files there. The first two tables are
 # the defaults: you get them without writing them, and the tables you write add to them. A table
-# can make a default stricter; to drop or loosen one, set `shared_defaults = false` in [project]
-# and write the tables you want. A shared_paths list in [project] (v0.1, mode "open") replaces the
+# can make a default stricter; to drop or loosen one or give it a steward, set
+# `shared_defaults = false` in [project] and write the tables you want. A shared_paths list in [project] (v0.1, mode "open") replaces the
 # defaults unless you also set `shared_defaults = true`.
 # A path in two tables takes the stricter mode. Guide: docs/ai/parallel-lanes.md.
 #

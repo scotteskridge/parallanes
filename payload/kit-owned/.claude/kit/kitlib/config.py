@@ -201,7 +201,12 @@ def lanes_only(text: str, named: str) -> Config | None:
         return None
     project = raw.get("project", {})
     _check_table(project, "[project]")
-    lane_keys = {key: kind for key, kind in _PROJECT_KEYS.items() if key in LaneSettings.__dataclass_fields__}
+    # shared_defaults isn't kept in LaneSettings but decides its zones (review round 1).
+    lane_keys = {
+        key: kind
+        for key, kind in _PROJECT_KEYS.items()
+        if key in LaneSettings.__dataclass_fields__ or key == "shared_defaults"
+    }
     _check_keys({key: value for key, value in project.items() if key in lane_keys}, lane_keys, "[project]")
     lane_settings = _lane_settings(project, raw)
     return Config(

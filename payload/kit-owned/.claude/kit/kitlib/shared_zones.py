@@ -37,8 +37,8 @@ def parse(entries, shared_paths: list | None, keep_defaults: bool | None = None)
 
     Tables add to the defaults (backlog shared-zones-keep-defaults), so a project writing one `ask`
     table keeps its shared fragments and plans. A written `shared_paths` list replaces them, as in
-    v0.1; `[project] shared_defaults` (keep_defaults), when written, decides either way. A table
-    repeating a default is dropped (the plan-13 template said to uncomment them).
+    v0.1; `[project] shared_defaults` (keep_defaults), when written, decides either way. A default
+    zone a table repeats exactly isn't added again (the plan-13 template said to uncomment them).
 
     Raises ValueError with a message naming the table and key; stewards are checked later, against
     the lanes (check_stewards).
@@ -47,13 +47,31 @@ def parse(entries, shared_paths: list | None, keep_defaults: bool | None = None)
         entries = []
     if not isinstance(entries, list):
         raise ValueError("'shared' must be an array of tables ([[shared]])")
-    # Tables first, so check_stewards' "[[shared]] #N" counts them as written.
+    # Tables first and never dropped, so check_stewards' "[[shared]] #N" counts them as written.
     zones = [_zone(entry, f"[[shared]] #{number}") for number, entry in enumerate(entries, start=1)]
     if shared_paths:
         zones.append(Zone(tuple(shared_paths), "open"))
     if keep_defaults if keep_defaults is not None else shared_paths is None:
-        zones.extend(DEFAULT_ZONES)
-    return tuple(dict.fromkeys(zones))
+        for number, zone in enumerate(zones[: len(entries)], start=1):
+            _check_against_defaults(zone, f"[[shared]] #{number}")
+        zones += [zone for zone in DEFAULT_ZONES if zone not in zones]
+    return tuple(zones)
+
+
+def _check_against_defaults(zone: Zone, where: str) -> None:
+    # The default zone still matches a pattern a table repeats, and the stricter mode wins with a
+    # steward skipping only its own zones: a steward or a looser mode there would silently do
+    # nothing (review round 1). Only the same pattern is caught; an overlapping one is documented.
+    if zone in DEFAULT_ZONES:
+        return
+    for default in DEFAULT_ZONES:
+        for path in zone.paths:
+            if path in default.paths and (zone.steward or MODES.index(zone.mode) < MODES.index(default.mode)):
+                raise ValueError(
+                    f"{where}: {path!r} is a default shared path (mode {default.mode!r}); a table can make "
+                    "it stricter but not loosen it or give it a steward. To change the defaults, set "
+                    "shared_defaults = false in [project] and write every table you want"
+                )
 
 
 def _zone(entry, where: str) -> Zone:

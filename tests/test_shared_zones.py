@@ -140,6 +140,52 @@ def test_shared_defaults_must_be_a_boolean(tmp_path):
         load(make_repo(tmp_path, config=project('shared_defaults = "no"') + LANES))
 
 
+def test_the_boundary_reads_shared_defaults_from_the_base_kit_toml_and_checks_its_type():
+    # Review round 1 (both reviewers): lanes_only type-checked only LaneSettings fields, so
+    # `shared_defaults = "false"` (a string, truthy) kept the defaults at the boundary unnoticed.
+    assert lanes_only(project("shared_defaults = false") + LANES, "core").lane_settings.shared == ()
+    for bad in ('"false"', "0"):
+        with pytest.raises(ConfigError, match="shared_defaults"):
+            lanes_only(project(f"shared_defaults = {bad}") + LANES, "core")
+
+
+def test_steward_errors_number_tables_as_written_with_the_defaults_on(tmp_path):
+    # Review round 1 (both reviewers): dropping a table that repeated an earlier table shifted the
+    # numbers of every table after it.
+    table = '[[shared]]\npaths = ["/a"]\nmode = "ask"\nsteward = "core"\n'
+    bad = '[[shared]]\npaths = ["/x"]\nmode = "ask"\nsteward = "nope"\n'
+    for name in ("one", "two"):
+        (tmp_path / name).mkdir()
+    assert "[[shared]] #2: steward 'nope'" in config_error(tmp_path / "one", LANES + table + bad)
+    assert "[[shared]] #3: steward 'nope'" in config_error(tmp_path / "two", LANES + table + table + bad)
+
+
+@pytest.mark.parametrize(
+    "table",
+    [
+        '[[shared]]\npaths = ["docs/changelog.d/**", "docs/health/**"]\nmode = "append"\nsteward = "core"\n',
+        '[[shared]]\npaths = ["docs/changelog.d/**"]\nmode = "ask"\nsteward = "core"\n',
+        '[[shared]]\npaths = ["docs/changelog.d/**"]\nmode = "open"\n',
+    ],
+)
+def test_a_table_cant_give_a_default_path_a_steward_or_loosen_it(tmp_path, table):
+    # Review round 1 (general reviewer): the default zone still matched, so the steward was asked
+    # anyway, the very config plan 13's template invited ("uncomment the defaults", add a steward).
+    message = config_error(tmp_path, LANES + table)
+    assert "[[shared]] #1" in message and "'docs/changelog.d/**'" in message
+    assert "shared_defaults = false" in message
+    # With the defaults off the same table is what the project gets.
+    (tmp_path / "off").mkdir()
+    loaded = load(make_repo(tmp_path / "off", config=project("shared_defaults = false") + LANES + table)).lane_settings
+    assert len(loaded.shared) == 1
+
+
+def test_a_written_table_repeating_a_default_path_loads_when_it_is_stricter(tmp_path):
+    table = '[[shared]]\npaths = ["docs/changelog.d/**", "/x"]\nmode = "ask"\n'
+    loaded = settings(tmp_path, LANES + table)
+    assert shared_zones.Matcher(loaded.shared).find("docs/changelog.d/a.md").mode == "ask"
+
+
 def test_lane_settings_built_from_shared_paths_alone_are_open():
     assert LaneSettings(shared_paths=["a/**"]).shared == (Zone(("a/**",), "open"),)
     assert LaneSettings(shared_paths=[]).shared == ()

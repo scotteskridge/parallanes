@@ -278,6 +278,17 @@ def test_the_briefing_keeps_the_defaults_beside_a_written_table(tmp_path):
     ) in brief(lane_dir(repo, "core"))
 
 
+def test_the_briefing_names_a_pattern_under_its_strictest_mode_only(tmp_path):
+    # Review round 1 (repo reviewer): `docs/plans/** ask` beside the default open zone listed the
+    # same pattern as both "open" and "every change asks".
+    config = LANES_TOML + '\n[[shared]]\npaths = ["docs/plans/**"]\nmode = "ask"\n'
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create").returncode == 0
+    text = brief(lane_dir(repo, "core"))
+    assert "Shared: open: docs/backlog/**, docs/design/decisions-log.md; " in text
+    assert "every change asks: docs/plans/**" in text
+
+
 def test_the_default_briefing_names_open_and_append_paths(repo):
     text = brief(lane_dir(repo, "core"))
     assert (
