@@ -6,6 +6,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Easier setup (plan 16, decisions 121–123). The installer asks whether you'll run several agents
+  at once. **Solo**, the default, gets the guardrails and the task loop without the two lane hooks,
+  so no ownership check runs on every edit. **Lanes** shows a guess at the lanes from the project's
+  folders and adds it to `.claude/kit.toml` on a yes. Then, on a repository with no other changes,
+  it offers to commit the kit's files and create the lane folders. It never pushes, and `--yes` and
+  `--dry-run` never write lanes or commit. `--profile solo|lanes` answers the question for scripts
+  and switches an install either way. An install from before profiles keeps every hook, and lanes
+  already in `kit.toml` mean the lanes profile. New `lanes suggest` prints the guess; `lanes
+  create` says how to add the lane hooks when a solo install's lanes lack them.
 - Claude Code session locks on lanes (plan 14, decision 119). A lane opened with `claude --worktree
   <lane>` gets a warning in its briefing that Claude Code may delete the lane's folder on exit, so
   the agent can tell the owner first. `lanes status` shows a Claude Code lock, and `lanes remove`
@@ -29,6 +38,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   briefing names each path's mode.
 
 ### Changed
+- The installed `.claude/kit.toml` is about 190 words instead of 827: the values every project needs.
+  Every other key, with an example to copy, is in the new `docs/ai/kit-toml.md` (plan 16). An
+  installed project keeps its own `kit.toml`.
+- The installer's `--yes` now installs the solo profile (decision 121): scripts that need the lane
+  hooks add `--profile lanes`.
 - The hooks that run on every tool call are about twice as fast (plan 15, decision 120). Measured
   per call through the launcher settings.json runs, on Windows: protected ~510 → ~250 ms,
   ownership in a lane ~750 → ~265 ms, rules-check ~510 → ~245 ms; on Linux (WSL) ~115 → ~60 ms.

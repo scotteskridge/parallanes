@@ -148,6 +148,29 @@ def test_solo_asked_for_with_lanes_in_kit_toml_stops_with_nothing_written(tmp_pa
 
 
 @pytest.mark.slow
+def test_lanes_created_on_a_solo_install_say_how_to_add_the_lane_hooks(tmp_path):
+    """Lanes written by hand after a solo install have no ownership check until the installer runs
+    again; `lanes create` says so instead of leaving it silent (plan 16)."""
+    repo = new_repo(tmp_path)
+    (repo / "README.md").write_text("x\n", encoding="utf-8")
+    assert setup(repo).returncode == 0
+    toml = repo / ".claude" / "kit.toml"
+    toml.write_text(toml.read_text(encoding="utf-8") + LANES, encoding="utf-8")
+    for args in (["config", "user.name", "t"], ["config", "user.email", "t@example.com"], ["add", "-A"]):
+        subprocess.run(["git", *args], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "kit"], cwd=repo, check=True)
+    cli = repo / ".claude" / "kit" / "cli.py"
+
+    created = subprocess.run([sys.executable, str(cli), "lanes", "create"], cwd=repo, capture_output=True, text=True)
+    assert created.returncode == 0, created.stdout + created.stderr
+    assert "re-run the kit's installer with --profile lanes" in created.stdout
+
+    assert setup(repo).returncode == 0  # the lanes in kit.toml switch the profile to lanes
+    again = subprocess.run([sys.executable, str(cli), "lanes", "create"], cwd=repo, capture_output=True, text=True)
+    assert "--profile lanes" not in again.stdout
+
+
+@pytest.mark.slow
 def test_the_question_is_asked_without_yes(tmp_path):
     repo = new_repo(tmp_path)
     answers = "\n" * 5 + "y\n" + "n\n"  # five values, lanes, no pre-commit check

@@ -60,10 +60,7 @@ pull requests). Your project is a git repository with at least one commit on `ma
 new one, run `git init -b main` and commit a first file.
 
 1. **Install** from the folder that holds your project. Nothing of yours is overwritten, and
-   `--dry-run` shows what it would write and the answers it would use (a re-run keeps its
-   earlier answers), without asking anything. The installer asks five questions with detected
-   answers (`--yes` takes them all) and ends with a short list of what's left, such as setting
-   `test_command`, which `lanes finish` runs.
+   `--dry-run` shows what it would write and the answers it would use, without asking anything.
 
    ```bash
    git clone https://github.com/scotteskridge/parallanes
@@ -74,7 +71,21 @@ new one, run `git init -b main` and commit a first file.
    On Windows PowerShell, the install line is
    `powershell -ExecutionPolicy Bypass -File parallanes\install.ps1 --target my-project`.
 
-2. **Describe your lanes** at the end of `.claude/kit.toml`:
+   The installer asks five questions with detected answers (Enter keeps each), then **"Run
+   several agents at once, each in its own lane?"**
+   - **No**, the default: one agent gets the guardrails and the plan, build, wrap-up loop below.
+     You're done. To add lanes later, re-run the installer with `--profile lanes`.
+   - **Yes**: it guesses lanes from your folders (`src/<x>/`, or top-level folders such as
+     `server/` and `public/`) and adds them to `.claude/kit.toml` if you say so. On a repository
+     with no other changes, it then offers to commit the kit and create a folder per lane.
+
+   It ends with a short list of what's left, such as setting `test_command`, which `lanes finish`
+   runs.
+
+2. **No guess, or other lanes?** Add them at the end of `.claude/kit.toml`
+   (`sh .claude/kit/parallanes lanes suggest` prints the guess), then commit and create the lanes.
+   Each lane is a checkout of `main`, so it only has what's committed there (pushed too, once the
+   project has a GitHub remote):
 
    ```toml
    [[lanes]]
@@ -88,21 +99,18 @@ new one, run `git init -b main` and commit a first file.
    owns = ["public/**"]
    ```
 
-3. **Commit, then create the lanes.** Each lane is a checkout of `main`, so it only has what's
-   committed there (pushed too, once the project has a GitHub remote):
-
    ```bash
    git add -A
    git commit -m "Add parallanes"
    sh .claude/kit/parallanes lanes create
    ```
 
-4. **One agent per lane.** Open Claude Code in `.claude/worktrees/api/`, and in a second terminal
+3. **One agent per lane.** Open Claude Code in `.claude/worktrees/api/`, and in a second terminal
    in `.claude/worktrees/web/`. Open each by its folder: `claude --worktree` would take the lane
    over and delete its folder on exit. In the api lane, run
    `sh .claude/kit/parallanes lanes start add-book` and work as usual; the web lane does the same
    with its own task. `/wrap-up` reviews a change, and `lanes finish` lands it. The full guide
-   is installed as `docs/ai/parallel-lanes.md`.
+   is installed as `docs/ai/parallel-lanes.md`; every `kit.toml` key is in `docs/ai/kit-toml.md`.
 
 ## How it fits together
 

@@ -10,8 +10,10 @@ All three decided on Claude's recommendation, with the owner's OK.
 121. **The installer asks for a profile, solo or lanes, and the default is solo.** It asks "Run
      several agents at once, each in its own lane? [y/N]", and `--profile solo|lanes` answers it
      for scripts. The answer is saved in the manifest like the others. Solo leaves the lane-router
-     and ownership hooks out of settings.json. A re-run with `--profile lanes` adds them back. Going
-     from lanes back to solo is by hand, since the installer never deletes. *Why:* solo is useful
+     and ownership hooks out of settings.json. A re-run with `--profile lanes` adds them back, and
+     `--profile solo` takes them out again, as a `[hooks]` switch does (refined while building: the
+     plan first said going back was by hand). Lanes already in kit.toml
+     mean lanes, and an install from before profiles keeps every hook. *Why:* solo is useful
      on its own, doesn't pay for the ownership hook on every edit (~270 ms on Windows) and is the
      shortest install. *What would change it:* if most people come to the kit for lanes.
 122. **The installer and `lanes suggest` guess lanes from the folders, and write them only on a

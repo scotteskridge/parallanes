@@ -23,7 +23,6 @@ then open the lane folders.
   prints each lane's exact command instead. To add on approval: backlog `lanes-open`.
 - Leaving `/design` and `/code-health` out of the solo profile (their descriptions cost a few
   hundred tokens a session). To add on approval: backlog `solo-profile-extras`.
-- Going back from lanes to solo: the installer never deletes, so a re-run says what to remove by hand.
 
 ## Open questions
 1. **Which profile is the default?** *Recommendation: solo.* The installer asks one more yes/no,
@@ -93,4 +92,22 @@ then open the lane folders.
 - [ ] CHANGELOG, ROADMAP (§1, §6) and decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **Going back to solo works too.** The plan left it out because the installer never deletes, but
+  hooks aren't files: `--profile solo` removes the two hooks the kit wrote, as a `[hooks]` switch
+  already did (decision 102). Decision 121 is refined to say so.
+- **`lanes create` points out missing lane hooks.** With solo the default, lanes written by hand
+  after a solo install would run without the ownership check. `lanes create` now says to re-run the
+  installer with `--profile lanes`, and lanes in `kit.toml` make the next re-run choose lanes.
+- **An install from before profiles keeps every hook.** Its manifest has answers but no profile, so
+  it counts as lanes; otherwise upgrading would have quietly removed two hooks.
+- **Tests that exercise the lane hooks install with `--profile lanes`.** These are the four live
+  checks, `tools/hook_timing.py`, three installer tests and the README test (whose `--yes` stands
+  for the README's answers). The two tests that type their answers also answer the new question.
+  What each checks is unchanged.
+- **The next steps list each lane's folder, not a command.** `cd x && claude` doesn't parse in
+  Windows PowerShell 5.1.
+- **The commit marks `.githooks/pre-commit` executable** (`git add --chmod=+x`), which the
+  Windows next step used to ask the owner to do.
+- **Follow-ups filed:** `lanes-open`, `solo-profile-extras`, and `installer-main-split`.
+  `installer/main.py` grew to 308 lines, and the installer's `toml_string` duplicates
+  `lane_owners.toml_string`, which this plan made public for `lanes suggest`.

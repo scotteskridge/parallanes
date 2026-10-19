@@ -2,8 +2,9 @@
 blocks, in order, so a step the README leaves out fails here instead of being slipped in by the test.
 
 Two substitutions only: the clone is this checkout (the test runs the kit as it is now), and the
-installer gets `--yes` (the README says it asks questions; a test can't answer them). The project
-is the one the README asks for: a git repository with a commit on `main`.
+installer gets `--yes --profile lanes` (the README says it asks questions; a test can't answer them,
+so it gives the lanes answer the README's lane steps follow, decision 121). The project is the one
+the README asks for: a git repository with a commit on `main`.
 
 Review round 1 found the first version adding the commit the README forgot, so a reader's lanes
 came out without the kit.
@@ -70,11 +71,13 @@ def test_the_quickstart_runs_as_written(tmp_path):
                 continue
             if command.startswith("sh parallanes/install.sh"):
                 command = command.replace("sh parallanes/", f'sh "{ROOT.as_posix()}/', 1)
-                command = command.replace("install.sh", 'install.sh"', 1) + " --yes"
+                command = command.replace("install.sh", 'install.sh"', 1) + " --yes --profile lanes"
             run(command, cwd)
 
     run(starts[0], project / ".claude" / "worktrees" / "api")
     assert git(project / ".claude" / "worktrees" / "api", "branch", "--show-current").strip() == "api/add-book"
+    # The lanes answer wires the lane hooks (decision 121): the README's lanes work as described.
+    assert 'hook\\" ownership' in (project / ".claude" / "settings.json").read_text(encoding="utf-8")
 
 
 def run(command, cwd):

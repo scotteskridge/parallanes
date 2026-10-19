@@ -22,6 +22,7 @@ def run(args) -> int:
             # Said where lanes are set up too, so a split's overlaps are seen before work starts.
             notes, problems = lane_owners.tracked_overlaps(lanes.main_checkout(here), config)
             lines += [f"Note: {note}" for note in notes] + [f"! {problem}" for problem in problems]
+            lines += _lane_hooks_note(lanes.main_checkout(here))
         elif command == "remove":
             lines = [lane_setup.remove(here, config, args.name, args.force)]
         elif command == "start":
@@ -46,6 +47,32 @@ def run(args) -> int:
         return USAGE
     print("\n".join(lines))
     return OK
+
+
+def _lane_hooks_note(main: Path) -> list[str]:
+    """A solo install has the kit's hooks but not the two lane hooks (decision 121); lanes added by
+    hand afterwards would run without the ownership check, so say how to add them."""
+    import json
+
+    try:
+        settings = json.loads((main / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []  # no settings, or ones the kit's own checks report on
+    # Read loosely: a malformed entry is `check settings`' business, not a reason to fail here.
+    kit = []
+    events = settings.get("hooks") if isinstance(settings, dict) else None
+    for groups in events.values() if isinstance(events, dict) else ():
+        for group in groups if isinstance(groups, list) else ():
+            for hook in group.get("hooks", []) if isinstance(group, dict) else ():
+                command = hook.get("command") if isinstance(hook, dict) else None
+                if isinstance(command, str) and ".claude/kit/hook" in command:
+                    kit.append(command)
+    if not kit or any(command.endswith(" ownership") for command in kit):
+        return []  # not the kit's hooks at all, or the lane hooks are there
+    return [
+        "Note: .claude/settings.json has the kit's hooks but not the lane hooks (ownership, lane-router): "
+        "re-run the kit's installer with --profile lanes to add them."
+    ]
 
 
 def _suggest(main: Path) -> list[str]:
