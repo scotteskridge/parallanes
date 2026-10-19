@@ -171,6 +171,24 @@ def test_lanes_created_on_a_solo_install_say_how_to_add_the_lane_hooks(tmp_path)
 
 
 @pytest.mark.slow
+def test_lane_hooks_switched_off_in_kit_toml_arent_called_missing(tmp_path):
+    """Review round 1: an owner who switched both lane hooks off shouldn't be told to add them."""
+    repo = new_repo(tmp_path)
+    (repo / "README.md").write_text("x\n", encoding="utf-8")
+    assert setup(repo).returncode == 0
+    toml = repo / ".claude" / "kit.toml"
+    text = toml.read_text(encoding="utf-8").replace("[project]\n", '[project]\nownership = "off"\n', 1)
+    toml.write_text(text + "\n[hooks]\nlane_router = false\n" + LANES, encoding="utf-8")
+    for args in (["config", "user.name", "t"], ["config", "user.email", "t@example.com"], ["add", "-A"]):
+        subprocess.run(["git", *args], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "kit"], cwd=repo, check=True)
+    cli = repo / ".claude" / "kit" / "cli.py"
+    created = subprocess.run([sys.executable, str(cli), "lanes", "create"], cwd=repo, capture_output=True, text=True)
+    assert created.returncode == 0, created.stdout + created.stderr
+    assert "--profile lanes" not in created.stdout
+
+
+@pytest.mark.slow
 def test_the_question_is_asked_without_yes(tmp_path):
     repo = new_repo(tmp_path)
     answers = "\n" * 5 + "y\n" + "n\n"  # five values, lanes, no pre-commit check

@@ -8,7 +8,8 @@ folders give no guess, with the reason, since a split that size needs the owner'
 
 import re
 
-from .lane_owners import toml_string
+from . import config
+from .lane_owners import escape_wildcards, toml_string
 from .records import record
 
 MIN_LANES, MAX_LANES = 2, 5
@@ -27,7 +28,7 @@ class Suggestion:
     scope: str
 
 
-def suggest(paths) -> tuple[list, str]:
+def suggest(paths, integration_branch: str = "main") -> tuple[list, str]:
     """(lanes, "") for a guess; ([], why) when there's none. paths: tracked files, `/`-separated."""
     tree = _tree(paths)
     folders = []
@@ -45,12 +46,20 @@ def suggest(paths) -> tuple[list, str]:
         return [], f"{len(folders)} code folders: too many to guess; pick two to five in .claude/kit.toml"
     names = _names(folders)
     tracked = set(paths)
+    leaves = [folder.rsplit("/", 1)[-1] for folder in folders]
     lanes = []
-    for folder, name in zip(folders, names, strict=True):
-        owns = [f"{folder}/**"]
-        leaf = folder.rsplit("/", 1)[-1]
-        owns += [f"{root}/{leaf}/**" for root in _TEST_ROOTS if any(p.startswith(f"{root}/{leaf}/") for p in tracked)]
+    for folder, name, leaf in zip(folders, names, leaves, strict=True):
+        owns = [f"{escape_wildcards(folder)}/**"]
+        if leaves.count(leaf) == 1:  # tests/web/ can't follow apps/web/ and packages/web/ both
+            tests = [f"{root}/{leaf}" for root in _TEST_ROOTS if any(p.startswith(f"{root}/{leaf}/") for p in tracked)]
+            owns += [f"{escape_wildcards(test)}/**" for test in tests]
         lanes.append(Suggestion(name, owns, f"Everything under {folder}/"))
+    # Checked by kit.toml's own rules, so a yes never writes lanes the kit then refuses (review round 1).
+    project = f'[project]\nname = "x"\nintegration_branch = {toml_string(integration_branch)}\n'
+    try:
+        config.parse(project + to_toml(lanes))
+    except config.ConfigError as error:
+        return [], f"the folders don't make valid lanes ({error}); write them by hand"
     return lanes, ""
 
 
@@ -107,4 +116,4 @@ def _names(folders) -> list:
 
 def _slug(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-    return slug or "lane"
+    return slug  # empty (e.g. a folder named in another script): config refuses it, so no guess

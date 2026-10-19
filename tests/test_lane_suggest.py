@@ -103,3 +103,46 @@ def test_lanes_suggest_says_why_when_it_has_no_guess(tmp_path):
     assert result.returncode == 0, result.stderr
     assert "[[lanes]]" not in result.stdout
     assert "one" in result.stdout
+
+
+# ---- review round 1 ------------------------------------------------------------------------
+
+
+def test_glob_characters_in_a_folder_name_are_escaped_so_the_lane_owns_its_files():
+    from kitlib import globs
+
+    lanes, _ = lane_suggest.suggest(["app/[slug]/page.tsx", "app/api/route.ts"])
+    owns = {lane.name: lane.owns for lane in lanes}
+    assert globs.matches("app/[slug]/page.tsx", owns["slug"][0])
+    assert not globs.matches("app/s/page.tsx", owns["slug"][0])
+
+
+def test_a_test_folder_two_lanes_could_claim_goes_to_neither():
+    lanes, _ = lane_suggest.suggest(["apps/web/a.js", "packages/web/b.js", "tests/web/t.py"])
+    assert {lane.name: lane.owns for lane in lanes} == {
+        "apps-web": ["apps/web/**"],
+        "packages-web": ["packages/web/**"],
+    }
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [
+        ["main/x.py", "web/y.js"],  # named after the integration branch
+        ["src/a-b/x.py", "src/a_b/y.py", "src/c/z.py"],  # one name twice
+        ["café/x.py", "日本/y.py"],  # both fall back to the same name
+    ],
+)
+def test_a_guess_kit_toml_would_reject_is_no_guess_with_the_reason(paths):
+    lanes, reason = lane_suggest.suggest(paths, integration_branch="main")
+    assert lanes == []
+    assert "by hand" in reason
+
+
+def test_every_guess_is_valid_config():
+    from kitlib.config import parse
+
+    paths = ["apps/web/a.js", "apps/api/b.js", "packages/web/c.js", "packages/ui/d.js", "tests/api/t.js"]
+    lanes, _ = lane_suggest.suggest(paths, integration_branch="main")
+    assert len(lanes) == 4
+    parse('[project]\nname = "x"\nintegration_branch = "main"\n' + lane_suggest.to_toml(lanes))

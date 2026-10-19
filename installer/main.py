@@ -12,7 +12,7 @@ import tomllib
 from pathlib import Path
 
 from kitlib import config as kit_config
-from kitlib import render
+from kitlib import gitfiles, render
 from kitlib import settings as kit_settings
 
 from . import offers, plan, profile, report, settings_hooks, values
@@ -27,6 +27,7 @@ STOPS = (
     settings_hooks.HooksError,
     render.TemplateError,
     profile.ProfileError,
+    gitfiles.GitError,  # the lane guess reads `git ls-files`
 )
 
 
@@ -69,11 +70,14 @@ def main(argv=None) -> int:
     want_precommit = repo == target and precommit_answer == "yes"
     answers["kit_version"] = _kit_version()
 
+    branch = answers["integration_branch"]
     # Before anything is written: a commit offered later must hold only the kit's files (decision 123).
-    committable = interactive and offers.clean_repo_with_commit(target, repo)
+    committable = interactive and offers.clean_repo_with_commit(target, repo, branch)
+    # The guess is offered when lanes are new to this project, not on every re-run (review round 1).
+    newly_lanes = chosen == "lanes" and saved.get("profile") != "lanes"
     try:
         files = plan.build(target, answers, previous)
-        guess = offers.plan_lanes(target, repo, files, interactive) if chosen == "lanes" else {}
+        guess = offers.plan_lanes(target, repo, files, branch, interactive) if newly_lanes else {}
         settings_change = _plan_settings(target, files, previous, chosen, explicit=bool(args.profile))
         for rel in (PYTHON_PATH_REL, MANIFEST_REL):
             plan.check_path(target, rel)
@@ -95,7 +99,9 @@ def main(argv=None) -> int:
     new_precommit = precommit_answer if saved.get("precommit") is None else None
     new_profile = answers["profile"] if answers["profile"] != saved.get("profile") else None
     if shown or new_precommit or new_profile:
-        report.answers(shown, new_precommit, new_profile, detected=args.dry_run and not args.yes)
+        # "Detected" only for an answer a real run would ask: not one --profile gave (review round 1).
+        asked = shown or new_precommit or not args.profile
+        report.answers(shown, new_precommit, new_profile, detected=args.dry_run and not args.yes and bool(asked))
     report.plan(files, settings_change, extra, precommit)
     if args.dry_run:
         print("\nDry run: nothing was written.")
@@ -111,15 +117,16 @@ def main(argv=None) -> int:
         subprocess.run(["git", "config", "core.hooksPath", HOOKS_PATH], cwd=target, check=True)
     done = {"profile": answers["profile"], "lanes": settings_change["lanes"], "guess": guess}
     done.update(committed=False, created=False, origin=repo == target and offers.has_origin(target))
-    if committable:
-        try:
-            done["committed"] = offers.offer_commit(target) == "committed"
-            if done["committed"] and done["lanes"] and not done["origin"]:
-                done["created"] = offers.offer_lanes_create(target)
-        except EOFError:
-            print("\nNo answer (input closed): nothing committed.")
+    written = [w.rel for w in files.writes if w.kind != "kit-new"] + _settings_paths(settings_change)
+    written += [rel for rel in extra if rel != PYTHON_PATH_REL]  # python-path is gitignored
+    done.update(offers.after_install(target, written, done["lanes"], done["origin"]) if committable else {})
     report.next_steps(target, files, precommit, done)
     return 0
+
+
+def _settings_paths(settings_change: dict) -> list:
+    paths = [kit_settings.SETTINGS_REL.as_posix()] if settings_change["changed"] else []
+    return paths + ([kit_settings.RECORD_REL.as_posix()] if settings_change["writes_record"] else [])
 
 
 def _parser() -> argparse.ArgumentParser:

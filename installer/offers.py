@@ -3,7 +3,8 @@
 - Lanes: with the lanes profile and no `[[lanes]]` yet, a guess from the project's tracked folders
   (`kitlib/lane_suggest.py`), shown, and written into kit.toml only on a yes.
 - A commit of the kit's files, then `lanes create`: only asked at a repository root that has a
-  commit and had no changes before the install, so the commit holds nothing but the kit's files.
+  commit, is on the integration branch (lanes are made from it) and had no changes before the
+  install, untracked files included. Only the paths the install wrote are staged and committed.
   It runs the pre-commit hook and never pushes; with an `origin`, lanes wait until it's pushed.
 
 `--yes` and `--dry-run` never write lanes or commit: both are for scripts, and these are choices.
@@ -27,13 +28,17 @@ def git(target: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=target, capture_output=True, text=True, encoding="utf-8")
 
 
-def clean_repo_with_commit(target: Path, repo: Path | None) -> bool:
-    """Checked before anything is written: whether a commit would hold only the kit's files."""
+def clean_repo_with_commit(target: Path, repo: Path | None, branch: str) -> bool:
+    """Checked before anything is written: whether a commit would hold only the kit's files, on the
+    branch lanes are made from (review round 1: a commit on another branch left `lanes create` failing)."""
     if repo != target:
         return False
+    if git(target, "symbolic-ref", "--short", "-q", "HEAD").stdout.strip() != branch:
+        return False  # another branch, or a detached HEAD
     if git(target, "rev-parse", "--verify", "-q", "HEAD").returncode != 0:
         return False
-    status = git(target, "status", "--porcelain")
+    # Every untracked file listed, whatever status.showUntrackedFiles says (review round 1).
+    status = git(target, "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=none")
     return status.returncode == 0 and not status.stdout.strip()
 
 
@@ -41,7 +46,9 @@ def has_origin(target: Path) -> bool:
     return git(target, "remote", "get-url", "origin").returncode == 0
 
 
-def plan_lanes(target: Path, repo: Path | None, files: plan.FilePlan, interactive: bool, read=input) -> dict:
+def plan_lanes(
+    target: Path, repo: Path | None, files: plan.FilePlan, branch: str, interactive: bool, read=input
+) -> dict:
     """Show the guess and, on a yes, put the lanes into the planned or existing kit.toml.
 
     Returns {"added": [names], "why": reason there's no guess or "", "declined": bool}.
@@ -55,8 +62,14 @@ def plan_lanes(target: Path, repo: Path | None, files: plan.FilePlan, interactiv
         return outcome  # the settings plan reports a broken kit.toml and stops the install
     if has_lanes:
         return outcome
-    tracked = gitfiles.tracked(target) if repo == target else []
-    found, why = lane_suggest.suggest(tracked)
+    if repo != target:
+        outcome["why"] = "this folder isn't the root of a git repository"
+        return outcome
+    tracked = gitfiles.tracked(target)
+    if not tracked:
+        outcome["why"] = "nothing is committed or added to git yet"
+        return outcome
+    found, why = lane_suggest.suggest(tracked, branch)
     if not found:
         outcome["why"] = why
         return outcome
@@ -81,20 +94,49 @@ def plan_lanes(target: Path, repo: Path | None, files: plan.FilePlan, interactiv
     return outcome
 
 
-def offer_commit(target: Path, read=input) -> str:
-    """'committed', 'declined' or 'failed' (git's output printed). Runs the pre-commit hook."""
+def offer_commit(target: Path, written: list, read=input) -> str:
+    """Commit the paths this install wrote, on a yes: 'committed', 'declined', 'nothing' (asked
+    nothing: a re-run that changed nothing) or 'failed' (git's output printed, the paths unstaged).
+    Never `git add -A`: only what the kit wrote goes in. Runs the pre-commit hook."""
+    status = git(target, "status", "--porcelain", "--untracked-files=all", "--", *written)
+    if status.returncode != 0 or not status.stdout.strip():
+        return "nothing"
     if not confirm("Commit the kit's files now?", True, read):
         return "declined"
-    added = git(target, "add", "-A")
-    if added.returncode == 0 and (target / ".githooks" / "pre-commit").is_file():
-        # Windows records no executable bit: without this, macOS/Linux clones can't run the hook.
-        added = git(target, "add", "--chmod=+x", ".githooks/pre-commit")
+    added = git(target, "add", "--", *written)
+    if added.returncode == 0 and ".githooks/pre-commit" in written:
+        # The kit's own copy only. Windows records no executable bit, so macOS/Linux clones couldn't run it.
+        added = git(target, "add", "--chmod=+x", "--", ".githooks/pre-commit")
+    # The index, not `commit -- paths` (that takes the files as on disk and drops the +x above). It
+    # must hold the kit's paths alone: anything else staged meanwhile is the owner's (review round 1).
+    staged = git(target, "diff", "--cached", "--name-only", "-z").stdout.split("\0")
+    others = [path for path in staged if path and path not in written]
+    if added.returncode == 0 and others:
+        added = subprocess.CompletedProcess([], 1, "", f"other files are staged too: {', '.join(others)}\n")
     done = added if added.returncode != 0 else git(target, "commit", "-q", "-m", COMMIT_MESSAGE)
     if done.returncode != 0:
+        git(target, "reset", "-q", "--", *written)  # the index as it was: the owner's, not half the kit's
         print(f"The commit failed; nothing was committed:\n{done.stdout}{done.stderr}", file=sys.stderr)
         return "failed"
     print(f"Committed the kit's files: {COMMIT_MESSAGE!r}")
     return "committed"
+
+
+def after_install(target: Path, written: list, lanes: list, origin: bool, read=input) -> dict:
+    """The commit offer, then (lanes, no origin) the `lanes create` one: {"committed", "created"}.
+    Input closing at either keeps what was done and says so (review round 1)."""
+    done = {"committed": False, "created": False}
+    try:
+        done["committed"] = offer_commit(target, written, read) == "committed"
+    except EOFError:
+        print("\nNo answer (input closed): nothing committed.")
+        return done
+    if done["committed"] and lanes and not origin:
+        try:
+            done["created"] = offer_lanes_create(target, read)
+        except EOFError:
+            print("\nNo answer (input closed): the lane folders weren't created.")
+    return done
 
 
 def offer_lanes_create(target: Path, read=input) -> bool:

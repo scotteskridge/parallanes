@@ -136,3 +136,102 @@ def test_switching_a_solo_install_to_lanes_adds_the_lanes_to_the_owners_kit_toml
     assert "# my note" in toml.read_text(encoding="utf-8")
     assert set(lanes_of(repo)) == {"server", "public"}
     assert git(repo, "status", "--porcelain").strip() == ""  # committed
+
+
+# ---- review round 1 ------------------------------------------------------------------------
+
+
+def test_untracked_files_git_status_hides_are_never_committed(tmp_path):
+    repo = project(tmp_path)
+    (repo / "private-notes.txt").write_text("mine\n", encoding="utf-8")
+    git(repo, "config", "status.showUntrackedFiles", "no")
+    result = setup(repo, stdin=FIRST + "y\n" + "y\n" + "n\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "private-notes.txt" not in git(repo, "log", "--name-only", "--format=")
+    assert COMMIT not in result.stdout
+
+
+def test_the_commit_holds_only_what_the_install_wrote(tmp_path):
+    repo = project(tmp_path)
+    result = setup(repo, stdin=FIRST + "y\n" + "y\n" + "n\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    committed = git(repo, "show", "--name-only", "--format=", "HEAD").split()
+    assert ".claude/kit.toml" in committed and ".claude/settings.json" in committed
+    assert not [path for path in committed if path.startswith(("server/", "public/"))]
+
+
+@pytest.mark.parametrize("move", [["checkout", "-q", "-b", "feature"], ["checkout", "-q", "--detach"]])
+def test_no_commit_offer_off_the_integration_branch(tmp_path, move):
+    repo = project(tmp_path)
+    git(repo, *move)
+    result = setup(repo, stdin=FIRST + "y\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert COMMIT not in result.stdout
+    assert git(repo, "log", "-1", "--format=%s").strip() == "first"
+
+
+def test_no_commit_offer_in_a_subfolder_of_a_repository(tmp_path):
+    repo = project(tmp_path)
+    app = repo / "app"
+    app.mkdir()
+    result = setup(app, stdin="\n" * 5 + "y\n")  # no pre-commit question below the root
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert COMMIT not in result.stdout
+    assert "isn't the root of a git repository" in result.stdout
+
+
+def test_a_rerun_with_nothing_new_offers_nothing_and_lists_the_lane_folders(tmp_path):
+    repo = project(tmp_path)
+    assert setup(repo, stdin=FIRST + "y\n" + "y\n" + "y\n").returncode == 0
+    again = setup(repo, stdin="")
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert COMMIT not in again.stdout and ADD not in again.stdout
+    steps = again.stdout.split("Next:")[1]
+    assert ".claude/worktrees/server" in steps and "lanes create" not in steps
+
+
+def test_input_closing_at_the_create_question_keeps_the_commit_and_says_so(tmp_path):
+    repo = project(tmp_path)
+    result = setup(repo, stdin=FIRST + "y\n" + "y\n")  # closes before "Create the lane folders now?"
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert git(repo, "log", "-1", "--format=%s").strip() == "Add parallanes"
+    assert "nothing committed" not in result.stdout
+    steps = result.stdout.split("Next:")[1]
+    assert "Run `sh .claude/kit/parallanes lanes create`" in steps and "Once the kit's files" not in steps
+
+
+def test_a_failed_commit_leaves_nothing_staged(tmp_path):
+    repo = project(tmp_path)
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    result = setup(repo, stdin="\n" * 5 + "y\n" + "n\n" + "y\n" + "y\n")  # no kit pre-commit: the owner's runs
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "The commit failed" in result.stderr
+    assert git(repo, "diff", "--cached", "--name-only").strip() == ""
+
+
+def test_a_declined_guess_isnt_asked_again_on_a_plain_rerun(tmp_path):
+    repo = project(tmp_path)
+    assert setup(repo, stdin=FIRST + "n\n" + "n\n").returncode == 0
+    again = setup(repo, stdin="")
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert ADD not in again.stdout
+    assert "lanes suggest" in again.stdout.split("Next:")[1]
+
+
+def test_an_install_from_before_profiles_keeps_both_lane_hooks(tmp_path):
+    import json
+
+    repo = project(tmp_path)
+    assert setup(repo, "--yes", "--profile", "lanes").returncode == 0
+    manifest = repo / ".claude" / "kit" / "manifest.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    del data["values"]["profile"]
+    manifest.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    before = (repo / ".claude" / "settings.json").read_bytes()
+
+    result = setup(repo, "--yes")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (repo / ".claude" / "settings.json").read_bytes() == before
+    assert "is removed" not in result.stdout

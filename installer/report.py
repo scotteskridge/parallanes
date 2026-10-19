@@ -163,16 +163,19 @@ def _lane_steps(target: Path, done: dict) -> list:
     create = f"`{KIT_COMMAND} lanes create`"
     if done["profile"] == "solo":
         return ["For several agents at once later, re-run the installer with `--profile lanes`."]
-    if done["created"]:
+    folders = _lane_folders(target) if done["lanes"] else []
+    if folders and all(exists for _, exists in folders):  # made now, or on an earlier run (review round 1)
         # Folders only: `cd x && claude` doesn't parse in Windows PowerShell 5.1.
-        folders = "".join(f"\n       {folder}" for folder in _lane_folders(target))
+        shown = "".join(f"\n       {folder}" for folder, _ in folders)
         return [
             "Open one Claude Code session in each lane's folder (`cd` there, then `claude`; not "
-            f"`claude --worktree`), and start a task with `{KIT_COMMAND} lanes start <task>`:{folders}"
+            f"`claude --worktree`), and start a task with `{KIT_COMMAND} lanes start <task>`:{shown}"
         ]
     if done["lanes"]:
         if done["origin"]:
             return [f"Push the kit's commit to origin, then run {create}: new lanes start from what origin has."]
+        if done["committed"]:
+            return [f"Run {create}."]
         return [f"Once the kit's files are committed, run {create}."]
     why = done["guess"].get("why")
     found = f"No lanes were guessed ({why}). " if why else ""
@@ -183,7 +186,7 @@ def _lane_steps(target: Path, done: dict) -> list:
 
 
 def _lane_folders(target: Path) -> list:
-    """Each lane's folder, as `lanes create` made them: relative to the project when inside it."""
+    """(folder as shown, whether it exists) per lane: relative to the project when inside it."""
     from kitlib import config as kit_config
     from kitlib import lanes
 
@@ -192,9 +195,10 @@ def _lane_folders(target: Path) -> list:
     for lane in config.lanes:
         folder = lanes.lane_folder(target, config, lane)
         try:
-            folders.append(folder.resolve().relative_to(target.resolve()).as_posix())
+            shown = folder.resolve().relative_to(target.resolve()).as_posix()
         except ValueError:  # worktree_root outside the project, e.g. "../{project}-lanes"
-            folders.append(str(folder))
+            shown = str(folder)
+        folders.append((shown, folder.is_dir()))
     return folders
 
 

@@ -202,9 +202,13 @@ def existence_matters(config, lane, paths) -> list:
 def literal(path: str) -> str:
     """A pattern matching path alone: wildcards bracketed (`[id]` is a Next.js folder name, not a
     class), and a bare name anchored, since `.gitignore` alone would match every nested one (globs)."""
-    path = globs.normalize(path)
-    pattern = re.sub(r"[*?\[]", lambda found: f"[{found.group()}]", path)
+    pattern = escape_wildcards(globs.normalize(path))
     return pattern if "/" in pattern else "/" + pattern
+
+
+def escape_wildcards(path: str) -> str:
+    """path with each wildcard bracketed, so it matches itself."""
+    return re.sub(r"[*?\[]", lambda found: f"[{found.group()}]", path)
 
 
 def toml_string(text: str) -> str:

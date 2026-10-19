@@ -109,5 +109,5 @@ then open the lane folders.
 - **The commit marks `.githooks/pre-commit` executable** (`git add --chmod=+x`), which the
   Windows next step used to ask the owner to do.
 - **Follow-ups filed:** `lanes-open`, `solo-profile-extras`, and `installer-main-split`.
-  `installer/main.py` grew to 308 lines, and the installer's `toml_string` duplicates
+  `installer/main.py` grew to 315 lines, and the installer's `toml_string` duplicates
   `lane_owners.toml_string`, which this plan made public for `lanes suggest`.

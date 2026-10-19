@@ -22,7 +22,7 @@ def run(args) -> int:
             # Said where lanes are set up too, so a split's overlaps are seen before work starts.
             notes, problems = lane_owners.tracked_overlaps(lanes.main_checkout(here), config)
             lines += [f"Note: {note}" for note in notes] + [f"! {problem}" for problem in problems]
-            lines += _lane_hooks_note(lanes.main_checkout(here))
+            lines += _lane_hooks_note(lanes.main_checkout(here), config)
         elif command == "remove":
             lines = [lane_setup.remove(here, config, args.name, args.force)]
         elif command == "start":
@@ -32,7 +32,7 @@ def run(args) -> int:
         elif command == "finish":
             lines = lane_cycle.finish(here, config, args.title, args.body_file)
         elif command == "suggest":
-            lines = _suggest(lanes.main_checkout(here))
+            lines = _suggest(lanes.main_checkout(here), config)
         else:
             lines = [lane_status.format_status(lane_status.status(here, config, args.offline))]
     except lane_setup.PartialCreate as error:
@@ -49,9 +49,10 @@ def run(args) -> int:
     return OK
 
 
-def _lane_hooks_note(main: Path) -> list[str]:
+def _lane_hooks_note(main: Path, config) -> list[str]:
     """A solo install has the kit's hooks but not the two lane hooks (decision 121); lanes added by
-    hand afterwards would run without the ownership check, so say how to add them."""
+    hand afterwards would run without them, so say how to add them. A hook kit.toml switches off
+    isn't missing (review round 1)."""
     import json
 
     try:
@@ -67,22 +68,28 @@ def _lane_hooks_note(main: Path) -> list[str]:
                 command = hook.get("command") if isinstance(hook, dict) else None
                 if isinstance(command, str) and ".claude/kit/hook" in command:
                     kit.append(command)
-    if not kit or any(command.endswith(" ownership") for command in kit):
+    wanted = {"ownership", "lane-router"} - set(config.hooks.switched_off)
+    if config.lane_settings.ownership == "off":
+        wanted.discard("ownership")
+    missing = sorted(name for name in wanted if not any(command.endswith(f" {name}") for command in kit))
+    if not kit or not missing:
         return []  # not the kit's hooks at all, or the lane hooks are there
     return [
-        "Note: .claude/settings.json has the kit's hooks but not the lane hooks (ownership, lane-router): "
+        f"Note: .claude/settings.json has the kit's hooks but not {' or '.join(missing)}: "
         "re-run the kit's installer with --profile lanes to add them."
     ]
 
 
-def _suggest(main: Path) -> list[str]:
+def _suggest(main: Path, config) -> list[str]:
     """The guess from the main checkout's tracked files, ready to paste into kit.toml (decision 122)."""
     from kitlib import gitfiles, lane_suggest
 
-    found, why = lane_suggest.suggest(gitfiles.tracked(main))
+    found, why = lane_suggest.suggest(gitfiles.tracked(main), config.project.get("integration_branch", "main"))
     if not found:
         return [f"No lanes to suggest: {why}."]
+    note = " .claude/kit.toml already has lanes: compare before changing them." if config.lanes else ""
     return [
-        "# A guess from the project's folders: check each lane's paths, then add the tables to .claude/kit.toml.",
+        "# A guess from the project's folders: check each lane's paths, then add the tables to .claude/kit.toml."
+        + note,
         lane_suggest.to_toml(found),
     ]
