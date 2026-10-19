@@ -110,13 +110,15 @@ def test_a_start_whose_filesystem_cant_be_read_asks_git(repo, monkeypatch):
 
 
 @pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="POSIX permissions, not as root")
-def test_a_cwd_below_an_unsearchable_folder_still_finds_the_root(repo, monkeypatch, capsys):
+@pytest.mark.parametrize("below", ["inner", ""], ids=["below-it", "the-folder-itself"])
+def test_a_cwd_in_an_unsearchable_folder_still_finds_the_root(repo, monkeypatch, capsys, below):
     locked = repo / "locked"
     (locked / "inner").mkdir(parents=True)
+    cwd = locked / below if below else locked
     locked.chmod(0)
     try:
-        assert lanes.same_path(find_root(locked / "inner"), repo)
-        code, output = _run_hook(monkeypatch, "protected", locked / "inner", repo / "vendor" / "lib.py", capsys)
+        assert lanes.same_path(find_root(cwd), repo)
+        code, output = _run_hook(monkeypatch, "protected", cwd, repo / "vendor" / "lib.py", capsys)
     finally:
         locked.chmod(0o755)
     assert code == 2
