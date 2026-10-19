@@ -17,11 +17,13 @@ and `packs/` (once they exist). Plan and status: `docs/ROADMAP.md`. Why things a
   ruff): `.venv/Scripts/python` on Windows, `.venv/bin/python` on macOS/Linux. Set up once with
   `python -m venv .venv` (`python3` on macOS/Linux), then
   `.venv/Scripts/python -m pip install -e ".[dev]"`.
-- While working, run the fast set: `.venv/Scripts/python -m pytest -m "not slow"`. Before a commit
-  or PR, run the full suite (`.venv/Scripts/python -m pytest`) and report its result lines.
+- While working and before each commit, run the fast set:
+  `.venv/Scripts/python -m pytest -m "not slow"`. Run the full suite
+  (`.venv/Scripts/python -m pytest`) once before pushing a branch for a PR, not after every
+  review-round commit, and report its result lines; CI runs it again on every push.
   Evidence, not claims. Don't pipe test output through `tail` or `head`: the pipe hides a failing
   exit code.
-- Before a commit or PR, also run `.venv/Scripts/python -m ruff check .` and
+- Before each commit, also run `.venv/Scripts/python -m ruff check .` and
   `.venv/Scripts/python -m ruff format --check .` (CI fails on either); `-m ruff format .` fixes
   formatting.
 - Every hook and CLI command has tests. Test paths with spaces and Windows separators.
