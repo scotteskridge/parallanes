@@ -29,6 +29,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   briefing names each path's mode.
 
 ### Changed
+- The hooks that run on every tool call are about twice as fast (plan 15, decision 120). Measured
+  per call through the launcher settings.json runs, on Windows: protected ~510 → ~250 ms,
+  ownership in a lane ~750 → ~265 ms, rules-check ~510 → ~245 ms; on Linux (WSL) ~115 → ~60 ms.
+  The project root and a lane's main checkout are read from git's files on disk, so on a normal
+  layout these hooks start no git process (any other layout still asks git); a hook loads only
+  the modules it uses; the `hook` launcher starts no command before Python. The lane-router, once
+  a session, is ~1.4 → ~0.9 s. `tools/hook_timing.py` measures it again.
 - From the two-lane trial (backlog `lane-guide-trial-notes`): in a lane inside the main checkout,
   the lane-router's first line tells the agent to read and edit files in its lane folder, not the
   main checkout above it (F7: an agent

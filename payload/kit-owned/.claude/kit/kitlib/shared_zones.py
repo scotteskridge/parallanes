@@ -8,15 +8,14 @@ changes it without asking. The modes are lanekeeper's `append_only` and `escalat
 (docs/survey-lanekeeper.md); no code was borrowed.
 """
 
-from dataclasses import dataclass
-
 from . import globs
+from .records import record
 
 MODES = ("open", "append", "ask")  # each stricter than the one before
 _KEYS = {"paths": list, "mode": str, "steward": str}
 
 
-@dataclass(frozen=True)
+@record
 class Zone:
     paths: tuple
     mode: str
@@ -119,7 +118,7 @@ def paths_of(zones) -> list:
     return list(dict.fromkeys(path for zone in zones for path in zone.paths))
 
 
-@dataclass(frozen=True)
+@record
 class Match:
     mode: str
     steward: str | None  # for messages; None also when the deciding zones name different stewards

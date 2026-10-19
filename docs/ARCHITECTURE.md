@@ -395,6 +395,11 @@ A re-run puts back a parallanes hook the owner deleted, and says so. `[hooks]` i
 (`rules_check = false`, `lane_router = false`) keeps one out; `protected` has no switch, and
 ownership's is `[project] ownership = "off"` [102].
 
+Every tool call pays for the per-call hooks, so they stay lean [120]: the root and a lane's main
+checkout come from git's files on disk (`.git`, `gitdir:`, `commondir`), with git asked only for
+other layouts; `cli.py` hands a hook straight to `kitlib/hooks.py`, which imports per hook; the
+launcher uses shell builtins only. `tests/test_hook_imports.py` fails when a hook loads more.
+
 ## 11. Packs
 
 A pack is a folder with `pack.toml` (name, description, what it adds), `kit-owned/`, `templates/`,

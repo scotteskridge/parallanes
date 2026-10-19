@@ -5,6 +5,7 @@ Only the guards fail closed: `protected` and `reviewer-bash`. The others fail op
 PreToolUse would block every edit.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -68,3 +69,54 @@ def test_a_missing_cli_never_turns_into_a_fail_open_block(tmp_path, name):
     result = run(kit, name)
     assert result.returncode == (2 if name in FAIL_CLOSED else 1)
     assert "cli.py" in result.stderr
+
+
+# ---- no forks (plan 15, decision 120) --------------------------------------------------------------
+# Each command the launcher starts costs ~40 ms on Windows, on every tool call. It finds its folder
+# and reads python-path with the shell's own builtins, so it runs with nothing at all on PATH.
+
+ECHO_CLI = "import sys\nprint(sys.argv[1:])\nraise SystemExit(0)\n"
+
+
+def test_launcher_runs_with_no_commands_on_path(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    empty = tmp_path / "empty bin"
+    empty.mkdir()
+    result = subprocess.run(
+        [shutil.which("sh"), (kit / "hook").as_posix(), "protected"],
+        input="{}",
+        capture_output=True,
+        text=True,
+        env={"PATH": str(empty), "SYSTEMROOT": os.environ.get("SYSTEMROOT", "")},
+    )
+    assert result.returncode == 0, result.stderr
+    assert "['hook', 'protected']" in result.stdout
+
+
+def test_python_path_written_with_windows_line_endings(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    (kit / "python-path").write_bytes(f"{sys.executable}\r\n".encode())
+    result = run(kit, "rules-check")
+    assert result.returncode == 0, result.stderr
+
+
+def test_python_path_without_a_final_newline(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    (kit / "python-path").write_text(str(sys.executable), encoding="utf-8")
+    assert run(kit, "rules-check").returncode == 0
+
+
+def test_launcher_run_by_a_bare_name_from_its_own_folder(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    result = subprocess.run(["sh", "hook", "protected"], cwd=kit, input="{}", capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "['hook', 'protected']" in result.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="a backslash path is a Windows spelling")
+def test_launcher_run_by_a_backslash_path(tmp_path):
+    kit = launcher(tmp_path, sys.executable, cli=ECHO_CLI)
+    result = subprocess.run(["sh", str(kit / "hook"), "protected"], input="{}", capture_output=True, text=True)
+    assert "\\" in str(kit / "hook")
+    assert result.returncode == 0, result.stderr
+    assert "['hook', 'protected']" in result.stdout

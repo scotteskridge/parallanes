@@ -6,8 +6,13 @@ the task cycle in `lane_cycle.py`.
 """
 
 import os
-import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from . import gitdisk
+
+if TYPE_CHECKING:  # imported where it runs: the hooks' normal path starts no process (decision 120)
+    import subprocess
 
 
 class LaneError(Exception):
@@ -19,6 +24,8 @@ class Unfinished(LaneError):
 
 
 def git(folder: Path, *args: str, check: bool = True) -> str:
+    import subprocess
+
     try:
         result = subprocess.run(
             ["git", *args],
@@ -36,8 +43,10 @@ def git(folder: Path, *args: str, check: bool = True) -> str:
     return result.stdout if result.returncode == 0 else ""
 
 
-def run_git(top: Path, *args: str, timeout: int = 300) -> subprocess.CompletedProcess:
+def run_git(top: Path, *args: str, timeout: int = 300) -> "subprocess.CompletedProcess":
     """git with its exit code, for the steps whose failure has its own message."""
+    import subprocess
+
     try:
         return subprocess.run(
             ["git", *args], cwd=top, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout
@@ -56,8 +65,26 @@ def toplevel(folder: Path) -> Path | None:
 
 
 def locate(folder: Path) -> tuple[Path | None, Path | None]:
-    """(git top level of folder, main checkout); (None, None) outside a working tree. One git call
-    in the common case, because the hooks run this on every session start and edit."""
+    """(git top level of folder, main checkout); (None, None) outside a working tree.
+
+    The hooks run this on every edit, so the normal layouts are read from disk (no git call); git
+    answers the rest (decision 120).
+    """
+    top = gitdisk.toplevel(folder)
+    dirs = gitdisk.git_dirs(top) if isinstance(top, Path) else None
+    if dirs is not None:
+        git_dir, common = dirs
+        if same_path(git_dir, common):
+            return top, top  # the main checkout (also a submodule's own checkout)
+        # A lane of a normal checkout: the common git dir is `<main>/.git`. Anything else (a
+        # separate git dir, a submodule's lane) goes to git, which _main_from_linked checks.
+        main = common.parent
+        if common.name == ".git" and same_path(main / ".git", common) and (main / ".claude" / "kit.toml").is_file():
+            return top, main
+    return _locate_with_git(folder)
+
+
+def _locate_with_git(folder: Path) -> tuple[Path | None, Path | None]:
     out = git(
         folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir", check=False
     ).splitlines()
@@ -180,6 +207,8 @@ def local_mode_blocker(main_branch: str | None, config) -> str:
 
 
 def is_ancestor(folder: Path, commit: str, of: str) -> bool:
+    import subprocess
+
     try:
         result = subprocess.run(
             ["git", "merge-base", "--is-ancestor", commit, of], cwd=folder, capture_output=True, timeout=60

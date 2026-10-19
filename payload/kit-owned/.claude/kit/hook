@@ -5,7 +5,13 @@
 # Only the guards (protected, reviewer-bash) fail closed: any failure exits 2, the one code that
 # blocks in PreToolUse. The other hooks fail open by design (decisions 9, 40, 41), so a failure
 # there exits non-2 and never blocks an edit.
-kit=$(dirname "$0")
+# Shell builtins only up to Python: each command started costs ~40 ms on Windows, on every tool
+# call (decision 120). `${0%/*}` is `dirname` for the `sh "<path>/hook"` form settings.json uses.
+case "$0" in
+    */*) kit=${0%/*} ;;
+    *\\*) kit=${0%\\*} ;; # a Windows path typed by hand, as `dirname` took it (review round 1)
+    *) kit=. ;;
+esac
 case "$1" in
     protected | reviewer-bash) failure=2 ;;
     *) failure=1 ;;
@@ -14,7 +20,8 @@ esac
 # The installer records the Python to use (a full path; on Windows `python` may be the Store alias).
 python=""
 if [ -f "$kit/python-path" ]; then
-    python=$(head -n 1 "$kit/python-path" | tr -d '\r')
+    IFS= read -r python <"$kit/python-path" # false without a final newline, but python is still set
+    python=${python%[[:cntrl:]]}             # the CR a Windows editor may leave
 fi
 if [ -z "$python" ]; then
     python=$(command -v python3 || command -v python)

@@ -10,26 +10,27 @@ closed, so every error is an exit 2 (decision 33).
 
 from __future__ import annotations  # so this file still loads on an old Python and can say so
 
-import argparse
-import datetime
-import json
-import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import argparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
-    from kitlib import changelog, gitfiles, hooks, protected, rules_check, settings
-    from kitlib.config import ConfigError, find_root, load
-    from kitlib.findings import format_findings
-    from kitlib.globs import normalize
+    # Only what a hook needs: hooks run on every tool call, so the commands' modules (argparse,
+    # changelog, settings) load in main() after the hook fast path (decision 120).
+    from kitlib import hooks
 except BaseException as error:  # noqa: BLE001 - reported by main(), which picks the exit code
     # A Python older than 3.11 (no tomllib) or a broken install. Left uncaught, this would exit 1,
     # which lets a PreToolUse call through: the protected hook must fail closed here too.
     IMPORT_ERROR = error
 else:
     IMPORT_ERROR = None
+
+HOOKS = ("rules-check", "protected", "lane-router", "ownership", "reviewer-bash")
 
 OK, FINDINGS, USAGE = 0, 1, 2
 HOOK_ERROR, HOOK_BLOCK = 1, 2  # as in kitlib/hooks.py, which can't be imported when IMPORT_ERROR is set
@@ -48,6 +49,12 @@ def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if IMPORT_ERROR is not None:
         return import_failure(argv, IMPORT_ERROR)
+    if len(argv) == 2 and argv[0] == "hook" and argv[1] in HOOKS:
+        return hooks.run(argv[1])  # the fast path: no argument parser, no command modules
+    try:
+        _import_commands()
+    except BaseException as error:  # noqa: BLE001 - as for the hook import above
+        return import_failure(argv, error)
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
@@ -62,6 +69,18 @@ def main(argv=None) -> int:
         parser.print_help()
         return USAGE
     return args.run(args)
+
+
+def _import_commands() -> None:
+    """The commands' modules, as module globals: loaded only when the call isn't a hook's."""
+    global subprocess, changelog, gitfiles, protected, rules_check, settings
+    global ConfigError, find_root, load, format_findings, normalize
+    import subprocess
+
+    from kitlib import changelog, gitfiles, protected, rules_check, settings
+    from kitlib.config import ConfigError, find_root, load
+    from kitlib.findings import format_findings
+    from kitlib.globs import normalize
 
 
 def import_failure(argv, error: BaseException) -> int:
@@ -82,6 +101,8 @@ def import_failure(argv, error: BaseException) -> int:
 
 def _hook_event() -> str | None:
     """The hook_event_name Claude Code sent on stdin, or None if it can't be read."""
+    import json
+
     try:
         payload = json.loads(sys.stdin.read())
     except (ValueError, OSError):
@@ -90,6 +111,9 @@ def _hook_event() -> str | None:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    import argparse
+    import datetime
+
     parser = argparse.ArgumentParser(prog="parallanes", description="parallanes project tools.")
     commands = parser.add_subparsers(title="commands")
 
@@ -103,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.set_defaults(run=run_check)
 
     hook = commands.add_parser("hook", help="Claude Code hook entry points (JSON on stdin)")
-    hook.add_argument("name", choices=["rules-check", "protected", "lane-router", "ownership", "reviewer-bash"])
+    hook.add_argument("name", choices=HOOKS)
     hook.set_defaults(run=run_hook)
 
     lane = commands.add_parser("lanes", help="parallel lanes: one git worktree per lane")

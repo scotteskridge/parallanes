@@ -3,6 +3,91 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: Hook latency (plan 15)
+
+120. **The per-call hooks find the project root and the lane from disk, load only what they use,
+     and the launcher forks nothing** (owner's OK on Claude's recommendations, plan 15, backlog
+     `hook-latency`). Measured first: on Windows each git call costs ~70 ms, the kit's imports
+     ~130 ms and the `sh` launcher ~170 ms (the plan's first run: protected ~540 ms a call,
+     ownership ~810 ms; the before/after run below measured the same code at 506 and 752).
+     - *Root and lane from disk, git as the fallback:* the root is the nearest folder holding
+       `.git`; a lane's main checkout comes from its `.git` file's `gitdir:` and that folder's
+       `commondir` (git's documented layout) when the common dir is `<main>/.git`. Only a `.git` that
+       is plainly what `git init` or `git worktree add` writes is read from disk: `objects/`,
+       `refs/`, a config, a HEAD exactly as git writes it, a `gitdir:` line with nothing around the
+       path. Anything else asks git as before: slower, never wrong. That includes a git variable
+       set (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_CEILING_DIRECTORIES`,
+       `GIT_DISCOVERY_ACROSS_FILESYSTEM`); in the config, `core.worktree`, a `bare` that isn't
+       false, `[include]`, a header git may reject, a format version above 1 or any extension but
+       `worktreeConfig` (whose `config.worktree` is read by the same rules: Claude Code's desktop
+       worktrees turn it on); a submodule (its config sets `core.worktree`); a lane whose main
+       checkout isn't `<main>/.git`'s folder; a walk that starts inside a git dir or crosses a mount
+       point (POSIX). And `find_root` asks git whenever the disk answer holds no kit.toml, so
+       whatever `.git` git would reject, the protected guard keeps the project's config. A separate git dir's own checkout is read from disk (no
+       `commondir`: the git dir is the common one). *Why not a cache:* nothing outlives a hook
+       call, and a cache file can go stale (decision 35).
+     - *Keep `sh .claude/kit/hook <name>`*, minus its forks. The ~150 ms target counts the hook's
+       own time (Python start to exit); `sh`'s own start (~45 ms on Windows; the launcher adds ~70 ms
+       in all now, ~170 before) is a floor the kit doesn't control. *Why:* a different settings
+       command needs re-checking how Claude Code runs hooks on every OS and migrating every
+       installed settings.json, for ~45 ms.
+     - *Two regression tests:* the modules each hook loads (exact, never flaky) and a generous
+       import-time limit (catches a slow import nobody listed).
+     - *Result* (`tools/hook_timing.py`, medians of 15, through the launcher; own time in brackets):
+       Windows 10, Python 3.12: protected 506 → 249 ms (336 → 176), ownership in a lane 752 → 267
+       (606 → 195), rules-check 507 → 245, reviewer-bash 435 → 236, lane-router 1367 → 930. Linux
+       (WSL Ubuntu, Python 3.14, dash): protected 118 → 58, ownership 131 → 62, lane-router 149 →
+       104.
+     - *Why not under 150 ms of own time on Windows:* Python's start (~45 ms) and the standard
+       modules every check needs (`re`, `pathlib`, `tomllib`, `json`: ~70 ms) leave ~35 ms for the
+       kit; its own imports are now ~27 ms and the check ~15 ms. Going lower means dropping
+       `pathlib` or `tomllib` from the hooks, a rewrite for ~30 ms.
+     - *`dataclasses` replaced on the hook path* by `kitlib/records.py`, a frozen-record decorator
+       (the plan's "if it still costs > 10 ms": it cost ~40 ms, through `inspect`). Only the 13
+       classes the per-call hooks load; the CLI's and the lane-router's keep `@dataclass`.
+     - *The import-time test is a ratio:* the kit's imports over the standard modules' (`-I -S`,
+       best of 5): 0.38 now, 1.35 on the code before, limit 0.8. Milliseconds would fail on a slow
+       runner or pass a regression on a fast one.
+     - *An existing test moved:* `test_old_git_output_is_an_error_not_silence` now calls the git
+       path of `lanes.locate`; the normal layouts never read `rev-parse` output, so an old git
+       there fails later, at `git worktree list -z`, with git's own message.
+     - *Found by the Linux run:* on Python 3.14 a class's `__annotations__` isn't in its `__dict__`
+       (PEP 649), so `records` reads `cls.__annotations__`. CI tests 3.11 and 3.13 only.
+     - *Not changed:* a venv's `python.exe` on Windows is a launcher shim that adds ~65 ms a call;
+       the installer records whichever Python ran it.
+     - *Review round 1 (both reviewers, the same 🔴; Claude's calls):* the walk took any `.git`
+       holding a `HEAD` as a repository, where git also wants `objects/`, `refs/` and a valid HEAD.
+       From a hook cwd below such a folder the root moved there, kit.toml went missing and the
+       protected guard let a `vendor/**` edit through that `main` blocks. It now checks what git
+       checks, and the other layouts the reviewers found git answering differently ask git
+       (listed above). A generated `__init__` in `records` (as dataclasses do) keeps the 100,000-
+       file overlap check at main's speed; the launcher takes a backslash-only path as `dirname`
+       did. Gaps on `main` the reviewers found, not this change's: backlog
+       `protected-guard-root-gaps`.
+     - *Review round 2 (one 🔴, one 🟠):* eight more crafted `.git`s git rejects still moved the
+       root (a HEAD with a leading space, format version 99, an unknown extension, a `.git` with a
+       `commondir`, `[ core ]`, `gitdir:` lines with extra text or spaces). Rather than copy git's
+       parser case by case, `find_root` asks git when the disk root has no kit.toml, and anything
+       not plainly normal goes to git. And `worktreeConfig`, which Claude Code's desktop worktrees
+       turn on (this repo has it), sent every hook back to git; `config.worktree` is now read. The
+       generated `__init__` uses names no field can take.
+     - *Review round 3 (two 🔴):* a crafted `.git` beside its own kit.toml (a symlinked HEAD, or
+       `objects/` git can't search) still moved the root; and on POSIX a `.git` that is a FIFO hung
+       every hook until its 30 s timeout let the call through. Every file gitdisk reads is now read
+       only if it is a small regular file (no symlink, FIFO or device; 64 KB at most), and
+       `objects/` and `refs/` must be searchable. Structurally: `find_root` keeps a disk root only
+       if no folder above it holds a kit.toml, or it is a normal lane of that folder's checkout
+       (git dir in `<folder>/.git/worktrees/`); anything else asks git. `relativeWorktrees` is
+       read from disk, not sent to git. While fixing it, a half-applied edit to this repo's dev
+       hook (a name used before its import) made the guard fail closed and block every tool twice;
+       the owner added the missing lines. Edits to the hook's modules now go in import-first.
+     - *Review round 4: no 🔴 or 🟠.* Its two 🟡, kept as they are: a `.git/config` with a key git
+       calls malformed is still read from disk (the guard ends on the same folder as `main`, where
+       git fails and the kit.toml fallback answers; only the ask-only lane hooks see the
+       difference). And `find_root`'s check for an outer kit.toml costs ~2–4 ms a call, and sends a
+       kit project nested inside another kit project (a submodule with its own install) to git:
+       slower there, never wrong.
+
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 
 119. **The kit recognises Claude Code's `claude session <name> (pid N)` worktree lock on a lane**
