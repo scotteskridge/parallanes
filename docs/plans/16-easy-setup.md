@@ -1,7 +1,7 @@
 # 16 — Easier setup: profiles and suggested lanes
 
-**Status:** Approved
-**Branch / PR:** `plan/16-easy-setup` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/16-easy-setup` · https://github.com/scotteskridge/parallanes/pull/58
 **Builds on:** decisions 121–123 (this plan's answers); plan 08 (the installer) and decisions 100–102 (no overwrites, five questions, hook
 switches); decision 99 (`sh .claude/kit/parallanes`); decision 120 (the per-call hooks' cost);
 ARCHITECTURE §10. Revisits decision 101's "no lane questions".
@@ -85,11 +85,11 @@ then open the lane folders.
 | `test_readme.py` | The new quickstart works as written, on Windows and Ubuntu |
 
 ## Done when
-- [ ] Tests above pass locally and in CI (Windows + Ubuntu)
-- [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] A fresh install on the trial project's first commit, answered "lanes", ends with two lane
+- [x] Tests above pass locally and in CI (Windows + Ubuntu)
+- [x] Reviewer report attached to the PR; every 🔴 fixed
+- [x] A fresh install on the trial project's first commit, answered "lanes", ends with two lane
       folders and no hand edits; the transcript goes in the PR
-- [ ] CHANGELOG, ROADMAP (§1, §6) and decisions log updated
+- [x] CHANGELOG, ROADMAP (§1, §6) and decisions log updated
 
 ## Notes after implementation
 - **Going back to solo works too.** The plan left it out because the installer never deletes, but

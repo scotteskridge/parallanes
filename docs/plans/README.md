@@ -23,7 +23,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 13 | [Shared path modes](13-shared-path-modes.md) | `[[shared]]` zones in `kit.toml`: open, append or ask, with an optional steward lane; the ownership hook and the boundary check honour them (backlog `shared-path-modes`) | Done |
 | 14 | [Claude Code session locks on lanes](14-lane-session-lock.md) | The lane-router warns when a lane was opened with `claude --worktree`; `lanes status` names a Claude Code lock; `lanes remove` clears a leftover one (backlog `lane-session-lock`) | Done |
 | 15 | [Hook latency](15-hook-latency.md) | Measure each hook per call on Windows and Linux; root and lane read from disk, lean hook imports, a fork-free launcher; a test that fails when a hook's imports grow (backlog `hook-latency`) | Done |
-| 16 | [Easier setup](16-easy-setup.md) | Solo and lanes profiles; suggested lanes (`lanes suggest`, offered by the installer); an offer to commit and create the lanes; a lean `kit.toml` | Approved |
+| 16 | [Easier setup](16-easy-setup.md) | Solo and lanes profiles; suggested lanes (`lanes suggest`, offered by the installer); an offer to commit and create the lanes; a lean `kit.toml` | Done |
 
 ## Build order for v0.1 (decision 77)
 
