@@ -24,6 +24,7 @@ _PROJECT_KEYS = {
     "worktree_root": str,
     "ownership": str,
     "shared_paths": list,
+    "shared_defaults": bool,
 }
 _CHECKS_KEYS = {"rules": list}
 _PROTECTED_KEYS = {"paths": list, "commands": list, "secrets": list, "guard_kit": bool}
@@ -200,7 +201,12 @@ def lanes_only(text: str, named: str) -> Config | None:
         return None
     project = raw.get("project", {})
     _check_table(project, "[project]")
-    lane_keys = {key: kind for key, kind in _PROJECT_KEYS.items() if key in LaneSettings.__dataclass_fields__}
+    # shared_defaults isn't kept in LaneSettings but decides its zones (review round 1).
+    lane_keys = {
+        key: kind
+        for key, kind in _PROJECT_KEYS.items()
+        if key in LaneSettings.__dataclass_fields__ or key == "shared_defaults"
+    }
     _check_keys({key: value for key, value in project.items() if key in lane_keys}, lane_keys, "[project]")
     lane_settings = _lane_settings(project, raw)
     return Config(
@@ -277,7 +283,7 @@ def _lane_settings(project: dict, raw: dict) -> LaneSettings:
             f"{where}: 'worktree_root' has unknown placeholder(s) {', '.join(sorted(unknown))}; only {{project}} exists"
         )
     try:
-        zones = shared_zones.parse(raw.get("shared"), project.get("shared_paths"))
+        zones = shared_zones.parse(raw.get("shared"), project.get("shared_paths"), project.get("shared_defaults"))
     except ValueError as error:
         _fail(str(error))
     defaults = LaneSettings()
@@ -288,7 +294,7 @@ def _lane_settings(project: dict, raw: dict) -> LaneSettings:
         ownership=project.get("ownership", defaults.ownership),
         # The defaults keep v0.1's order: the same paths, now in two zones.
         shared_paths=list(
-            DEFAULT_SHARED_PATHS if zones is shared_zones.DEFAULT_ZONES else shared_zones.paths_of(zones)
+            DEFAULT_SHARED_PATHS if zones == shared_zones.DEFAULT_ZONES else shared_zones.paths_of(zones)
         ),
         shared=zones,
     )
@@ -328,10 +334,7 @@ def _lanes(entries, settings: LaneSettings) -> list:
         # Neither is more specific, so the file has no owner (decision 97): nobody has decided yet.
         first, second, pattern, other = twin
         same = repr(pattern) if pattern == other else f"{pattern!r} ({other!r} is the same pattern)"
-        _fail(
-            f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in a "
-            "[[shared]] table (keep the default tables too)"
-        )
+        _fail(f"lanes {first!r} and {second!r} both own {same}; give it to one lane or put it in a [[shared]] table")
     try:
         shared_zones.check_stewards(settings.shared, {lane.name for lane in lanes})
     except ValueError as error:
