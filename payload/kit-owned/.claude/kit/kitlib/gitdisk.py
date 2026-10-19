@@ -33,8 +33,12 @@ _LIMIT = 65536  # bytes: more than any `.git` file, HEAD or config git writes; b
 _EXTENSIONS = ("worktreeconfig", "relativeworktrees")
 
 
-def _device(folder: Path) -> int:
-    return os.stat(folder).st_dev
+def _device(folder: Path) -> int | None:
+    """The filesystem holding folder; None when it can't be read, and the caller asks git."""
+    try:
+        return os.stat(folder).st_dev
+    except OSError:
+        return None
 
 
 def toplevel(start: Path):
@@ -42,7 +46,13 @@ def toplevel(start: Path):
     if any(os.environ.get(name) for name in _GIT_ENV):
         return UNKNOWN
     start = Path(start).resolve()
+    # A cwd that is gone (a lane removed under a running session): git can't start there, so the
+    # caller falls back as it did before plan 15. A walk from it would answer for a parent instead.
+    if not start.is_dir():
+        return UNKNOWN
     device = _device(start) if _CHECK_DEVICE else None
+    if _CHECK_DEVICE and device is None:
+        return UNKNOWN
     for folder in (start, *start.parents):
         if folder.name == ".git" or (folder / "HEAD").exists():
             return UNKNOWN  # inside a git dir, or maybe a bare repository: git knows
