@@ -74,7 +74,7 @@ def test_install_into_an_existing_repo_with_spaces(tmp_path):
 
     settings = json.loads((repo / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert settings["permissions"]["deny"]  # the rules `parallanes settings sync` writes; check settings agrees
-    assert set(settings["hooks"]) == {"PreToolUse", "PostToolUse", "SessionStart"}
+    assert set(settings["hooks"]) == {"PreToolUse", "PostToolUse"}  # solo: no lane-router (decision 121)
 
 
 @pytest.mark.slow
@@ -129,7 +129,7 @@ def _drop_hook(repo, name):
 def test_a_deleted_switchable_hook_comes_back_with_the_way_to_keep_it_out(tmp_path):
     """Second review of PR 31: the advice itself had no test."""
     repo = new_repo(tmp_path)
-    setup(repo)
+    setup(repo, "--profile", "lanes")  # the lane-router is a lanes hook (decision 121)
     _drop_hook(repo, "lane-router")
     result = setup(repo)
     assert (
@@ -163,7 +163,7 @@ def test_an_unrecorded_protected_hook_deleted_later_is_still_called_the_backstop
 )
 def test_a_switched_off_hook_the_owner_edited_is_kept_and_reported(tmp_path, key, name, event):
     repo = new_repo(tmp_path)
-    setup(repo)
+    setup(repo, "--profile", "lanes")  # so the lane-router is there to edit (decision 121)
     path = repo / ".claude" / "settings.json"
     settings = json.loads(path.read_text(encoding="utf-8"))
     settings["hooks"][event][0]["hooks"][0]["timeout"] = 90
@@ -236,7 +236,7 @@ def test_a_real_run_with_input_closed_still_stops(tmp_path):
 @pytest.mark.slow
 def test_a_first_install_shows_the_answers_it_used_and_a_rerun_does_not(tmp_path):
     repo = new_repo(tmp_path)
-    typed = run_setup(repo, answers="\n".join(["", "", "", "make check", "", "n"]) + "\n")
+    typed = run_setup(repo, answers="\n".join(["", "", "", "make check", "", "", "n"]) + "\n")
     assert typed.returncode == 0, typed.stdout + typed.stderr
     assert "  Command that runs the tests: make check\n" in typed.stdout
     assert "  Pre-commit check: no\n" in typed.stdout
@@ -373,7 +373,7 @@ def test_a_rerun_replaces_an_unedited_kit_file(tmp_path):
 @pytest.mark.slow
 def test_quotes_in_the_test_command_still_make_a_valid_kit_toml(tmp_path):
     repo = new_repo(tmp_path)
-    answers = "\n".join(["", "", "", 'pytest -k "not slow" C:\\x', "", "y"]) + "\n"
+    answers = "\n".join(["", "", "", 'pytest -k "not slow" C:\\x', "", "", "y"]) + "\n"  # values, profile, pre-commit
     result = subprocess.run(
         [sys.executable, str(SETUP), "--target", str(repo)], input=answers, capture_output=True, text=True
     )

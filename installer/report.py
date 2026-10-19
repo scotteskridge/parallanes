@@ -23,14 +23,17 @@ def repo_root(target: Path) -> Path | None:
     return target if target.exists() and root.resolve() == target.resolve() else root
 
 
-def answers(used: dict | None, precommit: str | None, detected: bool) -> None:
+def answers(used: dict | None, precommit: str | None, profile: str | None, detected: bool) -> None:
     """The answers the files are made from: what a person most wants to check (trial F1).
 
-    used None: a re-run, whose saved answers aren't shown (decision 113).
+    used None: a re-run, whose saved answers aren't shown (decision 113). profile: shown when it is
+    new or changed (decision 121).
     """
     print("\nAnswers:")
     for key, question in QUESTIONS if used else ():
         print(f"  {question}: {used[key] or '(none)'}")
+    if profile is not None:
+        print(f"  Profile: {profile}")
     if precommit is not None:  # asked only at a repository's root
         print(f"  Pre-commit check: {precommit}")
     if detected:
@@ -60,13 +63,18 @@ def plan(files: file_plan.FilePlan, settings: dict, extra: dict, precommit: str)
         print(f"  note     the {name} hook isn't in .claude/settings.json and is added; {how}")
     for name in settings["switched_on_hooks"]:
         print(f"  note     the {name} hook is on in .claude/kit.toml and is added to .claude/settings.json")
+    for name in settings["profile_hooks"]:
+        print(f"  note     the {name} hook is added for the lanes profile")
+    for name in settings["profile_removed_hooks"]:
+        print(f"  note     the {name} hook is removed for the solo profile")
     for name in settings["removed_hooks"]:
         print(
             f"  note     the {name} hook is switched off in .claude/kit.toml and is removed from .claude/settings.json"
         )
     for name in settings["still_running"]:
+        where = "by the solo profile" if name in settings["profile_off"] else "in .claude/kit.toml"
         print(
-            f"  note     the {name} hook is switched off in .claude/kit.toml but .claude/settings.json still "
+            f"  note     the {name} hook is switched off {where} but .claude/settings.json still "
             "runs your copy of it; remove that yourself"
         )
     if settings["writes_record"]:
@@ -96,7 +104,9 @@ def _precommit_message(precommit: str) -> str:
     }[kind]
 
 
-def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
+def next_steps(target: Path, files: file_plan.FilePlan, precommit: str, done: dict) -> None:
+    """done: what the install did beyond its files (plan 16): profile, lanes, guess, committed,
+    created, origin. The steps leave out what's done and name what's left."""
     steps = [
         f"Open Claude Code in {target} once and accept the folder trust dialog: until you do, the "
         "reviewer agent runs without its read-only guard.",
@@ -121,17 +131,15 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
         steps.append("This folder is not the root of its git repository: the kit's lanes and checks expect to be.")
     elif kind == "own-hooks":
         steps.append("To run the kit's pre-commit check, call `sh .githooks/pre-commit` from your own pre-commit hook.")
-    steps.append(
-        "For parallel lanes, add [[lanes]] tables to .claude/kit.toml (docs/ai/parallel-lanes.md), then run "
-        f"`{KIT_COMMAND} lanes create`."
-    )
-    if sys.platform == "win32":
-        steps.append(
-            "Commit the kit's files; mark the pre-commit hook executable for macOS/Linux clones with "
-            "`git add --chmod=+x .githooks/pre-commit`."
-        )
-    else:
-        steps.append("Commit the kit's files (python-path stays out: it's this machine's).")
+    if not done["committed"]:
+        if sys.platform == "win32":
+            steps.append(
+                "Commit the kit's files; mark the pre-commit hook executable for macOS/Linux clones with "
+                "`git add --chmod=+x .githooks/pre-commit`."
+            )
+        else:
+            steps.append("Commit the kit's files (python-path stays out: it's this machine's).")
+    steps += _lane_steps(target, done)
     # The kit can't change the repo's GitHub settings, and until both jobs are required a red run
     # doesn't stop a merge (plan 09). A project that kept its own kit.yml has the kit's beside it.
     workflow = ".github/workflows/kit.yml"
@@ -149,6 +157,45 @@ def next_steps(target: Path, files: file_plan.FilePlan, precommit: str) -> None:
     print("\nNext:")
     for number, step in enumerate(steps, start=1):
         print(f"  {number}. {step}")
+
+
+def _lane_steps(target: Path, done: dict) -> list:
+    create = f"`{KIT_COMMAND} lanes create`"
+    if done["profile"] == "solo":
+        return ["For several agents at once later, re-run the installer with `--profile lanes`."]
+    if done["created"]:
+        # Folders only: `cd x && claude` doesn't parse in Windows PowerShell 5.1.
+        folders = "".join(f"\n       {folder}" for folder in _lane_folders(target))
+        return [
+            "Open one Claude Code session in each lane's folder (`cd` there, then `claude`; not "
+            f"`claude --worktree`), and start a task with `{KIT_COMMAND} lanes start <task>`:{folders}"
+        ]
+    if done["lanes"]:
+        if done["origin"]:
+            return [f"Push the kit's commit to origin, then run {create}: new lanes start from what origin has."]
+        return [f"Once the kit's files are committed, run {create}."]
+    why = done["guess"].get("why")
+    found = f"No lanes were guessed ({why}). " if why else ""
+    return [
+        f"{found}Add [[lanes]] tables to .claude/kit.toml (`{KIT_COMMAND} lanes suggest` prints a guess; "
+        f"docs/ai/parallel-lanes.md explains them), commit, then run {create}."
+    ]
+
+
+def _lane_folders(target: Path) -> list:
+    """Each lane's folder, as `lanes create` made them: relative to the project when inside it."""
+    from kitlib import config as kit_config
+    from kitlib import lanes
+
+    config = kit_config.load(target)
+    folders = []
+    for lane in config.lanes:
+        folder = lanes.lane_folder(target, config, lane)
+        try:
+            folders.append(folder.resolve().relative_to(target.resolve()).as_posix())
+        except ValueError:  # worktree_root outside the project, e.g. "../{project}-lanes"
+            folders.append(str(folder))
+    return folders
 
 
 def _project_value(target: Path, key: str) -> str:

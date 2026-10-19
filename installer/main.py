@@ -15,7 +15,7 @@ from kitlib import config as kit_config
 from kitlib import render
 from kitlib import settings as kit_settings
 
-from . import plan, report, settings_hooks, values
+from . import offers, plan, profile, report, settings_hooks, values
 
 MANIFEST_REL = ".claude/kit/manifest.json"
 PYTHON_PATH_REL = ".claude/kit/python-path"
@@ -26,6 +26,7 @@ STOPS = (
     kit_settings.SettingsError,
     settings_hooks.HooksError,
     render.TemplateError,
+    profile.ProfileError,
 )
 
 
@@ -53,6 +54,8 @@ def main(argv=None) -> int:
         elif not (args.yes or args.dry_run):
             # A dry run is a preview: it takes what --yes would, so a script can run it (trial F1).
             answers.update(values.ask(answers))
+        interactive = not (args.yes or args.dry_run)
+        chosen = profile.choose(args.profile, saved, first_install=not previous, interactive=interactive)
         # The pre-commit answer is saved only once it was given (or --yes at a repo root), so a re-run
         # never undoes a "no", and a folder that only now became a repo is still asked.
         precommit_answer = saved.get("precommit")
@@ -66,13 +69,19 @@ def main(argv=None) -> int:
     want_precommit = repo == target and precommit_answer == "yes"
     answers["kit_version"] = _kit_version()
 
+    # Before anything is written: a commit offered later must hold only the kit's files (decision 123).
+    committable = interactive and offers.clean_repo_with_commit(target, repo)
     try:
         files = plan.build(target, answers, previous)
-        settings_change = _plan_settings(target, files, previous)
+        guess = offers.plan_lanes(target, repo, files, interactive) if chosen == "lanes" else {}
+        settings_change = _plan_settings(target, files, previous, chosen, explicit=bool(args.profile))
         for rel in (PYTHON_PATH_REL, MANIFEST_REL):
             plan.check_path(target, rel)
     except STOPS as error:
         return _stop(error)
+    except EOFError:
+        return _stop("no answer (input closed); run with --yes to take the defaults")
+    answers["profile"] = settings_change["profile"]
     precommit = _plan_precommit(target, repo, want_precommit)
     extra = {
         PYTHON_PATH_REL: f"{sys.executable}\n".encode(),
@@ -84,8 +93,9 @@ def main(argv=None) -> int:
     # only a pre-commit answer decided now: a folder that became a repo since (review round 1).
     shown = None if saved else answers
     new_precommit = precommit_answer if saved.get("precommit") is None else None
-    if shown or new_precommit:
-        report.answers(shown, new_precommit, detected=args.dry_run and not args.yes)
+    new_profile = answers["profile"] if answers["profile"] != saved.get("profile") else None
+    if shown or new_precommit or new_profile:
+        report.answers(shown, new_precommit, new_profile, detected=args.dry_run and not args.yes)
     report.plan(files, settings_change, extra, precommit)
     if args.dry_run:
         print("\nDry run: nothing was written.")
@@ -99,7 +109,16 @@ def main(argv=None) -> int:
         (target / rel).write_bytes(data)
     if precommit == "set":
         subprocess.run(["git", "config", "core.hooksPath", HOOKS_PATH], cwd=target, check=True)
-    report.next_steps(target, files, precommit)
+    done = {"profile": answers["profile"], "lanes": settings_change["lanes"], "guess": guess}
+    done.update(committed=False, created=False, origin=repo == target and offers.has_origin(target))
+    if committable:
+        try:
+            done["committed"] = offers.offer_commit(target) == "committed"
+            if done["committed"] and done["lanes"] and not done["origin"]:
+                done["created"] = offers.offer_lanes_create(target)
+        except EOFError:
+            print("\nNo answer (input closed): nothing committed.")
+    report.next_steps(target, files, precommit, done)
     return 0
 
 
@@ -112,6 +131,11 @@ def _parser() -> argparse.ArgumentParser:
         help="print what would be written and the answers it would use; ask nothing, write nothing",
     )
     parser.add_argument("--yes", action="store_true", help="take every detected default without asking")
+    parser.add_argument(
+        "--profile",
+        choices=profile.PROFILES,
+        help="solo: one agent at a time; lanes: several, each in its own lane (default: asked, else solo)",
+    )
     return parser
 
 
@@ -174,30 +198,38 @@ def read_manifest(target: Path) -> dict:
     return data
 
 
-def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
-    """Deny and ask rules from the kit.toml in effect (the owner's if they kept one), plus the hooks."""
-    existing = target / ".claude" / "kit.toml"
-    if existing.is_file():
-        try:
-            text = existing.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            raise kit_config.ConfigError(".claude/kit.toml: not UTF-8 text") from None
-    else:
-        text = next(w.data for w in files.writes if w.rel == ".claude/kit.toml").decode("utf-8")
+def _plan_settings(target: Path, files: plan.FilePlan, previous: dict, chosen: str, explicit: bool) -> dict:
+    """Deny and ask rules from the kit.toml in effect (the owner's if they kept one), plus the hooks.
+
+    Lanes already in that kit.toml make the profile lanes (decision 121).
+    """
+    # The planned kit.toml first: a new one, or the owner's with the lanes they accepted (decision 122).
+    planned = next((w.data for w in files.writes if w.rel == offers.KIT_TOML), None)
+    try:
+        text = (planned if planned is not None else (target / offers.KIT_TOML).read_bytes()).decode("utf-8")
+    except UnicodeDecodeError:
+        raise kit_config.ConfigError(".claude/kit.toml: not UTF-8 text") from None
     for rel in (kit_settings.SETTINGS_REL, kit_settings.RECORD_REL):
         plan.check_path(target, rel.as_posix())
     config = kit_config.parse(text)
     sync = kit_settings.plan_sync(target, config)
     before = json.dumps(kit_settings.read_json(target / kit_settings.SETTINGS_REL, "settings.json"), sort_keys=True)
     old_record = previous.get("hooks", [])
-    off = config.hooks.switched_off
+    used = profile.effective(chosen, explicit, has_lanes=bool(config.lanes))
+    by_profile = profile.hooks_off(used)
+    off = config.hooks.switched_off | by_profile
+    # The profile in force before: an install from before profiles had every hook.
+    before_profile = previous.get("values", {}).get("profile", "lanes")
     settings_hooks.check(sync.settings.get("hooks", {}), old_record)  # before the notes read them
     added = settings_hooks.missing(sync.settings, off)
     announced = added if previous else []
     # Unrecorded also covers a copy the owner wrote, so only a hook with a switch can have been
     # switched back on (second review of PR 31).
     was_recorded = settings_hooks.recorded_names(old_record)
-    switched_on = [n for n in announced if n not in was_recorded and n in kit_config.SWITCHABLE_HOOKS]
+    for_lanes = [n for n in announced if n in profile.LANE_HOOKS and before_profile == "solo" and used == "lanes"]
+    switched_on = [
+        n for n in announced if n not in was_recorded and n in kit_config.SWITCHABLE_HOOKS and n not in for_lanes
+    ]
     was_running = settings_hooks.still_running(sync.settings, off)
     record = settings_hooks.merge(sync.settings, old_record, off)
     running = settings_hooks.still_running(sync.settings, off)
@@ -217,10 +249,15 @@ def _plan_settings(target: Path, files: plan.FilePlan, previous: dict) -> dict:
         "added_hooks": len(added),
         # A first install adds them all; nothing to explain. Only a hook the owner deleted gets the
         # "to keep it out" advice; one switched back on (so no longer recorded) doesn't.
-        "readded_hooks": [name for name in announced if name not in switched_on],
+        "readded_hooks": [name for name in announced if name not in switched_on and name not in for_lanes],
         "switched_on_hooks": switched_on,
-        "removed_hooks": [name for name in was_running if name not in running],
+        "profile_hooks": for_lanes,
+        "removed_hooks": [name for name in was_running if name not in running and name not in by_profile],
+        "profile_removed_hooks": [name for name in was_running if name not in running and name in by_profile],
         "still_running": running,
+        "profile_off": by_profile,
+        "profile": used,
+        "lanes": [lane.name for lane in config.lanes],
         "hooks": record,
         "apply": apply,
     }

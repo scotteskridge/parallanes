@@ -45,7 +45,9 @@ def lanes_project():
     git(folder, "init", "-q", "-b", "main")
     git(folder, "config", "user.name", "Live Check")
     git(folder, "config", "user.email", "live@example.com")
-    subprocess.run([sys.executable, str(ROOT / "kit_setup.py"), "--target", str(folder), "--yes"], check=True)
+    subprocess.run(
+        [sys.executable, str(ROOT / "kit_setup.py"), "--target", str(folder), "--yes", "--profile", "lanes"], check=True
+    )
     config = folder / ".claude" / "kit.toml"
     config.write_text(config.read_text(encoding="utf-8") + LANES, encoding="utf-8")
     (folder / FRAGMENTS).mkdir(parents=True, exist_ok=True)
