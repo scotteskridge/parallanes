@@ -112,3 +112,13 @@ So the backlog item's "check live first" is answered: the warning at start is po
 - **`lanes remove --force` still refuses a running session:** `--force` is about ignored files, and
   removing the folder under a live session would be the delete the warning is about.
 - **Live check** (`tests/live/test_worktree_session_lock.py`) passed on its first run (Claude Code 2.1.293).
+- **Review round 1** (repo `reviewer` + general-purpose; no 🔴, one 🟠 each): the leftover warning
+  sent the agent to `lanes remove`, which fails inside the lane and deletes it from anywhere else,
+  so it now gives `git worktree unlock`; a forged huge pid crashed `lanes status` and `/next` on
+  POSIX (`OverflowError`) and was cut to another pid on Windows, so pids outside 1..2^31-1 count
+  as running. Also: the running warning is hedged for a reused pid (Q3's wording, as Q1 said); a
+  missing but locked lane folder gets the unlock step before prune, and `lanes remove` no longer
+  tracebacks on a missing folder; an error after the unlock says it unlocked; the tests keep the
+  finished process alive (a reused pid on Windows CI would flake) and share their helpers; the
+  live checks share `git` and `remove_tree` from `claude_run.py`. Zombies and locks from WSL or a
+  container are documented limits (decision 119).

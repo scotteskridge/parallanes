@@ -195,6 +195,11 @@ def registered_worktrees(main: Path) -> list[Path]:
     return [path for path, _ in worktree_locks(main)]
 
 
+def lock_reason(main: Path, folder: Path) -> str | None:
+    """The lock reason of the worktree at folder: None when unlocked or not a worktree."""
+    return next((reason for path, reason in worktree_locks(main) if same_path(path, folder)), None)
+
+
 def worktree_locks(main: Path) -> list[tuple[Path, str | None]]:
     """Every worktree with its lock reason: None when unlocked, "" when locked without one."""
     out = git(main, "worktree", "list", "--porcelain", "-z")

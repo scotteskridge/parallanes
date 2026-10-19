@@ -2,15 +2,13 @@
 
 import json
 import os
-import subprocess
-import sys
 
 import pytest
 
 from helpers import git, run_cli, write
 from kitlib.lane_hooks import shared_line
 from kitlib.shared_zones import Zone
-from lane_helpers import LANES_TOML, PACKAGE_JSON, commit, lane_dir, lanes_repo
+from lane_helpers import LANES_TOML, PACKAGE_JSON, commit, finished_process, lane_dir, lanes_repo, lock_lane
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
 
@@ -306,25 +304,37 @@ def test_a_stewards_briefing_still_names_the_stricter_zone_it_isnt_steward_of():
 
 def test_a_running_session_lock_warns_that_the_folder_may_be_deleted(repo):
     # Plan 14: `claude --worktree core` locks the lane before SessionStart runs (checked live).
-    git(repo, "worktree", "lock", "--reason", f"claude session core (pid {os.getpid()})", str(lane_dir(repo, "core")))
+    lock_lane(repo, "core", f"claude session core (pid {os.getpid()})")
     text = brief(lane_dir(repo, "core"))
-    assert f"opened with `claude --worktree core` (Claude Code's lock, pid {os.getpid()})" in text
-    assert "deletes the lane's folder" in text and "Tell the user now" in text
+    # Hedged (review round 1): a reused pid can make an old lock look live, so it isn't "this session".
+    assert f"A Claude Code session (pid {os.getpid()}) holds this lane's `claude --worktree core` lock" in text
+    assert "If that is this session" in text and "deletes the lane's folder" in text
+    assert "tell the user now" in text
 
 
-def test_a_leftover_session_lock_says_lanes_remove_clears_it(repo):
-    child = subprocess.Popen([sys.executable, "-c", "pass"])
-    child.wait()
-    git(repo, "worktree", "lock", "--reason", f"claude session core (pid {child.pid})", str(lane_dir(repo, "core")))
+def test_a_leftover_session_lock_says_how_to_clear_it_without_removing_the_lane(repo):
+    # Review round 1: it pointed at `lanes remove`, which fails inside the lane and deletes it from
+    # anywhere else, for a lock that does this session no harm.
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
     text = brief(lane_dir(repo, "core"))
-    assert f"A Claude Code session lock (pid {child.pid}, no longer running) is left on this lane" in text
+    assert f"A Claude Code session lock (pid {ended.pid}, no longer running) is left on this lane" in text
+    assert "doesn't affect this session" in text
+    assert f'git worktree unlock "{lane_dir(repo, "core")}"' in text
     assert "deletes the lane's folder" not in text
 
 
 def test_an_owners_own_lock_is_not_mentioned(repo):
-    git(repo, "worktree", "lock", "--reason", "moving disk", str(lane_dir(repo, "core")))
+    lock_lane(repo, "core", "moving disk")
     text = brief(lane_dir(repo, "core"))
     assert "session lock" not in text and "moving disk" not in text and "--worktree" not in text
+
+
+def test_a_pid_too_big_for_the_os_keeps_the_briefing(repo):
+    # Review round 1: OverflowError from os.kill replaced the whole briefing with "Lane check failed".
+    lock_lane(repo, "core", "claude session core (pid 99999999999999999999)")
+    text = brief(lane_dir(repo, "core"))
+    assert "Lane: core" in text and "(pid 99999999999999999999)" in text
 
 
 def test_the_default_briefing_names_open_and_append_paths(repo):

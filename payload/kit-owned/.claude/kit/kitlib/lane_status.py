@@ -41,6 +41,7 @@ class LaneStatus:
     here: bool = False
     install: str | None = None  # a Node lane without node_modules (decision 103)
     session: session_lock.SessionLock | None = None  # Claude Code's lock (decision 119)
+    locked: bool = False  # any lock: git won't prune a missing folder's entry until it's unlocked
 
 
 @dataclass
@@ -72,7 +73,7 @@ def status(start: Path, config, offline: bool = False) -> Status:
             result.lanes.append(LaneStatus(lane.name, folder, "not created"))
             continue
         if not folder.is_dir():
-            result.lanes.append(LaneStatus(lane.name, folder, "missing"))
+            result.lanes.append(LaneStatus(lane.name, folder, "missing", locked=match[1] is not None))
             continue
         changed, untracked = changes(folder)
         entry = LaneStatus(lane.name, folder, "ok", branch=branch_of(folder), changed=changed, untracked=len(untracked))
@@ -135,8 +136,9 @@ def format_status(result: Status) -> str:
             lines.append(f"{where} · not created (sh .claude/kit/parallanes lanes create {lane.name})")
             continue
         if lane.state == "missing":
+            unlock = f'git worktree unlock "{lane.folder}", then ' if lane.locked else ""
             lines.append(
-                f"{where} · folder missing (git worktree prune, then "
+                f"{where} · folder missing ({unlock}git worktree prune, then "
                 f"sh .claude/kit/parallanes lanes create {lane.name})"
             )
             continue

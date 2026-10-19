@@ -14,7 +14,8 @@ from pathlib import Path
 
 from . import lanes
 
-_REASON = re.compile(r"claude session .+ \(pid (\d+)\)\Z")
+_REASON = re.compile(r"claude session .+ \(pid ([0-9]+)\)\Z")  # ASCII only: \d takes other scripts' digits
+_MAX_PID = 2**31 - 1  # past this os.kill overflows a C int, and Windows' DWORD cuts it to another pid
 
 
 @dataclass(frozen=True)
@@ -31,23 +32,20 @@ def pid_of(reason: str | None) -> int | None:
 
 def find(main: Path, folder: Path) -> SessionLock | None:
     """Claude Code's lock on the worktree at folder, from one `git worktree list` in main."""
-    for path, reason in lanes.worktree_locks(main):
-        if lanes.same_path(path, folder):
-            pid = pid_of(reason)
-            return SessionLock(pid, is_running(pid)) if pid is not None else None
-    return None
+    pid = pid_of(lanes.lock_reason(main, folder))
+    return SessionLock(pid, is_running(pid)) if pid is not None else None
 
 
 def is_running(pid: int) -> bool:
-    if pid <= 0:
-        return True  # 0 and below mean process groups to os.kill, never one process
+    if not 0 < pid <= _MAX_PID:
+        return True  # 0 and below mean process groups to os.kill; too big can't be checked (review round 1)
     if os.name == "nt":
         return _windows_running(pid)
     try:
         os.kill(pid, 0)  # signal 0 only checks; on Windows os.kill would end the process
     except ProcessLookupError:
         return False
-    except OSError:
+    except (OSError, OverflowError):
         return True  # it exists but isn't ours (PermissionError), or the check failed
     return True
 

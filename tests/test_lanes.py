@@ -2,15 +2,25 @@
 
 import json
 import os
-import subprocess
-import sys
+import shutil
 
 import pytest
 
 from helpers import git, run_cli, write
 from kitlib import lane_setup, lanes
 from kitlib.config import load
-from lane_helpers import LANES_TOML, commit, fake_gh, gh_calls, lane_dir, lanes_repo, no_gh_env, scripted_gh
+from lane_helpers import (
+    LANES_TOML,
+    commit,
+    fake_gh,
+    finished_process,
+    gh_calls,
+    lane_dir,
+    lanes_repo,
+    lock_lane,
+    no_gh_env,
+    scripted_gh,
+)
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
 
@@ -240,34 +250,24 @@ def test_remove_refuses_untracked_files(repo):
     assert (lane_dir(repo, "core") / "new.py").is_file()
 
 
-def finished_pid():
-    child = subprocess.Popen([sys.executable, "-c", "pass"])
-    child.wait()
-    return child.pid
-
-
-def lock(repo, reason):
-    git(repo, "worktree", "lock", "--reason", reason, str(lane_dir(repo, "core")))
-
-
 def test_remove_clears_a_leftover_claude_code_lock(repo):
     # Plan 14: a `claude -p --worktree core` run leaves its lock; git alone refuses to remove.
     assert create(repo, "core").returncode == 0
-    pid = finished_pid()
-    lock(repo, f"claude session core (pid {pid})")
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
     result = run_cli(repo, "lanes", "remove", "core")
     assert result.returncode == 0, result.stderr
-    assert f"cleared a leftover Claude Code session lock (pid {pid})" in result.stdout
+    assert f"cleared a leftover Claude Code session lock (pid {ended.pid})" in result.stdout
     assert not lane_dir(repo, "core").exists()
 
 
 def test_remove_refuses_a_running_claude_code_session(repo):
     assert create(repo, "core").returncode == 0
-    lock(repo, f"claude session core (pid {os.getpid()})")
+    lock_lane(repo, "core", f"claude session core (pid {os.getpid()})")
     for args in ((), ("--force",)):
         result = run_cli(repo, "lanes", "remove", "core", *args)
         assert result.returncode == 2
-        assert f"a Claude Code session (pid {os.getpid()}) is using" in result.stderr
+        assert f"a Claude Code session (pid {os.getpid()}) holds" in result.stderr
         assert "git worktree unlock" in result.stderr
         assert lane_dir(repo, "core").is_dir()
     assert "locked claude session core" in git(repo, "worktree", "list", "--porcelain")
@@ -275,7 +275,7 @@ def test_remove_refuses_a_running_claude_code_session(repo):
 
 def test_remove_leaves_an_owners_own_lock_to_git(repo):
     assert create(repo, "core").returncode == 0
-    lock(repo, "moving disk")
+    lock_lane(repo, "core", "moving disk")
     result = run_cli(repo, "lanes", "remove", "core")
     assert result.returncode != 0
     assert "moving disk" in result.stderr
@@ -284,28 +284,80 @@ def test_remove_leaves_an_owners_own_lock_to_git(repo):
 
 def test_remove_checks_uncommitted_changes_before_clearing_a_leftover_lock(repo):
     assert create(repo, "core").returncode == 0
-    lock(repo, f"claude session core (pid {finished_pid()})")
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
     write(lane_dir(repo, "core"), "src/core/a.py", "x = 2\n")
     result = run_cli(repo, "lanes", "remove", "core")
     assert result.returncode == 2 and "uncommitted" in result.stderr
     assert "locked claude session core" in git(repo, "worktree", "list", "--porcelain")
 
 
+def test_remove_says_it_cleared_the_lock_when_git_then_fails(repo, monkeypatch):
+    # Review round 1: the unlock happened but the error from `git worktree remove` didn't say so.
+    assert create(repo, "core").returncode == 0
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
+    real_git = lane_setup.git
+
+    def failing_remove(folder, *args):
+        if args[:2] == ("worktree", "remove"):
+            raise lanes.LaneError("git worktree remove failed: Permission denied")
+        return real_git(folder, *args)
+
+    monkeypatch.setattr(lane_setup, "git", failing_remove)
+    with pytest.raises(lanes.LaneError) as caught:
+        lane_setup.remove(repo, load(repo), "core")
+    assert f"cleared a leftover Claude Code session lock (pid {ended.pid})" in str(caught.value)
+    assert "Permission denied" in str(caught.value)
+
+
+def test_a_missing_locked_lane_folder_says_to_unlock_before_pruning(repo):
+    # Review round 1: git never prunes a locked worktree, so "git worktree prune" alone looped.
+    assert create(repo).returncode == 0
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
+    shutil.rmtree(lane_dir(repo, "core"))
+    line = lane_line(status(repo).stdout, "core")
+    assert "folder missing" in line and "git worktree unlock" in line
+    assert "git worktree unlock" not in lane_line(status(repo).stdout, "api")
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    assert "git worktree unlock" in result.stderr and "git worktree prune" in result.stderr
+
+
+def test_remove_a_lane_whose_folder_is_gone_says_to_prune(repo):
+    assert create(repo, "core").returncode == 0
+    shutil.rmtree(lane_dir(repo, "core"))
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2 and "Traceback" not in result.stderr
+    assert "git worktree prune" in result.stderr and "unlock" not in result.stderr
+
+
 def test_status_names_a_claude_code_session_lock(repo):
     assert create(repo).returncode == 0
-    lock(repo, f"claude session core (pid {os.getpid()})")
+    lock_lane(repo, "core", f"claude session core (pid {os.getpid()})")
     assert f"Claude Code session lock (pid {os.getpid()}, running)" in lane_line(status(repo).stdout, "core")
     git(repo, "worktree", "unlock", str(lane_dir(repo, "core")))
-    pid = finished_pid()
-    lock(repo, f"claude session core (pid {pid})")
+    ended = finished_process()
+    lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
     line = lane_line(status(repo).stdout, "core")
-    assert f"Claude Code session lock (pid {pid}, not running: lanes remove clears it)" in line
+    assert f"Claude Code session lock (pid {ended.pid}, not running: lanes remove clears it)" in line
     assert "session lock" not in lane_line(status(repo).stdout, "api")
+
+
+def test_status_survives_a_pid_too_big_for_the_os(repo):
+    # Review round 1: os.kill raised OverflowError (not an OSError) and status crashed on POSIX.
+    assert create(repo, "core").returncode == 0
+    lock_lane(repo, "core", "claude session core (pid 99999999999999999999)")
+    result = status(repo)
+    assert result.returncode == 0, result.stderr
+    assert "(pid 99999999999999999999, running)" in lane_line(result.stdout, "core")
 
 
 def test_status_leaves_an_owners_lock_out(repo):
     assert create(repo, "core").returncode == 0
-    lock(repo, "moving disk")
+    lock_lane(repo, "core", "moving disk")
     line = lane_line(status(repo).stdout, "core")
     assert "session lock" not in line and "moving disk" not in line
 

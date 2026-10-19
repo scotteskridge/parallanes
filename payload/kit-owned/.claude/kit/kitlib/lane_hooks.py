@@ -93,15 +93,18 @@ def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]
     lock = session_lock.find(main, root)
     if lock and lock.running:
         # First: the agent should tell the user before the session ends (decision 107).
+        # Hedged: a reused pid can make an old lock look live (review round 1).
         warnings.append(
-            f"This lane was opened with `claude --worktree {lane.name}` (Claude Code's lock, pid {lock.pid}): "
-            "on exit Claude Code deletes the lane's folder if nothing changed, ignored files (.env, local "
-            "settings) included. Tell the user now; open lanes from their folder instead."
+            f"A Claude Code session (pid {lock.pid}) holds this lane's `claude --worktree {lane.name}` lock. "
+            "If that is this session, Claude Code deletes the lane's folder on exit if nothing changed, "
+            "ignored files (.env, local settings) included: tell the user now, and open lanes from their "
+            "folder instead."
         )
     elif lock:
+        # Not `lanes remove`: it can't run inside the lane, and elsewhere it deletes the lane (review round 1).
         warnings.append(
-            f"A Claude Code session lock (pid {lock.pid}, no longer running) is left on this lane: "
-            "`sh .claude/kit/parallanes lanes remove` clears it."
+            f"A Claude Code session lock (pid {lock.pid}, no longer running) is left on this lane. It doesn't "
+            f'affect this session; clear it with `git worktree unlock "{root}"`.'
         )
     tip = lanes.integration_tip(root, config)
     integration = config.lane_settings.integration_branch

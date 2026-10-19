@@ -13,8 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from claude_run import run_claude, scratch_project
-from test_shared_path_modes import _remove, git
+from claude_run import git, remove_tree, run_claude, scratch_project
 
 pytestmark = pytest.mark.live
 
@@ -29,7 +28,7 @@ owns = ["src/core/**"]
 def lanes_project() -> Path:
     folder = scratch_project("session-lock")
     for child in folder.iterdir():  # a fresh install every run, in the same folder
-        _remove(child)
+        remove_tree(child)
     git(folder, "init", "-q", "-b", "main")
     git(folder, "config", "user.name", "Live Check")
     git(folder, "config", "user.email", "live@example.com")
@@ -63,8 +62,8 @@ def test_a_worktree_session_is_warned_and_its_leftover_lock_is_cleared():
         if e.get("subtype") == "hook_response" and e.get("hook_name") == "SessionStart:startup"
     )
     assert "Lane: core" in briefing, briefing  # the session really opened the lane
-    assert "This lane was opened with `claude --worktree core` (Claude Code's lock, pid " in briefing, briefing
-    assert "Tell the user now" in briefing
+    assert "holds this lane's `claude --worktree core` lock" in briefing, briefing
+    assert "tell the user now" in briefing
 
     porcelain = git(project, "worktree", "list", "--porcelain")
     assert "locked claude session core (pid " in porcelain, porcelain  # the -p run left it

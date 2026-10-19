@@ -20,6 +20,7 @@ from .lanes import (
     lane_folder,
     local_mode_blocker,
     locate,
+    lock_reason,
     main_checkout,
     registered_worktrees,
     same_path,
@@ -272,6 +273,10 @@ def remove(start: Path, config, name: str, force: bool = False) -> str:
     top = toplevel(Path(start))
     if top is not None and same_path(top, folder):
         raise LaneError(f"{name}: can't remove the lane this command runs in; run it from another folder")
+    if not folder.is_dir():
+        # git never prunes a locked worktree, so prune alone would leave it (review round 1).
+        unlock = f'git worktree unlock "{folder}", then ' if lock_reason(main, folder) is not None else ""
+        raise LaneError(f"{name}: {folder} is gone but git still records it. Run: {unlock}git worktree prune")
     changes = git(folder, "status", "--porcelain").splitlines()
     if changes:
         raise LaneError(f"{name}: {len(changes)} uncommitted change(s) in {folder}; commit or discard them first")
@@ -285,7 +290,12 @@ def remove(start: Path, config, name: str, force: bool = False) -> str:
                 "Save what you need, then run again with --force"
             )
     cleared = _clear_leftover_session_lock(main, folder, name)
-    git(main, "worktree", "remove", *(["--force"] if force else []), str(folder))
+    try:
+        git(main, "worktree", "remove", *(["--force"] if force else []), str(folder))
+    except LaneError as error:
+        if cleared:  # say what already changed (review round 1)
+            raise LaneError(cleared + str(error)) from None
+        raise
     return cleared + f"{name}: removed {folder}"
 
 
@@ -300,8 +310,8 @@ def _clear_leftover_session_lock(main: Path, folder: Path, name: str) -> str:
         return ""
     if lock.running:
         raise LaneError(
-            f"{name}: a Claude Code session (pid {lock.pid}) is using {folder} (opened with "
-            f"`claude --worktree {name}`): close it first. If it has ended, run: "
+            f"{name}: a Claude Code session (pid {lock.pid}) holds {folder}'s `claude --worktree "
+            f"{name}` lock: close that session first. If it has ended, run: "
             f'git worktree unlock "{folder}"'
         )
     git(main, "worktree", "unlock", str(folder))
