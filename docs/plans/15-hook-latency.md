@@ -1,7 +1,7 @@
 # 15 — Hook latency
 
-**Status:** Approved
-**Branch / PR:** `plan/15-hook-latency` · PR link once open
+**Status:** Done
+**Branch / PR:** `plan/15-hook-latency` · https://github.com/scotteskridge/parallanes/pull/56
 **Builds on:** backlog `hook-latency` (step 4 of the v0.2 build order, decision 110); decisions 9,
 33, 40, 41 (each hook's failure policy); decision 99 (the `sh` launchers and `python-path`);
 decision 119 (plan 14's extra `git worktree list` in the lane-router)
