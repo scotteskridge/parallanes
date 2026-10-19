@@ -52,8 +52,10 @@ def parse(entries, shared_paths: list | None, keep_defaults: bool | None = None)
     if shared_paths:
         zones.append(Zone(tuple(shared_paths), "open"))
     if keep_defaults if keep_defaults is not None else shared_paths is None:
-        for number, zone in enumerate(zones[: len(entries)], start=1):
-            _check_against_defaults(zone, f"[[shared]] #{number}")
+        for number, zone in enumerate(zones, start=1):
+            _check_against_defaults(
+                zone, f"[[shared]] #{number}" if number <= len(entries) else "[project] shared_paths"
+            )
         zones += [zone for zone in DEFAULT_ZONES if zone not in zones]
     return tuple(zones)
 
@@ -68,7 +70,7 @@ def _check_against_defaults(zone: Zone, where: str) -> None:
         for path in zone.paths:
             if path in default.paths and (zone.steward or MODES.index(zone.mode) < MODES.index(default.mode)):
                 raise ValueError(
-                    f"{where}: {path!r} is a default shared path (mode {default.mode!r}); a table can make "
+                    f"{where}: {path!r} is a default shared path (mode {default.mode!r}); kit.toml can make "
                     "it stricter but not loosen it or give it a steward. To change the defaults, set "
                     "shared_defaults = false in [project] and write every table you want"
                 )

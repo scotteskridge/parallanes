@@ -101,7 +101,7 @@ def test_a_table_makes_a_default_stricter(tmp_path):
     assert shared_zones.Matcher(loaded.shared).find("docs/plans/a.md").mode == "ask"
 
 
-def test_a_table_repeating_a_default_is_dropped(tmp_path):
+def test_a_table_repeating_a_default_zone_loads_without_adding_it_twice(tmp_path):
     # The plan-13 template said to uncomment the default tables too: doing so still loads, unchanged.
     repeated = '[[shared]]\npaths = ["docs/changelog.d/**", "docs/health/**"]\nmode = "append"\n'
     assert settings(tmp_path, LANES + repeated).shared == shared_zones.DEFAULT_ZONES
@@ -178,6 +178,27 @@ def test_a_table_cant_give_a_default_path_a_steward_or_loosen_it(tmp_path, table
     (tmp_path / "off").mkdir()
     loaded = load(make_repo(tmp_path / "off", config=project("shared_defaults = false") + LANES + table)).lane_settings
     assert len(loaded.shared) == 1
+
+
+def test_the_default_path_check_runs_at_the_boundary_too():
+    table = '[[shared]]\npaths = ["docs/changelog.d/**"]\nmode = "open"\n'
+    with pytest.raises(ConfigError, match="shared_defaults = false"):
+        lanes_only(RULES_TOML + LANES + table, "core")
+
+
+def test_a_steward_table_repeating_a_default_loads_when_shared_paths_replaces_them(tmp_path):
+    table = '[[shared]]\npaths = ["docs/changelog.d/**"]\nmode = "append"\nsteward = "core"\n'
+    loaded = load(make_repo(tmp_path, config=project('shared_paths = ["x/**"]') + LANES + table)).lane_settings
+    assert loaded.shared == (Zone(("docs/changelog.d/**",), "append", "core"), Zone(("x/**",), "open"))
+
+
+def test_a_shared_paths_list_kept_beside_the_defaults_cant_loosen_one(tmp_path):
+    # Review round 2: the shared_paths zone escaped the check, and its `open` silently lost.
+    text = project('shared_paths = ["docs/changelog.d/**"]', "shared_defaults = true")
+    with pytest.raises(ConfigError) as caught:
+        load(make_repo(tmp_path, config=text + LANES))
+    message = str(caught.value)
+    assert "[project] shared_paths" in message and "'docs/changelog.d/**'" in message
 
 
 def test_a_written_table_repeating_a_default_path_loads_when_it_is_stricter(tmp_path):

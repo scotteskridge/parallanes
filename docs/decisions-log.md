@@ -53,7 +53,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
            round 1, general reviewer): the default zone still matches, so the steward was asked
            anyway, with nothing saying why; the error points at `shared_defaults = false`. Only the
            same pattern is caught; an overlapping one (`docs/changelog.d/core/**`) is documented in
-           the lane guide. The briefing lists a pattern under its strictest mode only.
+           the lane guide. A `shared_paths` list kept beside the defaults (`shared_defaults =
+           true`) is checked the same way (review round 2). The briefing lists a pattern under the
+           strictest mode that applies to the lane, and always lists the lane's own stewarded zones.
 
 ## 2026-10-18: Protected paths in a merge commit
 

@@ -65,17 +65,21 @@ _SAYS = {"open": "open", "append": "adding files is free, changing one asks", "a
 def shared_line(zones, lane_name: str) -> str:
     """One briefing line for every zone, by mode (decision 116), with each steward named."""
     # A pattern in two zones is listed under the stricter mode only, the one that applies (review
-    # round 1: a table making a default stricter listed the same pattern as both).
+    # round 1: a table making a default stricter listed the same pattern as both). The lane's own
+    # stewarded zones are skipped when it is judged (Matcher.find), so they are always listed and
+    # never hide another zone's mode from it (review round 2).
     strictest = {}
     for zone in zones:
-        for path in zone.paths:
-            strictest[path] = max(strictest.get(path, 0), shared_zones.MODES.index(zone.mode))
+        if zone.steward != lane_name:
+            for path in zone.paths:
+                strictest[path] = max(strictest.get(path, 0), shared_zones.MODES.index(zone.mode))
     parts = []
     for rank, mode in enumerate(shared_zones.MODES):
         named = []
         for zone in zones:
             if zone.mode == mode:
-                paths = [path for path in zone.paths if strictest[path] == rank]
+                own = zone.steward == lane_name
+                paths = [path for path in zone.paths if own or strictest[path] == rank]
                 whose = "this lane" if zone.steward == lane_name else f"lane {zone.steward}"
                 named += [f"{path} (steward: {whose})" if zone.steward else path for path in paths]
         if named:

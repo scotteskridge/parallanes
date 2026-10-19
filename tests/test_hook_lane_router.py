@@ -5,6 +5,8 @@ import json
 import pytest
 
 from helpers import git, run_cli, write
+from kitlib.lane_hooks import shared_line
+from kitlib.shared_zones import Zone
 from lane_helpers import LANES_TOML, PACKAGE_JSON, commit, lane_dir, lanes_repo
 
 pytestmark = pytest.mark.slow  # real repos, worktrees and CLI processes: seconds a test on Windows
@@ -287,6 +289,16 @@ def test_the_briefing_names_a_pattern_under_its_strictest_mode_only(tmp_path):
     text = brief(lane_dir(repo, "core"))
     assert "Shared: open: docs/backlog/**, docs/design/decisions-log.md; " in text
     assert "every change asks: docs/plans/**" in text
+
+
+def test_a_stewards_briefing_still_names_the_stricter_zone_it_isnt_steward_of():
+    # Review round 2: the strictest mode was worked out for every lane alike, so the steward of an
+    # `ask` zone wasn't told the `append` zone on the same pattern still applies to it.
+    zones = (Zone(("/a",), "append"), Zone(("/a",), "ask", "core"))
+    assert shared_line(zones, "core") == (
+        "Shared: adding files is free, changing one asks: /a; every change asks: /a (steward: this lane)"
+    )
+    assert shared_line(zones, "api") == "Shared: every change asks: /a (steward: lane core)"
 
 
 def test_the_default_briefing_names_open_and_append_paths(repo):
