@@ -22,7 +22,7 @@ Design they build on: `../ARCHITECTURE.md`.
 | 12 | [Launch](12-launch.md) | README (story first, what Claude Code does vs what the kit adds), the trial's real output, rename to `parallanes` (decisions 81, 108, 109), v0.1.0, make public | Done |
 | 13 | [Shared path modes](13-shared-path-modes.md) | `[[shared]]` zones in `kit.toml`: open, append or ask, with an optional steward lane; the ownership hook and the boundary check honour them (backlog `shared-path-modes`) | Done |
 | 14 | [Claude Code session locks on lanes](14-lane-session-lock.md) | The lane-router warns when a lane was opened with `claude --worktree`; `lanes status` names a Claude Code lock; `lanes remove` clears a leftover one (backlog `lane-session-lock`) | Done |
-| 15 | [Hook latency](15-hook-latency.md) | Measure each hook per call on Windows and Linux; root and lane read from disk, lean hook imports, a fork-free launcher; a test that fails when a hook's imports grow (backlog `hook-latency`) | Draft |
+| 15 | [Hook latency](15-hook-latency.md) | Measure each hook per call on Windows and Linux; root and lane read from disk, lean hook imports, a fork-free launcher; a test that fails when a hook's imports grow (backlog `hook-latency`) | Approved |
 
 ## Build order for v0.1 (decision 77)
 

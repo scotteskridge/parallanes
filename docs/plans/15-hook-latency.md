@@ -1,6 +1,6 @@
 # 15 — Hook latency
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/15-hook-latency` · PR link once open
 **Builds on:** backlog `hook-latency` (step 4 of the v0.2 build order, decision 110); decisions 9,
 33, 40, 41 (each hook's failure policy); decision 99 (the `sh` launchers and `python-path`);

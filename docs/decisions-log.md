@@ -3,6 +3,25 @@
 Why the kit is built the way it is. Newest first. Each entry: date, the choice, why, and what it affects.
 The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROADMAP.md`; this file records *why*.
 
+## 2026-10-19: Hook latency (plan 15)
+
+120. **The per-call hooks find the project root and the lane from disk, load only what they use,
+     and the launcher forks nothing** (owner's OK on Claude's recommendations, plan 15, backlog
+     `hook-latency`). Measured first: on Windows each git call costs ~70 ms, the kit's imports
+     ~130 ms and the `sh` launcher ~180 ms; protected took ~540 ms a call, ownership ~810 ms.
+     - *Root and lane from disk, git as the fallback:* the root is the nearest folder holding
+       `.git`; a lane's main checkout comes from its `.git` file's `gitdir:` and that folder's
+       `commondir` (git's documented layout) when the common dir is `<main>/.git`. Any other layout
+       (`GIT_DIR` / `GIT_WORK_TREE` set, a separate git dir, a submodule, a file that doesn't parse)
+       runs today's git calls: slower, never wrong. *Why not a cache:* nothing outlives a hook call,
+       and a cache file can go stale (decision 35).
+     - *Keep `sh .claude/kit/hook <name>`*, minus its forks. The ~150 ms target counts the hook's
+       own time (Python start to exit); `sh`'s own start (~90 ms on Windows) is a floor the kit
+       doesn't control. *Why:* a different settings command needs re-checking how Claude Code runs
+       hooks on every OS and migrating every installed settings.json, for ~90 ms.
+     - *Two regression tests:* the modules each hook loads (exact, never flaky) and a generous
+       import-time limit (catches a slow import nobody listed).
+
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 
 119. **The kit recognises Claude Code's `claude session <name> (pid N)` worktree lock on a lane**
