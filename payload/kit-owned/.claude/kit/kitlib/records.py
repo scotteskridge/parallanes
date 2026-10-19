@@ -35,7 +35,7 @@ def _build(cls, order: bool):
     for name in names:
         if not name.isidentifier():
             raise TypeError(f"{cls.__name__}: field {name!r} is not an identifier")
-    scope = {"_set": object.__setattr__, "_MISSING": _MISSING}
+    scope = {"__record_set": object.__setattr__, "__record_missing": _MISSING}
     params, body = [], []
     for name in names:
         default = cls.__dict__.get(name, _MISSING)
@@ -45,18 +45,18 @@ def _build(cls, order: bool):
             params.append(name)
         elif isinstance(default, Factory):
             delattr(cls, name)  # the instance always has its own value
-            scope[f"_make_{name}"] = default.make
-            params.append(f"{name}=_MISSING")
-            body.append(f"    if {name} is _MISSING:\n        {name} = _make_{name}()")
+            scope[f"__record_make_{name}"] = default.make
+            params.append(f"{name}=__record_missing")
+            body.append(f"    if {name} is __record_missing:\n        {name} = __record_make_{name}()")
         else:
-            scope[f"_default_{name}"] = default
-            params.append(f"{name}=_default_{name}")
-        body.append(f"    _set(self, {name!r}, {name})")
+            scope[f"__record_default_{name}"] = default
+            params.append(f"{name}=__record_default_{name}")
+        body.append(f"    __record_set(__record_self, {name!r}, {name})")
     if hasattr(cls, "__post_init__"):
-        body.append("    self.__post_init__()")
+        body.append("    __record_self.__post_init__()")
     fields = "".join(f"self.{name}, " for name in names)
     source = (
-        f"def __init__(self, {', '.join(params)}):\n" + "\n".join(body or ["    pass"]) + "\n"
+        f"def __init__(__record_self, {', '.join(params)}):\n" + "\n".join(body or ["    pass"]) + "\n"
         f"def _values(self):\n    return ({fields})\n"
     )
     exec(source, scope)  # built only from the class's own field names, checked as identifiers above

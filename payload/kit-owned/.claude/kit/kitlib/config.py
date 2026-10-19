@@ -159,7 +159,9 @@ def find_root(start: Path) -> Path:
     """
     start = Path(start).resolve()
     top = gitdisk.toplevel(start)
-    if top is gitdisk.UNKNOWN:
+    # A disk answer without the kit's config goes to git too: a `.git` git would reject can't
+    # take the protected guard's kit.toml away (review round 2). Free on the normal layout.
+    if top is gitdisk.UNKNOWN or (top is not None and not (top / CONFIG_REL).is_file()):
         top = _git_toplevel(start)
     if top is not None:
         return top

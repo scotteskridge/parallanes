@@ -2,9 +2,11 @@
 
 Each git call costs ~70 ms on Windows, and the hooks run on every tool call, so the normal layouts
 are read from the files git documents (gitrepository-layout): a `.git` folder, or a `.git` file whose
-`gitdir:` line names the git dir, and that dir's `commondir`. Anything else is UNKNOWN, and the
-caller asks git as before: an unusual layout is slower, never answered differently. When in doubt,
-UNKNOWN: the protected guard trusts the root found here (review round 1).
+`gitdir:` line names the git dir, and that dir's `commondir`. Only a `.git` that is plainly what
+`git init` or `git worktree add` writes is answered here; anything else is UNKNOWN, and the caller
+asks git as before: an unusual layout is slower, never answered differently. When in doubt,
+UNKNOWN: the protected guard trusts the root found here (review rounds 1 and 2). `config.find_root`
+also asks git when the answer here holds no kit.toml.
 """
 
 import os
@@ -23,6 +25,7 @@ _GIT_ENV = (
 # git stops at a mount point (unless told otherwise); the walk can't know what it would answer
 # there. Not on Windows, where a walk can't leave its drive.
 _CHECK_DEVICE = os.name != "nt"
+_HEX = frozenset("0123456789abcdef")
 
 
 def _device(folder: Path) -> int:
@@ -36,90 +39,122 @@ def toplevel(start: Path):
     start = Path(start).resolve()
     device = _device(start) if _CHECK_DEVICE else None
     for folder in (start, *start.parents):
-        if folder.name == ".git" or _is_repository(folder):
-            return UNKNOWN  # inside a git dir, or a bare repository: no working tree, as git says
+        if folder.name == ".git" or (folder / "HEAD").exists():
+            return UNKNOWN  # inside a git dir, or maybe a bare repository: git knows
         if device is not None and _device(folder) != device:
             return UNKNOWN
         dot = folder / ".git"
-        if dot.is_dir():
-            if not _is_repository(dot):
-                continue  # not a repository: git skips it and keeps looking up
-            return UNKNOWN if not (dot / "config").is_file() or _moves_worktree(dot) else folder
-        if dot.exists():
-            dirs = git_dirs(folder)
-            if dirs is None or any(_moves_worktree(found) for found in dirs):
-                return UNKNOWN
-            return folder
+        if not dot.exists():
+            continue
+        dirs = git_dirs(folder)
+        if dirs is None or _moves_worktree(*dirs):
+            return UNKNOWN
+        return folder
     return None
 
 
 def git_dirs(top: Path) -> tuple[Path, Path] | None:
-    """(git dir, common git dir) of the working tree top; None when its `.git` can't be read."""
+    """(git dir, common git dir) of the working tree top; None unless its `.git` is a plain one."""
     dot = top / ".git"
     if dot.is_dir():
-        return dot, dot
+        if (dot / "commondir").exists():
+            return None
+        return (dot, dot) if _is_repository(dot) else None
     try:
-        line = dot.read_text(encoding="utf-8").splitlines()[0]
-    except (OSError, UnicodeDecodeError, IndexError):
+        text = dot.read_text(encoding="utf-8").rstrip("\r\n")
+    except (OSError, UnicodeDecodeError):
         return None
-    if not line.startswith("gitdir: "):
+    # git takes the whole file but its line ending, and the path exactly as written after "gitdir: ".
+    path = text.removeprefix("gitdir: ")
+    if path == text or not path or path != path.strip() or "\n" in path or "\r" in path:
         return None
-    git_dir = Path(os.path.normpath(top / line[len("gitdir: ") :].strip()))
+    git_dir = Path(os.path.normpath(top / path))
     if not _valid_head(git_dir):
         return None
     try:
-        common = (git_dir / "commondir").read_text(encoding="utf-8").strip()
+        common = (git_dir / "commondir").read_text(encoding="utf-8").rstrip("\r\n")
     except FileNotFoundError:
         common_dir = git_dir  # a separate git dir, or a submodule's own checkout
     except (OSError, UnicodeDecodeError):
         return None
     else:
+        if not common or common != common.strip():
+            return None
         common_dir = Path(os.path.normpath(git_dir / common))
     return (git_dir, common_dir) if _is_repository(common_dir) else None
 
 
 def _is_repository(folder: Path) -> bool:
-    """What git checks before it takes a folder as a git dir: objects/, refs/ and a HEAD that names a
-    ref or a commit. A folder that fails is skipped by git, so it must not end the walk here."""
-    if not ((folder / "objects").is_dir() and (folder / "refs").is_dir()):
-        return False
-    return _valid_head(folder)
+    """objects/, refs/, a config and a HEAD as `git init` writes them."""
+    return (
+        (folder / "objects").is_dir()
+        and (folder / "refs").is_dir()
+        and (folder / "config").is_file()
+        and _valid_head(folder)
+    )
 
 
 def _valid_head(git_dir: Path) -> bool:
+    """A HEAD exactly as git writes it: `ref: refs/...`, or a lowercase object id."""
     try:
-        head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
+        head = (git_dir / "HEAD").read_text(encoding="utf-8").rstrip("\n")
     except (OSError, UnicodeDecodeError):
         return False
     if head.startswith("ref: refs/"):
-        return True
-    return len(head) in (40, 64) and all(char in "0123456789abcdef" for char in head)
+        return head == head.strip()
+    return len(head) in (40, 64) and _HEX.issuperset(head)
 
 
-def _moves_worktree(git_dir: Path) -> bool:
-    """The working tree may not be where the `.git` is: `core.worktree` set, `core.bare` true, or a
-    per-worktree config (`extensions.worktreeConfig`), which can set either. Read loosely, in any
-    section: a false alarm only means asking git, so anything unclear counts.
+def _moves_worktree(git_dir: Path, common: Path) -> bool:
+    """Anything in the config that git reads differently, or that may put the working tree away from
+    its `.git`: `core.worktree`, a `bare` that isn't false, `[include]`, a repository format or
+    extension the kit doesn't know. With `extensions.worktreeConfig` (Claude Code's worktrees turn it
+    on), the worktree's own `config.worktree` is read the same way. Loose by design: a false alarm
+    only means asking git.
     """
     try:
-        text = (git_dir / "config").read_text(encoding="utf-8", errors="replace")
-    except FileNotFoundError:
-        return False  # a linked worktree's own git dir has none
-    except OSError:
+        text = (common / "config").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
         return True
-    for line in text.splitlines():
-        line = line.strip()
+    unclear, per_worktree = _read_config(text, extensions_allowed=True)
+    if unclear:
+        return True
+    if not per_worktree:
+        return False
+    try:
+        text = (git_dir / "config.worktree").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return False
+    except (OSError, UnicodeDecodeError):
+        return True
+    return _read_config(text, extensions_allowed=False)[0]
+
+
+def _read_config(text: str, extensions_allowed: bool) -> tuple[bool, bool]:
+    """(unclear, worktreeConfig on) for one config file's text."""
+    section, per_worktree = "", False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line[0] in "#;":
+            continue
         if line.startswith("["):
-            if "=" in line or line.count("]") != 1 or not line.endswith("]"):
-                return True  # a key on the section's own line: not worth parsing here
-            if line.lower().startswith("[include"):
-                return True  # [include] / [includeIf]: another file could set either key
+            inner = line[1:-1] if line.endswith("]") and line.count("]") == 1 else None
+            if inner is None or not inner or inner != inner.strip():
+                return True, per_worktree  # a header git may reject, or a key on its line
+            section = inner.split('"')[0].strip().lower()
+            if section.startswith("include"):
+                return True, per_worktree  # [include] / [includeIf]: another file could set anything
             continue
         key, equals, value = line.partition("=")
         key = key.strip().lower()
-        value = value.split(";")[0].split("#")[0].strip().lower()
-        if key in ("worktree", "worktreeconfig"):
-            return True
-        if key == "bare" and (not equals or value not in ("false", "no", "off", "0")):
-            return True
-    return False
+        value = value.split(";")[0].split("#")[0].strip().strip('"').lower()
+        false = equals and value in ("false", "no", "off", "0")
+        if key == "worktree" or (key == "bare" and not false):
+            return True, per_worktree
+        if section == "core" and key == "repositoryformatversion" and value not in ("0", "1"):
+            return True, per_worktree
+        if section == "extensions":
+            if not extensions_allowed or key != "worktreeconfig":
+                return True, per_worktree  # objectformat, refstorage, ...: git's to read
+            per_worktree = not false
+    return False, per_worktree

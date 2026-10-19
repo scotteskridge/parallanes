@@ -150,3 +150,8 @@ Where the time goes, per call:
   doesn't; the module tests forbid `dataclasses` and `inspect`; `records` generates `__init__`
   (the generic one made the full suite's 100,000-file overlap test a third slower); the launcher
   takes a backslash-only path. Gaps already on `main` went to backlog `protected-guard-root-gaps`.
+- **Review round 2** (general-purpose, rerunning round 1's scripts; one 🔴, one 🟠): eight more
+  crafted `.git`s still moved the root. Fixed structurally: `find_root` asks git when the disk root
+  has no kit.toml, and only a plainly normal `.git` is read from disk. Claude Code's desktop
+  worktrees turn on `extensions.worktreeConfig`, which round 1's fix sent to git on every call (this
+  repo included); `config.worktree` is now read instead.

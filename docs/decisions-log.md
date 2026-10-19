@@ -12,14 +12,18 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      ownership ~810 ms; the before/after run below measured the same code at 506 and 752).
      - *Root and lane from disk, git as the fallback:* the root is the nearest folder holding
        `.git`; a lane's main checkout comes from its `.git` file's `gitdir:` and that folder's
-       `commondir` (git's documented layout) when the common dir is `<main>/.git`. A `.git` counts
-       only as git counts it (`objects/`, `refs/`, a HEAD naming a ref or commit). Anything else
-       asks git as before: slower, never wrong. That is a git variable set (`GIT_DIR`,
-       `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_CEILING_DIRECTORIES`, `GIT_DISCOVERY_ACROSS_FILESYSTEM`),
-       `core.worktree`, a true `core.bare`, a per-worktree config or an `[include]` in the repository's
-       config, a submodule (its config sets `core.worktree`), a lane whose main checkout isn't
-       `<main>/.git`'s folder, a walk that starts inside a git dir or crosses a mount point (POSIX),
-       or a `.git` file that doesn't parse. A separate git dir's own checkout is read from disk (no
+       `commondir` (git's documented layout) when the common dir is `<main>/.git`. Only a `.git` that
+       is plainly what `git init` or `git worktree add` writes is read from disk: `objects/`,
+       `refs/`, a config, a HEAD exactly as git writes it, a `gitdir:` line with nothing around the
+       path. Anything else asks git as before: slower, never wrong. That includes a git variable
+       set (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_CEILING_DIRECTORIES`,
+       `GIT_DISCOVERY_ACROSS_FILESYSTEM`); in the config, `core.worktree`, a `bare` that isn't
+       false, `[include]`, a header git may reject, a format version above 1 or any extension but
+       `worktreeConfig` (whose `config.worktree` is read by the same rules: Claude Code's desktop
+       worktrees turn it on); a submodule (its config sets `core.worktree`); a lane whose main
+       checkout isn't `<main>/.git`'s folder; a walk that starts inside a git dir or crosses a mount
+       point (POSIX). And `find_root` asks git whenever the disk answer holds no kit.toml, so
+       whatever `.git` git would reject, the protected guard keeps the project's config. A separate git dir's own checkout is read from disk (no
        `commondir`: the git dir is the common one). *Why not a cache:* nothing outlives a hook
        call, and a cache file can go stale (decision 35).
      - *Keep `sh .claude/kit/hook <name>`*, minus its forks. The ~150 ms target counts the hook's
@@ -60,6 +64,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        file overlap check at main's speed; the launcher takes a backslash-only path as `dirname`
        did. Gaps on `main` the reviewers found, not this change's: backlog
        `protected-guard-root-gaps`.
+     - *Review round 2 (one 🔴, one 🟠):* eight more crafted `.git`s git rejects still moved the
+       root (a HEAD with a leading space, format version 99, an unknown extension, a `.git` with a
+       `commondir`, `[ core ]`, `gitdir:` lines with extra text or spaces). Rather than copy git's
+       parser case by case, `find_root` asks git when the disk root has no kit.toml, and anything
+       not plainly normal goes to git. And `worktreeConfig`, which Claude Code's desktop worktrees
+       turn on (this repo has it), sent every hook back to git; `config.worktree` is now read. The
+       generated `__init__` uses names no field can take.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 

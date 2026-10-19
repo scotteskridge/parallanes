@@ -94,3 +94,15 @@ def test_a_required_field_after_a_default_is_refused():
         class Bad:
             x: int = 0
             y: int
+
+
+def test_field_names_the_generated_code_might_use():
+    # Review round 2: the generated __init__'s own names must not collide with a field's.
+    @record
+    class Odd:
+        self: int
+        _set: int = 0
+        _MISSING: list = Factory(list)
+
+    odd = Odd(1, 2)
+    assert (odd.self, odd._set, odd._MISSING) == (1, 2, [])

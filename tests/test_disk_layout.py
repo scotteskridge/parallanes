@@ -5,6 +5,7 @@ three more to find the lane. On the normal layout the answers come from `.git` a
 `gitdir:` / `commondir` files; any other layout falls back to git, so it is slower, never wrong.
 """
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +25,13 @@ def git_toplevel(folder: Path) -> Path:
     return Path(git(folder, "rev-parse", "--show-toplevel").strip())
 
 
+def git_root(folder: Path, kit_folder: Path) -> Path:
+    """What find_root answered when it always asked git: its top level, or, when git fails there,
+    the folder holding kit.toml."""
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=folder, capture_output=True, text=True)
+    return Path(result.stdout.strip()) if result.returncode == 0 and result.stdout.strip() else kit_folder
+
+
 def same(a: Path, b: Path) -> bool:
     return lanes.same_path(a, b)
 
@@ -34,6 +42,17 @@ def no_git(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", _refuse)
     monkeypatch.setattr(subprocess, "Popen", _refuse)
+
+
+@pytest.fixture
+def no_git_after(monkeypatch):
+    """Call it once the test's own git setup is done: from then on, starting a process fails."""
+
+    def start():
+        monkeypatch.setattr(subprocess, "run", _refuse)
+        monkeypatch.setattr(subprocess, "Popen", _refuse)
+
+    return start
 
 
 @pytest.fixture
@@ -230,14 +249,14 @@ def test_config_lines_that_move_the_working_tree(tmp_path, line):
 
     dot = tmp_path / ".git"
     write(tmp_path, ".git/config", f"[core]\n\trepositoryformatversion = 0\n{line}\n")
-    assert gitdisk._moves_worktree(dot)
+    assert gitdisk._moves_worktree(dot, dot)
 
 
 def test_an_ordinary_config_does_not_move_the_working_tree(tmp_path):
     from kitlib import gitdisk
 
     write(tmp_path, ".git/config", '[core]\n\tbare = false\n\tlogallrefupdates = true\n[remote "origin"]\n')
-    assert not gitdisk._moves_worktree(tmp_path / ".git")
+    assert not gitdisk._moves_worktree(tmp_path / ".git", tmp_path / ".git")
 
 
 def test_a_dot_git_file_naming_a_folder_that_is_no_repository(tmp_path):
@@ -275,3 +294,63 @@ def test_the_protected_guard_still_blocks_from_under_a_fake_dot_git(tmp_path):
     }
     result = run_cli(repo / "sub", "hook", "protected", stdin=json.dumps(payload))
     assert result.returncode == 2, result
+
+
+# ---- review round 2 --------------------------------------------------------------------------------
+# More `.git`s git rejects (or reads differently). Chasing git's parser case by case doesn't end, so
+# find_root also asks git whenever the disk answer has no kit.toml: the guard's root is never a
+# folder without the kit's config unless git says so too.
+
+CRAFTED = {
+    "head with a leading space": {".git/HEAD": " ref: refs/heads/main\n"},
+    "format version 99": {".git/config": "[core]\n\trepositoryformatversion = 99\n"},
+    "unknown extension": {".git/config": "[core]\n\trepositoryformatversion = 1\n[extensions]\n\tbogus = yes\n"},
+    "commondir pointing nowhere": {".git/commondir": "../nowhere\n"},
+    "bad section header": {".git/config": "[ core ]\n\tbare = false\n"},
+    "head without a space": {".git/HEAD": "ref:refs/heads/main\n"},
+    "uppercase hex head": {".git/HEAD": "ABCDEF0123456789ABCDEF0123456789ABCDEF01\n"},
+}
+
+
+@pytest.mark.parametrize("case", sorted(CRAFTED))
+def test_crafted_dot_git_folders_never_move_the_root_away_from_git(tmp_path, case):
+    repo = make_repo(tmp_path)
+    files = {".git/HEAD": "ref: refs/heads/main\n", ".git/config": "[core]\n\tbare = false\n", **CRAFTED[case]}
+    for rel, text in files.items():
+        write(repo / "sub", rel, text)
+    (repo / "sub" / ".git" / "objects").mkdir(exist_ok=True)
+    (repo / "sub" / ".git" / "refs").mkdir(exist_ok=True)
+    assert same(find_root(repo / "sub"), git_root(repo / "sub", repo))
+
+
+@pytest.mark.parametrize(
+    "text", ["gitdir: gd\nextra\n", "gitdir: gd   \n", "gitdir:  gd\n"], ids=["extra line", "trailing", "two spaces"]
+)
+def test_crafted_dot_git_files_never_move_the_root(tmp_path, text):
+    repo = make_repo(tmp_path)
+    shutil.copytree(repo / ".git", repo / "sub" / "gd")
+    write(repo / "sub", ".git", text)
+    assert same(find_root(repo / "sub"), git_root(repo / "sub", repo))
+
+
+def test_a_disk_root_without_kit_toml_asks_git(tmp_path, monkeypatch):
+    from kitlib import gitdisk
+
+    repo = make_repo(tmp_path)
+    (repo / "sub").mkdir()
+    monkeypatch.setattr(gitdisk, "toplevel", lambda start: repo / "sub")  # wrong, and has no kit.toml
+    assert same(find_root(repo / "sub"), repo)
+
+
+def test_claude_code_worktree_config_keeps_the_disk_answer(lane, no_git_after):
+    # Claude Code's desktop worktrees turn on extensions.worktreeConfig and write config.worktree
+    # with core.longpaths only; that must not send every hook back to git (review round 2).
+    main = lane.parents[2]
+    git(main, "config", "extensions.worktreeConfig", "true")
+    git(lane, "config", "--worktree", "core.longpaths", "true")
+    git(main, "config", "--worktree", "core.longpaths", "true")
+    no_git_after()
+    assert same(find_root(lane / "src"), lane)
+    assert same(find_root(main), main)
+    top, found_main = lanes.locate(lane)
+    assert same(top, lane) and same(found_main, main)
