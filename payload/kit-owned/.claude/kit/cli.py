@@ -146,6 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("task", help="short name: lowercase letters, digits, hyphens")
     start.add_argument("--abandon", action="store_true", help="drop an unmerged previous task branch on purpose")
     lane_commands.add_parser("sync", help="bring the integration branch in (rebase if unpushed, merge if pushed)")
+    lane_commands.add_parser("suggest", help="print [[lanes]] tables guessed from the project's folders (read-only)")
     finish = lane_commands.add_parser(
         "finish", help="sync, run the tests, then open a PR (or fast-forward in local mode)"
     )

@@ -1,8 +1,8 @@
 # 16 — Easier setup: profiles and suggested lanes
 
-**Status:** Approved (decisions 121–123)
+**Status:** Approved
 **Branch / PR:** `plan/16-easy-setup` · PR link once open
-**Builds on:** plan 08 (the installer) and decisions 100–102 (no overwrites, five questions, hook
+**Builds on:** decisions 121–123 (this plan's answers); plan 08 (the installer) and decisions 100–102 (no overwrites, five questions, hook
 switches); decision 99 (`sh .claude/kit/parallanes`); decision 120 (the per-call hooks' cost);
 ARCHITECTURE §10. Revisits decision 101's "no lane questions".
 

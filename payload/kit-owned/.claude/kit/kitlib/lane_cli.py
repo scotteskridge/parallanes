@@ -30,6 +30,8 @@ def run(args) -> int:
             lines = lane_cycle.sync(here, config)
         elif command == "finish":
             lines = lane_cycle.finish(here, config, args.title, args.body_file)
+        elif command == "suggest":
+            lines = _suggest(lanes.main_checkout(here))
         else:
             lines = [lane_status.format_status(lane_status.status(here, config, args.offline))]
     except lane_setup.PartialCreate as error:
@@ -44,3 +46,16 @@ def run(args) -> int:
         return USAGE
     print("\n".join(lines))
     return OK
+
+
+def _suggest(main: Path) -> list[str]:
+    """The guess from the main checkout's tracked files, ready to paste into kit.toml (decision 122)."""
+    from kitlib import gitfiles, lane_suggest
+
+    found, why = lane_suggest.suggest(gitfiles.tracked(main))
+    if not found:
+        return [f"No lanes to suggest: {why}."]
+    return [
+        "# A guess from the project's folders: check each lane's paths, then add the tables to .claude/kit.toml.",
+        lane_suggest.to_toml(found),
+    ]
