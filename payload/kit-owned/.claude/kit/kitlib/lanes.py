@@ -192,8 +192,19 @@ def is_ancestor(folder: Path, commit: str, of: str) -> bool:
 
 
 def registered_worktrees(main: Path) -> list[Path]:
+    return [path for path, _ in worktree_locks(main)]
+
+
+def worktree_locks(main: Path) -> list[tuple[Path, str | None]]:
+    """Every worktree with its lock reason: None when unlocked, "" when locked without one."""
     out = git(main, "worktree", "list", "--porcelain", "-z")
-    return [Path(entry[len("worktree ") :]) for entry in out.split("\0") if entry.startswith("worktree ")]
+    found = []
+    for field in out.split("\0"):
+        if field.startswith("worktree "):
+            found.append((Path(field[len("worktree ") :]), None))
+        elif found and (field == "locked" or field.startswith("locked ")):
+            found[-1] = (found[-1][0], field[len("locked ") :])
+    return found
 
 
 def is_registered(main: Path, folder: Path) -> bool:

@@ -6,6 +6,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Claude Code session locks on lanes (plan 14, decision 119). A lane opened with `claude --worktree
+  <lane>` gets a warning in its briefing that Claude Code may delete the lane's folder on exit, so
+  the agent can tell the owner first. `lanes status` shows a Claude Code lock, and `lanes remove`
+  clears one a finished `claude -p` run left behind instead of failing on git's "cannot remove a
+  locked working tree"; it refuses while the session still runs. An owner's own lock is left alone.
 - Shared paths have a mode (plan 13, decision 116): `[[shared]]` tables in `kit.toml`, each with
   `paths`, `mode` and an optional `steward` lane. `open`: any lane changes them, as before.
   `append`: any lane adds a file, but changing or deleting one that existed when the task began

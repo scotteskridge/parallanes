@@ -1,6 +1,6 @@
 # 14 — Claude Code session locks on lanes
 
-**Status:** Draft
+**Status:** Approved
 **Branch / PR:** `plan/14-lane-session-lock` · PR link once open
 **Builds on:** backlog `lane-session-lock` (step 4 of the v0.2 build order, decision 110); decision
 107 (lanes are opened by their folder; `claude --worktree <lane>` warned against); decision 40 (the
@@ -104,4 +104,11 @@ So the backlog item's "check live first" is answered: the warning at start is po
 - [ ] CHANGELOG, ARCHITECTURE §6/§15 and decisions log updated
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **As planned**, with the three recommendations (decision 119). `lanes.worktree_locks` reads each
+  worktree's lock reason from the porcelain call `registered_worktrees` already made, so `lanes
+  status` still runs `git worktree list` once; the router adds one call (~35 ms on Windows).
+- **The running-lock warning comes first** in the briefing's Warnings: it is the one the agent must
+  act on before the session ends.
+- **`lanes remove --force` still refuses a running session:** `--force` is about ignored files, and
+  removing the folder under a live session would be the delete the warning is about.
+- **Live check** (`tests/live/test_session_lock.py`) passed on its first run (Claude Code 2.1.293).

@@ -1,6 +1,9 @@
 """The lane-router SessionStart hook: briefs the agent, warns about drift, never blocks (decision 40)."""
 
 import json
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -299,6 +302,29 @@ def test_a_stewards_briefing_still_names_the_stricter_zone_it_isnt_steward_of():
         "Shared: adding files is free, changing one asks: /a; every change asks: /a (steward: this lane)"
     )
     assert shared_line(zones, "api") == "Shared: every change asks: /a (steward: lane core)"
+
+
+def test_a_running_session_lock_warns_that_the_folder_may_be_deleted(repo):
+    # Plan 14: `claude --worktree core` locks the lane before SessionStart runs (checked live).
+    git(repo, "worktree", "lock", "--reason", f"claude session core (pid {os.getpid()})", str(lane_dir(repo, "core")))
+    text = brief(lane_dir(repo, "core"))
+    assert f"opened with `claude --worktree core` (Claude Code's lock, pid {os.getpid()})" in text
+    assert "deletes the lane's folder" in text and "Tell the user now" in text
+
+
+def test_a_leftover_session_lock_says_lanes_remove_clears_it(repo):
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    git(repo, "worktree", "lock", "--reason", f"claude session core (pid {child.pid})", str(lane_dir(repo, "core")))
+    text = brief(lane_dir(repo, "core"))
+    assert f"A Claude Code session lock (pid {child.pid}, no longer running) is left on this lane" in text
+    assert "deletes the lane's folder" not in text
+
+
+def test_an_owners_own_lock_is_not_mentioned(repo):
+    git(repo, "worktree", "lock", "--reason", "moving disk", str(lane_dir(repo, "core")))
+    text = brief(lane_dir(repo, "core"))
+    assert "session lock" not in text and "moving disk" not in text and "--worktree" not in text
 
 
 def test_the_default_briefing_names_open_and_append_paths(repo):

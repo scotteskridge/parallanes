@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import gitfiles, globs, lane_boundary, lane_deps, lane_owners, lanes, shared_zones
+from . import gitfiles, globs, lane_boundary, lane_deps, lane_owners, lanes, session_lock, shared_zones
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -90,6 +90,19 @@ def shared_line(zones, lane_name: str) -> str:
 def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]:
     """Local-only drift checks: no fetch, so it is fast and works offline (decision 40)."""
     warnings = []
+    lock = session_lock.find(main, root)
+    if lock and lock.running:
+        # First: the agent should tell the user before the session ends (decision 107).
+        warnings.append(
+            f"This lane was opened with `claude --worktree {lane.name}` (Claude Code's lock, pid {lock.pid}): "
+            "on exit Claude Code deletes the lane's folder if nothing changed, ignored files (.env, local "
+            "settings) included. Tell the user now; open lanes from their folder instead."
+        )
+    elif lock:
+        warnings.append(
+            f"A Claude Code session lock (pid {lock.pid}, no longer running) is left on this lane: "
+            "`sh .claude/kit/parallanes lanes remove` clears it."
+        )
     tip = lanes.integration_tip(root, config)
     integration = config.lane_settings.integration_branch
     if branch is None:

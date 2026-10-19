@@ -5,7 +5,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import lane_deps, lane_merged, lane_owners
+from . import lane_deps, lane_merged, lane_owners, session_lock
 from .lanes import (
     ahead_behind,
     branch_of,
@@ -15,11 +15,11 @@ from .lanes import (
     lane_folder,
     local_mode_blocker,
     main_checkout,
-    registered_worktrees,
     same_path,
     toplevel,
     unpushed_count,
     upstream_gone,
+    worktree_locks,
 )
 
 UNKNOWN = "PR: unknown"
@@ -40,6 +40,7 @@ class LaneStatus:
     pr: str | None = UNKNOWN  # None: local mode, which never opens one
     here: bool = False
     install: str | None = None  # a Node lane without node_modules (decision 103)
+    session: session_lock.SessionLock | None = None  # Claude Code's lock (decision 119)
 
 
 @dataclass
@@ -63,10 +64,11 @@ def status(start: Path, config, offline: bool = False) -> Status:
     # Local mode never opens a PR, so there's nothing to ask gh (trial F9).
     pr_mode = config.lane_settings.merge_mode == "pr"
     gh = shutil.which("gh") if pr_mode and not offline else None
-    registered = registered_worktrees(main)  # once, not once per lane: each git call costs ~35 ms on Windows
+    registered = worktree_locks(main)  # once, not once per lane: each git call costs ~35 ms on Windows
     for lane in config.lanes:
         folder = lane_folder(main, config, lane)
-        if not any(same_path(path, folder) for path in registered):
+        match = next(((path, reason) for path, reason in registered if same_path(path, folder)), None)
+        if match is None:
             result.lanes.append(LaneStatus(lane.name, folder, "not created"))
             continue
         if not folder.is_dir():
@@ -78,6 +80,9 @@ def status(start: Path, config, offline: bool = False) -> Status:
             entry.pr = None
         entry.here = top is not None and same_path(top, folder)
         entry.install = lane_deps.missing_node_modules_short(folder)
+        pid = session_lock.pid_of(match[1])
+        if pid is not None:
+            entry.session = session_lock.SessionLock(pid, session_lock.is_running(pid))
         if tip:
             entry.ahead, entry.behind = ahead_behind(folder, tip)
         if entry.branch:
@@ -143,6 +148,9 @@ def format_status(result: Status) -> str:
             parts.append(f"{lane.changed} changed")
         if lane.install:
             parts.append(lane.install)
+        if lane.session:
+            state = "running" if lane.session.running else "not running: lanes remove clears it"
+            parts.append(f"Claude Code session lock (pid {lane.session.pid}, {state})")
         if lane.untracked:
             parts.append(f"{lane.untracked} untracked")
         if lane.branch:
