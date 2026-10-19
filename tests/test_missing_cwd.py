@@ -41,7 +41,7 @@ def test_a_missing_folder_is_git_s_to_answer(repo, device_check):
     assert gitdisk.toplevel(repo / "gone" / "deeper") is gitdisk.UNKNOWN
 
 
-def test_find_root_from_a_missing_folder_walks_to_kit_toml(repo, device_check):
+def test_find_root_from_a_missing_folder_is_the_nearest_existing_folder_s_root(repo, device_check):
     assert lanes.same_path(find_root(repo / "gone"), repo)
 
 
@@ -123,3 +123,15 @@ def test_a_cwd_in_an_unsearchable_folder_still_finds_the_root(repo, monkeypatch,
         locked.chmod(0o755)
     assert code == 2
     assert "Blocked by the kit's protected-paths guard" in output
+
+
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="POSIX permissions, not as root")
+def test_an_unsearchable_start_is_git_s_to_answer(repo):
+    locked = repo / "locked"
+    locked.mkdir()
+    locked.chmod(0)
+    try:
+        answer = gitdisk.toplevel(locked)
+    finally:
+        locked.chmod(0o755)
+    assert answer is gitdisk.UNKNOWN

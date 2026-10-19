@@ -46,9 +46,10 @@ def toplevel(start: Path):
     if any(os.environ.get(name) for name in _GIT_ENV):
         return UNKNOWN
     start = Path(start).resolve()
-    # A folder that is gone or can't be read: git can't start there, so neither does the walk.
-    # os.path.isdir, not Path.is_dir: on Python 3.11 that raises for an unsearchable parent.
-    if not os.path.isdir(start):
+    # A folder that is gone or can't be searched: git can't start there, so neither does the walk.
+    # os.path.isdir and os.access, not pathlib: on Python 3.11-3.13 its exists() and is_dir()
+    # raise for a path in a folder that can't be searched.
+    if not (os.path.isdir(start) and os.access(start, os.X_OK)):
         return UNKNOWN
     device = _device(start) if _CHECK_DEVICE else None
     if _CHECK_DEVICE and device is None:

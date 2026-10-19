@@ -95,10 +95,13 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        nearest kit.toml, as before plan 15, was the first fix; its review found a nested kit.toml
        there could replace the project's `[protected]`. Round 2 found an unsearchable folder still
        raised (pathlib on 3.11–3.13 re-raises EACCES). `gitdisk.toplevel` answers UNKNOWN for a
-       missing or unreadable start (on Windows too, where it used to answer for a parent), so
-       `lanes.locate` asks git there. Accepted: from a removed lane's cwd the root is the main
-       checkout, so a path inside the removed lane's folder is checked against main's
-       `[protected]`, as before plan 15; that folder is no one's working tree any more.
+       missing or unsearchable start (on Windows too, where it used to answer for a parent), so
+       `lanes.locate` asks git there, which fails loudly. Accepted, both as before plan 15: from a
+       removed lane inside the main checkout the root is the main checkout, so a path inside the
+       removed lane's folder is checked against main's `[protected]` (that folder is no one's
+       working tree any more); a removed lane beside the main checkout
+       (`worktree_root = "../{project}-lanes"`) is outside any kit, so no hook enforces anything
+       from its cwd.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 
