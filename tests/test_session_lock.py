@@ -60,7 +60,13 @@ def repo(tmp_path):
 
 
 def lock_of(repo, name):
-    return next(reason for path, reason in lanes.worktree_locks(repo) if lanes.same_path(path, lane_dir(repo, name)))
+    return lanes.lock_reason(repo, lane_dir(repo, name))
+
+
+@pytest.mark.slow
+def test_lock_reason_of_a_folder_that_isnt_a_worktree_is_none(repo):
+    assert lanes.lock_reason(repo, lane_dir(repo, "api")) is None  # not created
+    assert lanes.lock_reason(repo, repo / "src") is None
 
 
 @pytest.mark.slow

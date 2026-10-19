@@ -116,9 +116,14 @@ So the backlog item's "check live first" is answered: the warning at start is po
   sent the agent to `lanes remove`, which fails inside the lane and deletes it from anywhere else,
   so it now gives `git worktree unlock`; a forged huge pid crashed `lanes status` and `/next` on
   POSIX (`OverflowError`) and was cut to another pid on Windows, so pids outside 1..2^31-1 count
-  as running. Also: the running warning is hedged for a reused pid (Q3's wording, as Q1 said); a
+  as running. Also: the running warning is hedged for a reused pid, as open question 1 foresaw; a
   missing but locked lane folder gets the unlock step before prune, and `lanes remove` no longer
   tracebacks on a missing folder; an error after the unlock says it unlocked; the tests keep the
   finished process alive (a reused pid on Windows CI would flake) and share their helpers; the
   live checks share `git` and `remove_tree` from `claude_run.py`. Zombies and locks from WSL or a
   container are documented limits (decision 119).
+- **Review round 2** (repo `reviewer`, the fix commit only; one 🟠): the unlock-before-prune advice
+  covered an owner's own lock too, which on an unmounted drive would strip its protection; it is
+  now for Claude Code's lock only, as decision 119 says. `lanes status` names `git worktree
+  unlock` first for a leftover lock; the running warning puts "Tell the user now" before the
+  hedge; `lanes.lock_reason` has its own test.

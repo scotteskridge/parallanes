@@ -185,8 +185,9 @@ clears it itself once that process has ended (after its other checks), saying so
 session still runs, it refuses: close the session first. A lock you set yourself with
 `git worktree lock` is never touched. "Ended" means no process with that pid exists here, so run
 `lanes remove` where the session ran: a lock written by a session in WSL or a container looks
-ended from Windows or the host. If a lane's folder is gone while it is still locked, git won't
-prune it until `git worktree unlock "<lane folder>"`; `lanes status` and `lanes remove` say so.
+ended from Windows or the host. If a lane's folder is gone while Claude Code's lock is still on it,
+git won't prune it until `git worktree unlock "<lane folder>"`; `lanes status` and `lanes remove`
+say so.
 
 ## Lanes or agent teams?
 

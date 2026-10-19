@@ -96,9 +96,9 @@ def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]
         # Hedged: a reused pid can make an old lock look live (review round 1).
         warnings.append(
             f"A Claude Code session (pid {lock.pid}) holds this lane's `claude --worktree {lane.name}` lock. "
-            "If that is this session, Claude Code deletes the lane's folder on exit if nothing changed, "
-            "ignored files (.env, local settings) included: tell the user now, and open lanes from their "
-            "folder instead."
+            "Tell the user now: if that is this session, Claude Code deletes the lane's folder on exit if "
+            "nothing changed, ignored files (.env, local settings) included. Open lanes from their folder "
+            "instead."
         )
     elif lock:
         # Not `lanes remove`: it can't run inside the lane, and elsewhere it deletes the lane (review round 1).

@@ -274,8 +274,10 @@ def remove(start: Path, config, name: str, force: bool = False) -> str:
     if top is not None and same_path(top, folder):
         raise LaneError(f"{name}: can't remove the lane this command runs in; run it from another folder")
     if not folder.is_dir():
-        # git never prunes a locked worktree, so prune alone would leave it (review round 1).
-        unlock = f'git worktree unlock "{folder}", then ' if lock_reason(main, folder) is not None else ""
+        # git never prunes a locked worktree, so prune alone would leave it (review round 1). Only
+        # Claude Code's lock: an owner's marks a folder on a drive that isn't mounted (round 2).
+        claude_lock = session_lock.pid_of(lock_reason(main, folder)) is not None
+        unlock = f'git worktree unlock "{folder}", then ' if claude_lock else ""
         raise LaneError(f"{name}: {folder} is gone but git still records it. Run: {unlock}git worktree prune")
     changes = git(folder, "status", "--porcelain").splitlines()
     if changes:

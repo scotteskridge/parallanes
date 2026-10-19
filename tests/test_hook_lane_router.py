@@ -308,8 +308,8 @@ def test_a_running_session_lock_warns_that_the_folder_may_be_deleted(repo):
     text = brief(lane_dir(repo, "core"))
     # Hedged (review round 1): a reused pid can make an old lock look live, so it isn't "this session".
     assert f"A Claude Code session (pid {os.getpid()}) holds this lane's `claude --worktree core` lock" in text
-    assert "If that is this session" in text and "deletes the lane's folder" in text
-    assert "tell the user now" in text
+    # Review round 2: the action comes before the hedge, so an agent can't read it as optional.
+    assert "lock. Tell the user now: if that is this session, Claude Code deletes the lane's folder" in text
 
 
 def test_a_leftover_session_lock_says_how_to_clear_it_without_removing_the_lane(repo):

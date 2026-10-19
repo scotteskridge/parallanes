@@ -27,7 +27,9 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        counts as running (`os.kill` overflowed on POSIX and crashed `lanes status`; Windows' DWORD
        cut it to another pid); only ASCII digits are read. The running warning is hedged ("if
        that is this session"): a reused pid can make an old lock look live. A missing lane folder
-       that is still locked gets `git worktree unlock` before `git worktree prune`. *Known
+       under Claude Code's lock gets `git worktree unlock` before `git worktree prune`; an owner's lock
+       there is left out (round 2: git's lock marks a folder on a drive that isn't mounted, which
+       looks the same). The running warning puts "tell the user now" before the hedge (round 2). *Known
        limits:* a zombie counts as running (cautious); a lock written in WSL or a container looks
        ended from Windows or the host (the lane guide says to run `lanes remove` where the session
        ran).

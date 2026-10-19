@@ -63,7 +63,7 @@ def test_a_worktree_session_is_warned_and_its_leftover_lock_is_cleared():
     )
     assert "Lane: core" in briefing, briefing  # the session really opened the lane
     assert "holds this lane's `claude --worktree core` lock" in briefing, briefing
-    assert "tell the user now" in briefing
+    assert "Tell the user now: if that is this session" in briefing
 
     porcelain = git(project, "worktree", "list", "--porcelain")
     assert "locked claude session core (pid " in porcelain, porcelain  # the -p run left it

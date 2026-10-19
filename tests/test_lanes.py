@@ -326,6 +326,19 @@ def test_a_missing_locked_lane_folder_says_to_unlock_before_pruning(repo):
     assert "git worktree unlock" in result.stderr and "git worktree prune" in result.stderr
 
 
+def test_a_missing_lane_folder_under_an_owners_lock_isnt_unlocked_for_them(repo):
+    # Review round 2: git's own lock is for a folder on a drive that isn't always mounted, which looks
+    # exactly like "missing"; telling the owner to unlock and prune would drop that protection.
+    assert create(repo, "core").returncode == 0
+    lock_lane(repo, "core", "usb drive")
+    shutil.rmtree(lane_dir(repo, "core"))
+    line = lane_line(status(repo).stdout, "core")
+    assert "folder missing" in line and "unlock" not in line and "usb drive" not in line
+    result = run_cli(repo, "lanes", "remove", "core")
+    assert result.returncode == 2 and "unlock" not in result.stderr and "usb drive" not in result.stderr
+    assert "locked usb drive" in git(repo, "worktree", "list", "--porcelain")
+
+
 def test_remove_a_lane_whose_folder_is_gone_says_to_prune(repo):
     assert create(repo, "core").returncode == 0
     shutil.rmtree(lane_dir(repo, "core"))
@@ -342,7 +355,10 @@ def test_status_names_a_claude_code_session_lock(repo):
     ended = finished_process()
     lock_lane(repo, "core", f"claude session core (pid {ended.pid})")
     line = lane_line(status(repo).stdout, "core")
-    assert f"Claude Code session lock (pid {ended.pid}, not running: lanes remove clears it)" in line
+    assert (
+        f"Claude Code session lock (pid {ended.pid}, not running: git worktree unlock clears it, as does lanes remove)"
+        in line
+    )
     assert "session lock" not in lane_line(status(repo).stdout, "api")
 
 
