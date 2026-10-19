@@ -111,13 +111,32 @@ Where the time goes, per call:
 | Existing launcher, protected, ownership, lane tests unchanged | Failure policies kept (fail closed / open) |
 
 ## Done when
-- [ ] Tests above pass locally (CI reported after the merge, decision 118)
+- [x] Tests above pass locally (CI reported after the merge, decision 118)
 - [ ] Reviewer report attached to the PR; every 🔴 fixed
-- [ ] Each hook's time per call measured on Windows and Linux, before and after, in the decisions
+- [x] Each hook's time per call measured on Windows and Linux, before and after, in the decisions
       log; protected and ownership under ~150 ms of their own time on Windows, or the log says why
-- [ ] Live check: one `claude -p` session in a scratch project with lanes, asserting the protected
+- [x] Live check: one `claude -p` session in a scratch project with lanes, asserting the protected
       and ownership hooks still fire (block and ask) after the changes
-- [ ] CHANGELOG, decisions log and lane guide updated
+- [x] CHANGELOG, decisions log and ARCHITECTURE updated (lane guide: see notes)
 
 ## Notes after implementation
-<!-- Filled in at wrap-up: what changed from the plan and why. -->
+- **Result** (decision 120 has the full table): through the launcher on Windows, protected
+  506 → 249 ms, ownership in a lane 752 → 267 ms; on Linux (WSL) 118 → 58 and 131 → 62. No git
+  process on the normal layout for protected, ownership or rules-check.
+- **Not under 150 ms of own time on Windows** (~175–195 ms): Python's start and the standard modules
+  the checks need are ~115 ms of it; the decisions log says why going further isn't worth it.
+- **`dataclasses` went** (the plan's conditional step): it cost ~40 ms. `kitlib/records.py` is a
+  small frozen-record decorator for the 13 classes the per-call hooks load.
+- **`gitdisk.py` is a new module** (not in `config.py`, already past 300 lines): `find_root` and
+  `lanes.locate` both use it; their old git code is the fallback (`_git_toplevel`,
+  `_locate_with_git`).
+- **The import-time test is a ratio** to the standard modules' import time, not milliseconds: a
+  millisecond limit couldn't sit between the new (~135 ms) and old (~207 ms) times on runners of
+  different speeds. It runs with `-I -S` so an editable install's path hook doesn't preload modules.
+- **One existing test was retargeted, not weakened:** `test_old_git_output_is_an_error_not_silence`
+  now calls `_locate_with_git`, the only code that reads that output.
+- **The Linux run found a bug** the Windows suite couldn't: on Python 3.14 annotations aren't in a
+  class's `__dict__` (PEP 649); fixed, and checked on 3.14 in WSL. CI doesn't test 3.14.
+- **Lane guide not changed:** the venv-shim note went to the decisions log, since `python-path` is
+  the installer's business, not the lane guide's.
+- **Live check** (`tests/live/test_hook_latency.py`) passed on its first run.

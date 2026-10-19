@@ -14,9 +14,8 @@ import os
 import sys
 from pathlib import Path
 
-from . import gitfiles, protected, rules_check
+# Each hook imports its own modules: they run on every tool call, and each import is paid (decision 120).
 from .config import ConfigError, ConfigMissing, find_root, load
-from .findings import format_findings
 
 HOOK_OK, HOOK_ERROR, HOOK_BLOCK = 0, 1, 2
 
@@ -49,6 +48,8 @@ def run_protected() -> int:
             config = load(root)
         except ConfigMissing:
             return HOOK_OK  # the kit isn't set up here: nothing to enforce (decision 33)
+        from . import protected
+
         reason = protected.check_tool_call(payload, root, config)
     except ConfigError as error:
         print(
@@ -106,6 +107,9 @@ def run_reviewer_bash() -> int:
 
 
 def rules_check_hook(payload: dict) -> int:
+    from . import gitfiles, rules_check
+    from .findings import format_findings
+
     tool_input = payload.get("tool_input") or {}
     file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not file_path:

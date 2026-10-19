@@ -304,6 +304,8 @@ def test_registered_lane_with_a_deleted_folder_says_prune(repo):
 
 
 def test_old_git_output_is_an_error_not_silence(monkeypatch, repo):
+    # The git path of locate: the normal layouts are read from disk and never see git's output
+    # (decision 120); every other layout still reads it.
     monkeypatch.setattr(lanes, "git", lambda *args, **kwargs: "--path-format=absolute\n/a\n/b\n/c\n")
     with pytest.raises(lanes.LaneError, match="git 2.36"):
-        lanes.locate(repo)
+        lanes._locate_with_git(repo)

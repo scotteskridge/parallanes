@@ -21,6 +21,28 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        hooks on every OS and migrating every installed settings.json, for ~90 ms.
      - *Two regression tests:* the modules each hook loads (exact, never flaky) and a generous
        import-time limit (catches a slow import nobody listed).
+     - *Result* (`tools/hook_timing.py`, medians of 15, through the launcher; own time in brackets):
+       Windows 10, Python 3.12: protected 506 → 249 ms (336 → 176), ownership in a lane 752 → 267
+       (606 → 195), rules-check 507 → 245, reviewer-bash 435 → 236, lane-router 1367 → 930. Linux
+       (WSL Ubuntu, Python 3.14, dash): protected 118 → 58, ownership 131 → 62, lane-router 149 →
+       104.
+     - *Why not under 150 ms of own time on Windows:* Python's start (~45 ms) and the standard
+       modules every check needs (`re`, `pathlib`, `tomllib`, `json`: ~70 ms) leave ~35 ms for the
+       kit; its own imports are now ~27 ms and the check ~15 ms. Going lower means dropping
+       `pathlib` or `tomllib` from the hooks, a rewrite for ~30 ms.
+     - *`dataclasses` replaced on the hook path* by `kitlib/records.py`, a frozen-record decorator
+       (the plan's "if it still costs > 10 ms": it cost ~40 ms, through `inspect`). Only the 13
+       classes the per-call hooks load; the CLI's and the lane-router's keep `@dataclass`.
+     - *The import-time test is a ratio:* the kit's imports over the standard modules' (`-I -S`,
+       best of 5): 0.38 now, 1.35 on the code before, limit 0.8. Milliseconds would fail on a slow
+       runner or pass a regression on a fast one.
+     - *An existing test moved:* `test_old_git_output_is_an_error_not_silence` now calls the git
+       path of `lanes.locate`; the normal layouts never read `rev-parse` output, so an old git
+       there fails later, at `git worktree list -z`, with git's own message.
+     - *Found by the Linux run:* on Python 3.14 a class's `__annotations__` isn't in its `__dict__`
+       (PEP 649), so `records` reads `cls.__annotations__`. CI tests 3.11 and 3.13 only.
+     - *Not changed:* a venv's `python.exe` on Windows is a launcher shim that adds ~65 ms a call;
+       the installer records whichever Python ran it.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 

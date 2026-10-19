@@ -5,12 +5,11 @@ typo can't silently switch a rule off.
 """
 
 import re
-import subprocess
 import tomllib
-from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import commands, globs, lane_owners, shared_zones
+from . import commands, gitdisk, globs, lane_owners, shared_zones
+from .records import Factory, record
 
 CONFIG_REL = Path(".claude") / "kit.toml"
 
@@ -86,40 +85,40 @@ class ConfigMissing(ConfigError):
     """No kit.toml: the kit isn't set up in this project."""
 
 
-@dataclass(frozen=True)
+@record
 class Rule:
     id: str
     regex: re.Pattern
     paths: list
     message: str
-    exclude: list = field(default_factory=list)
+    exclude: list = Factory(list)
     ignore_comments: bool = True
 
 
-@dataclass(frozen=True)
+@record
 class Protected:
-    paths: list = field(default_factory=list)
-    commands: list = field(default_factory=lambda: list(DEFAULT_COMMANDS))
-    secrets: list = field(default_factory=lambda: list(DEFAULT_SECRETS))
+    paths: list = Factory(list)
+    commands: list = Factory(lambda: list(DEFAULT_COMMANDS))
+    secrets: list = Factory(lambda: list(DEFAULT_SECRETS))
     guard_kit: bool = True
 
 
-@dataclass(frozen=True)
+@record
 class Hooks:
     """The installer leaves a switched-off hook out of settings.json; the hook itself doesn't read this."""
 
     switched_off: frozenset = frozenset()
 
 
-@dataclass(frozen=True)
+@record
 class Lane:
     name: str
     owns: list
     scope: str = ""
-    resources: dict = field(default_factory=dict)
+    resources: dict = Factory(dict)
 
 
-@dataclass(frozen=True)
+@record
 class LaneSettings:
     """The `[project]` keys lanes use, with their defaults filled in."""
 
@@ -127,7 +126,7 @@ class LaneSettings:
     merge_mode: str = "pr"
     worktree_root: str = ".claude/worktrees"
     ownership: str = "ask"
-    shared_paths: list = field(default_factory=lambda: list(DEFAULT_SHARED_PATHS))  # every zone's paths
+    shared_paths: list = Factory(lambda: list(DEFAULT_SHARED_PATHS))  # every zone's paths
     # The zones with their modes (decision 116). The loader always sets it; built by hand without
     # it, the default paths get their default modes and any other list is open, as in v0.1.
     shared: tuple | None = None
@@ -141,23 +140,38 @@ class LaneSettings:
             object.__setattr__(self, "shared", zones)
 
 
-@dataclass(frozen=True)
+@record
 class Config:
     project: dict
     rules: list
     raw: dict
-    protected: Protected = field(default_factory=Protected)
-    lanes: list = field(default_factory=list)
-    lane_settings: LaneSettings = field(default_factory=LaneSettings)
-    hooks: Hooks = field(default_factory=Hooks)
+    protected: Protected = Factory(Protected)
+    lanes: list = Factory(list)
+    lane_settings: LaneSettings = Factory(LaneSettings)
+    hooks: Hooks = Factory(Hooks)
 
 
 def find_root(start: Path) -> Path:
     """The git top level containing start (a lane worktree is its own top level).
 
     Outside git, the nearest folder above start that has .claude/kit.toml; failing that, start.
+    Read from disk on the normal layouts; git answers the others (decision 120).
     """
     start = Path(start).resolve()
+    top = gitdisk.toplevel(start)
+    if top is gitdisk.UNKNOWN:
+        top = _git_toplevel(start)
+    if top is not None:
+        return top
+    for folder in (start, *start.parents):
+        if (folder / CONFIG_REL).is_file():
+            return folder
+    return start
+
+
+def _git_toplevel(start: Path) -> Path | None:
+    import subprocess  # here: on the normal layout no hook needs it (~15 ms to import)
+
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -166,14 +180,11 @@ def find_root(start: Path) -> Path:
             text=True,
             timeout=10,
         )
-        if result.returncode == 0 and result.stdout.strip():
-            return Path(result.stdout.strip())
     except (OSError, subprocess.SubprocessError):
-        pass
-    for folder in (start, *start.parents):
-        if (folder / CONFIG_REL).is_file():
-            return folder
-    return start
+        return None
+    if result.returncode == 0 and result.stdout.strip():
+        return Path(result.stdout.strip())
+    return None
 
 
 def load(root: Path) -> Config:
@@ -203,9 +214,7 @@ def lanes_only(text: str, named: str) -> Config | None:
     _check_table(project, "[project]")
     # shared_defaults isn't kept in LaneSettings but decides its zones (review round 1).
     lane_keys = {
-        key: kind
-        for key, kind in _PROJECT_KEYS.items()
-        if key in LaneSettings.__dataclass_fields__ or key == "shared_defaults"
+        key: kind for key, kind in _PROJECT_KEYS.items() if key in LaneSettings._fields or key == "shared_defaults"
     }
     _check_keys({key: value for key, value in project.items() if key in lane_keys}, lane_keys, "[project]")
     lane_settings = _lane_settings(project, raw)

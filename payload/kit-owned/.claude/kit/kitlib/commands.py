@@ -8,7 +8,8 @@ options (`git -C dir`), flags in any order and short-flag clusters (`-xdf`). It 
 
 import ntpath
 import re
-from dataclasses import dataclass
+
+from .records import record
 
 # Characters that end one simple command and start the next, outside quotes. Parentheses and
 # braces are included so `(cd x && git push -f)` and `$(...)` split into their commands too.
@@ -20,7 +21,7 @@ _GIT_VALUE_OPTIONS = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--
 _ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
-@dataclass(frozen=True)
+@record
 class Pattern:
     text: str
     program: str
@@ -28,7 +29,7 @@ class Pattern:
     flags: frozenset  # flags that must all appear, in any order
 
 
-@dataclass(frozen=True)
+@record
 class Command:
     program: str
     args: tuple

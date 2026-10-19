@@ -1,8 +1,11 @@
 """Which files to check, and their text: from disk, from the git index, or changed since a base."""
 
 import os
-import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # imported where it runs: the hooks' normal path starts no process (decision 120)
+    import subprocess
 
 _SNIFF = 8192  # bytes looked at to decide whether a file is binary
 
@@ -12,6 +15,8 @@ class GitError(Exception):
 
 
 def _git(root: Path, *args: str) -> bytes:
+    import subprocess
+
     try:
         result = subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError) as error:
@@ -144,7 +149,9 @@ def show(root: Path, ref: str, path: str) -> str | None:
     return _git(root, "show", f"{ref}:{path}").decode("utf-8", "replace")
 
 
-def _run(root: Path, *args: str) -> subprocess.CompletedProcess:
+def _run(root: Path, *args: str) -> "subprocess.CompletedProcess":
+    import subprocess
+
     try:
         return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError) as error:

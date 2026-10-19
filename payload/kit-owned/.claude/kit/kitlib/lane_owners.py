@@ -11,9 +11,9 @@ was borrowed. The ownership hook, the boundary check and the overlap lists all u
 
 import os
 import re
-from dataclasses import dataclass
 
 from . import gitfiles, globs, shared_zones
+from .records import record
 
 POLICY = ".claude/kit.toml"
 _WILDCARDS = re.compile(r"\*\*|\*|\?|\[[^\]]*\]")
@@ -59,7 +59,7 @@ def specificity(pattern: str) -> tuple[int, bool, int, int, int]:
     return literal, parts[0] != "**", characters, -double, -(len(found) - double)
 
 
-@dataclass(frozen=True)
+@record
 class Claim:
     owner: str | None  # None: no lane claims the file, or a tie
     pattern: str | None  # the owner's most specific matching pattern
@@ -113,7 +113,7 @@ def claim(config, path: str) -> Claim:
     return Owners(config).claim(path)
 
 
-@dataclass(frozen=True)
+@record
 class Fix:
     text: str  # a clause to follow the reason, e.g. after "; "
     widens: bool  # True: it's a kit.toml change, so the stop also says how one lands (HOW_POLICY_LANDS)

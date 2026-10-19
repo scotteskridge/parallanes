@@ -1,9 +1,9 @@
 """What a check found, and how it is shown to people and agents."""
 
-from dataclasses import dataclass
+from .records import record
 
 
-@dataclass(frozen=True, order=True)
+@record(order=True)
 class Finding:
     path: str
     line: int

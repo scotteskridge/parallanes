@@ -7,7 +7,7 @@ Both work out the lane from the hook input's `cwd` and read that worktree's own 
 import os
 from pathlib import Path
 
-from . import gitfiles, globs, lane_boundary, lane_deps, lane_owners, lanes, session_lock, shared_zones
+from . import gitfiles, globs, lane_boundary, lane_owners, lanes, shared_zones
 from .config import ConfigMissing, find_root, load
 from .protected import relative
 
@@ -89,6 +89,8 @@ def shared_line(zones, lane_name: str) -> str:
 
 def drift(root: Path, config, lane, branch: str | None, main: Path) -> list[str]:
     """Local-only drift checks: no fetch, so it is fast and works offline (decision 40)."""
+    from . import lane_deps, session_lock  # here: the ownership hook, on every edit, needs neither
+
     warnings = []
     lock = session_lock.find(main, root)
     if lock and lock.running:
