@@ -87,6 +87,21 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        difference). And `find_root`'s check for an outer kit.toml costs ~2–4 ms a call, and sends a
        kit project nested inside another kit project (a submodule with its own install) to git:
        slower there, never wrong.
+     - *Follow-up fix, a cwd that no longer exists (Claude's call, for the owner's OK on the PR):*
+       a lane removed while a session was still in it. The walk's unguarded `os.stat` raised on
+       macOS/Linux, so the protected guard blocked every call. Now `find_root` answers from the
+       nearest folder above it that git could start in (it exists and can be searched), as an
+       existing cwd there would get: disk walk, git, then the kit.toml walk. Falling back to the
+       nearest kit.toml, as before plan 15, was the first fix; its review found a nested kit.toml
+       there could replace the project's `[protected]`. Round 2 found an unsearchable folder still
+       raised (pathlib on 3.11–3.13 re-raises EACCES). `gitdisk.toplevel` answers UNKNOWN for a
+       missing or unsearchable start (on Windows too, where it used to answer for a parent), so
+       `lanes.locate` asks git there, which fails loudly. Accepted, both as before plan 15: from a
+       removed lane inside the main checkout the root is the main checkout, so a path inside the
+       removed lane's folder is checked against main's `[protected]` (that folder is no one's
+       working tree any more); a removed lane beside the main checkout
+       (`worktree_root = "../{project}-lanes"`) is outside any kit, so no hook enforces anything
+       from its cwd.
 
 ## 2026-10-19: Claude Code session locks on lanes (plan 14)
 
