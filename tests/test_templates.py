@@ -163,7 +163,7 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
     values = {name: entry["example"] for name, entry in entries.items()}
     lines = render(read(".claude/kit.toml"), values, set(entries)).splitlines()
     start = lines.index("# [[lanes]]")
-    keys = ("# merge_mode =", "# worktree_root =", "# ownership =")
+    keys = ("# merge_mode =", "# worktree_root =", "# ownership =", "# shared_defaults =")
     uncommented = [
         line[2:] if (i >= start and line.startswith("# ")) or line.startswith(keys) else line
         for i, line in enumerate(lines)
@@ -184,7 +184,8 @@ def test_rendered_kit_toml_lane_example_loads_when_uncommented(tmp_path):
 
 
 def _kit_toml_with_shared_examples(tmp_path, blocks):
-    """The rendered kit.toml with the first `blocks` commented [[shared]] tables (and the lanes) uncommented."""
+    """The rendered kit.toml with the commented [[shared]] tables numbered in `blocks` (from 0), and the
+    lanes, uncommented."""
     from kitlib.config import load
 
     entries = registry()
@@ -193,7 +194,7 @@ def _kit_toml_with_shared_examples(tmp_path, blocks):
     starts = [i for i, line in enumerate(lines) if line == "# [[shared]]"]
     lanes = lines.index("# [[lanes]]")
     chosen = set()
-    for start in starts[:blocks]:
+    for start in (starts[block] for block in blocks):
         end = start
         while lines[end].startswith("# "):
             chosen.add(end)
@@ -206,12 +207,27 @@ def _kit_toml_with_shared_examples(tmp_path, blocks):
     return load(tmp_path).lane_settings
 
 
+REPO_WIDE_EXAMPLE = ("/.gitignore", "/package.json")
+
+
 def test_rendered_kit_toml_shared_defaults_are_the_real_defaults(tmp_path):
     from kitlib.config import LaneSettings
 
-    assert _kit_toml_with_shared_examples(tmp_path, 2).shared == LaneSettings().shared
+    assert _kit_toml_with_shared_examples(tmp_path, [0, 1]).shared == LaneSettings().shared
 
 
 def test_rendered_kit_toml_repo_wide_example_loads_with_its_steward(tmp_path):
-    shared = _kit_toml_with_shared_examples(tmp_path, 3).shared
-    assert (shared[-1].paths, shared[-1].mode, shared[-1].steward) == (("/.gitignore", "/package.json"), "ask", "core")
+    from kitlib.config import LaneSettings
+    from kitlib.shared_zones import Zone
+
+    shared = _kit_toml_with_shared_examples(tmp_path, [0, 1, 2]).shared
+    assert shared == (*LaneSettings().shared, Zone(REPO_WIDE_EXAMPLE, "ask", "core"))
+
+
+def test_rendered_kit_toml_repo_wide_example_alone_keeps_the_defaults(tmp_path):
+    # Plan 13's review round 1: uncommenting only this example dropped every default shared path.
+    from kitlib.config import LaneSettings
+    from kitlib.shared_zones import Zone
+
+    shared = _kit_toml_with_shared_examples(tmp_path, [2]).shared
+    assert shared == (Zone(REPO_WIDE_EXAMPLE, "ask", "core"), *LaneSettings().shared)

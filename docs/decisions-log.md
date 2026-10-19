@@ -9,8 +9,8 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
      Claude's recommendations, plan 13, backlog `shared-path-modes`).
      - *Shape:* a `[[shared]]` table per zone with `paths`, `mode` and an optional `steward` (a
        lane name). `shared_paths` in `[project]` stays and means mode `open`, so a v0.1 `kit.toml`
-       behaves as before. Writing either key replaces the defaults; a path in two zones takes the
-       stricter mode. *Why:* the steward sits next to the paths it looks after, and nobody has to
+       behaves as before. Tables add to the defaults, a `shared_paths` list replaces them (see the
+       last bullet); a path in two zones takes the stricter mode. *Why:* the steward sits next to the paths it looks after, and nobody has to
        migrate.
      - *Defaults:* `append` for `docs/changelog.d/**` and `docs/health/**`; `open` for
        `docs/backlog/**`, `docs/plans/**` and `docs/design/decisions-log.md`. *Why:* `/wrap-up`
@@ -38,12 +38,16 @@ The current design lives in `docs/ARCHITECTURE.md` (once written) and `docs/ROAD
        - *A v0.1 `kit.toml` that never wrote `shared_paths` gets the new defaults,* so its changelog
          fragments and health reports become `append`. Stricter, never a refusal; one written
          `shared_paths` list stays exactly as it was.
-       - *`[[shared]]` tables will add to the defaults, not replace them* (owner's choice on
-         Claude's recommendation, narrowing question 1's answer). Review round 1 found that writing
-         only the template's repo-wide example dropped every default shared path, so lanes'
-         wrap-up commits were refused. Until backlog `shared-zones-keep-defaults` lands, tables
-         replace the defaults and the template says to keep them; a written `shared_paths` list
-         keeps replacing them, as in v0.1.
+       - *`[[shared]]` tables add to the defaults, not replace them* (owner's choice on
+         Claude's recommendation, narrowing question 1's answer; built in backlog
+         `shared-zones-keep-defaults`, 2026-10-19). Review round 1 found that writing only the
+         template's repo-wide example dropped every default shared path, so lanes' wrap-up commits
+         were refused. `shared_defaults = false` in `[project]` drops the defaults (to loosen one,
+         or share nothing). A written `shared_paths` list still replaces them, as in v0.1, unless
+         `shared_defaults = true` is written too; written, that key always decides. A table
+         exactly repeating a default is dropped, so following plan 13's template ("uncomment the
+         defaults too") still loads the same. *Why:* the common case is one extra table, and it
+         should never cost the defaults; the key name sits beside `shared_paths`.
 
 ## 2026-10-18: Protected paths in a merge commit
 

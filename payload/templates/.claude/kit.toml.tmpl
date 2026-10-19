@@ -9,6 +9,7 @@ integration_branch = "{{integration_branch}}"
 # merge_mode = "pr"                 # "pr": finished tasks become pull requests; "local": fast-forward
 # worktree_root = ".claude/worktrees"  # where lane folders go; "../{project}-lanes" puts them beside
 # ownership = "ask"                 # an edit outside the lane's paths asks you first; "off": never
+# shared_defaults = true            # false: drop the default [[shared]] tables (see Shared paths)
 
 # Forbidden patterns: checked after every agent edit, before each commit and in CI.
 # Run them by hand with: {{kit_command}} check rules
@@ -57,10 +58,10 @@ secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edi
 # lane_router = true                # tell the agent its lane at session start
 
 # Shared paths: no one lane owns them, and every lane may add files there. The first two tables are
-# the defaults. Writing any [[shared]] table (or a shared_paths list in [project], which means mode
-# "open") replaces them all, so to add the third, uncomment the first two as well: without them, a
-# lane's commit touching changelog fragments, health reports, plans, backlog or the decisions log is
-# refused.
+# the defaults: you get them without writing them, and the tables you write add to them. A table
+# can make a default stricter; to drop or loosen one, set `shared_defaults = false` in [project]
+# and write the tables you want. A shared_paths list in [project] (v0.1, mode "open") replaces the
+# defaults unless you also set `shared_defaults = true`.
 # A path in two tables takes the stricter mode. Guide: docs/ai/parallel-lanes.md.
 #
 # [[shared]]

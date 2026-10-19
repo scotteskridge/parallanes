@@ -15,7 +15,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   defaults: changelog fragments and health reports are `append`; backlog, plans and the
   decisions log stay `open`, so a project that never wrote `shared_paths` now gets asked before
   one lane changes another's fragment. A written `shared_paths` list still works and means `open`.
-  A steward skips only its own tables; any other table matching the file still applies. The `kit.toml`
+  A steward skips only its own tables; any other table matching the file still applies. Tables
+  add to the default shared paths (backlog `shared-zones-keep-defaults`), so writing one repo-wide
+  `ask` table keeps them; `shared_defaults = false` in `[project]` drops them. The `kit.toml`
   template shows an `ask` zone for `.gitignore` and `package.json` as an example, and the lane
   briefing names each path's mode.
 

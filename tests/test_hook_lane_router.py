@@ -251,8 +251,9 @@ def test_crash_inside_the_router_tells_the_agent(monkeypatch, capsys, repo):
 
 def test_the_briefing_says_how_each_shared_path_is_shared(tmp_path):
     # Decision 116: an agent learns before editing which shared files only take new ones.
+    # Without the defaults, so the line holds only these two tables (tables add to the defaults).
     config = (
-        LANES_TOML
+        LANES_TOML.replace('integration_branch = "main"', 'integration_branch = "main"\nshared_defaults = false')
         + '\n[[shared]]\npaths = ["docs/**"]\nmode = "append"\n'
         + '\n[[shared]]\npaths = ["/.gitignore"]\nmode = "ask"\nsteward = "api"\n'
     )
@@ -264,6 +265,17 @@ def test_the_briefing_says_how_each_shared_path_is_shared(tmp_path):
     )
     assert expected in core
     assert "/.gitignore (steward: this lane)" in brief(lane_dir(repo, "api"))
+
+
+def test_the_briefing_keeps_the_defaults_beside_a_written_table(tmp_path):
+    config = LANES_TOML + '\n[[shared]]\npaths = ["/.gitignore"]\nmode = "ask"\n'
+    repo = lanes_repo(tmp_path, config=config)
+    assert run_cli(repo, "lanes", "create").returncode == 0
+    assert (
+        "Shared: open: docs/backlog/**, docs/plans/**, docs/design/decisions-log.md; "
+        "adding files is free, changing one asks: docs/changelog.d/**, docs/health/**; "
+        "every change asks: /.gitignore"
+    ) in brief(lane_dir(repo, "core"))
 
 
 def test_the_default_briefing_names_open_and_append_paths(repo):

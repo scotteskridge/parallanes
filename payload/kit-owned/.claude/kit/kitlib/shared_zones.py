@@ -32,22 +32,28 @@ DEFAULT_ZONES = (
 )
 
 
-def parse(entries, shared_paths: list | None) -> tuple:
-    """The zones from `[[shared]]` and `[project] shared_paths`; the defaults when neither is written.
+def parse(entries, shared_paths: list | None, keep_defaults: bool | None = None) -> tuple:
+    """The zones from `[[shared]]` and `[project] shared_paths`, then the defaults unless switched off.
+
+    Tables add to the defaults (backlog shared-zones-keep-defaults), so a project writing one `ask`
+    table keeps its shared fragments and plans. A written `shared_paths` list replaces them, as in
+    v0.1; `[project] shared_defaults` (keep_defaults), when written, decides either way. A table
+    repeating a default is dropped (the plan-13 template said to uncomment them).
 
     Raises ValueError with a message naming the table and key; stewards are checked later, against
     the lanes (check_stewards).
     """
-    if entries is None and shared_paths is None:
-        return DEFAULT_ZONES
     if entries is None:
         entries = []
     if not isinstance(entries, list):
         raise ValueError("'shared' must be an array of tables ([[shared]])")
+    # Tables first, so check_stewards' "[[shared]] #N" counts them as written.
     zones = [_zone(entry, f"[[shared]] #{number}") for number, entry in enumerate(entries, start=1)]
     if shared_paths:
         zones.append(Zone(tuple(shared_paths), "open"))
-    return tuple(zones)
+    if keep_defaults if keep_defaults is not None else shared_paths is None:
+        zones.extend(DEFAULT_ZONES)
+    return tuple(dict.fromkeys(zones))
 
 
 def _zone(entry, where: str) -> Zone:

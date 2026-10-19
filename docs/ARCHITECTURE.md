@@ -134,8 +134,9 @@ integration_branch = "main"
 merge_mode = "pr"                      # "pr" (default) or "local"           [12]
 worktree_root = ".claude/worktrees"    # or "../{project}-lanes" (Unity)    [2]
 ownership = "ask"                      # out-of-lane edit: "ask" (a permission prompt) or "off"
+shared_defaults = true                 # false drops the two default [[shared]] tables
 
-[[shared]]                             # no lane owns these; every lane adds files   [116]
+[[shared]]                             # defaults; no lane owns these; every lane adds files [116]
 paths = ["docs/changelog.d/**", "docs/health/**"]
 mode = "append"                        # changing or deleting an existing file asks
 
@@ -197,7 +198,9 @@ file with the lane's `owns` plus the shared paths (default: changelog fragments,
 by the rule below for a file two lanes claim. A shared path's mode [116] decides what asks: `open`
 nothing, `append` a change to a file that existed where the task branch left the integration
 branch, `ask` every change, and never for the zone's `steward` lane. `shared_paths` in `[project]`
-(v0.1) is an `open` zone; a path in two zones takes the stricter mode, and a steward skips only
+(v0.1) is an `open` zone. Written tables add to the default zones; a written `shared_paths` list
+replaces them, and `shared_defaults` in `[project]`, when written, decides either way. A path in
+two zones takes the stricter mode, and a steward skips only
 its own zones (any other zone matching the file still applies to it). The hook
 fails open (decision 41). From a lane, edits to the main checkout or another lane's folder ask too (decision 44). With
 `ownership = "ask"` an out-of-lane edit becomes a permission prompt with the reason shown

@@ -147,7 +147,10 @@ another remote, counts as unpushed, and `sync` would rebase it.
   A `steward` lane changes its path without asking; any other shared table matching the same file
   still applies to it. When you say yes, the commit goes through:
   `lanes finish`, the pre-commit hook and CI list the change for review instead of refusing it.
-  A path in two tables takes the stricter mode; `shared_paths` in `[project]` means `open`.
+  A path in two tables takes the stricter mode. The defaults (fragments and health reports
+  `append`; plans, backlog and the decisions log `open`) stay when you write tables;
+  `shared_defaults = false` in `[project]` drops them. `shared_paths` in `[project]` means `open`
+  and replaces the defaults unless `shared_defaults = true`.
 - **When two lanes' patterns match one file, the more specific one owns it.** A lane owning
   `src/**` doesn't own `src/core/a.py` if another lane owns `src/core/**`: its edits there ask, and
   the boundary check refuses them. More specific means more literal folder and file names, then a
