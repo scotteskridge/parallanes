@@ -369,14 +369,17 @@ from `.claude/kit/python-path`, because a kit-owned file can't hold a machine's 
 install.ps1 / install.sh
   └─ find Python ≥ 3.11 by running each candidate (skips the Windows Store alias); check git, sh
      (Windows: Git for Windows'), Claude Code and gh (both only warned about)
-     └─ kit_setup.py [--dry-run] [--target DIR] [--yes]
+     └─ kit_setup.py [--dry-run] [--target DIR] [--yes] [--profile solo|lanes]
           1. detect defaults: folder name, stack and test command from marker files, the
              integration branch from git; an earlier install's answers (in the manifest) win
-          2. ask five values and whether to turn on the pre-commit check (decision 101); a
-             re-run reuses the saved answers (change a value in the files); --dry-run never asks
-             and takes what --yes would (decision 113)
+          2. ask five values, the profile (solo, the default, or lanes) and whether to turn on the
+             pre-commit check (decisions 101, 121); a re-run reuses the saved answers (change a
+             value in the files; --profile switches the profile); --dry-run never asks and takes
+             what --yes would (decision 113)
           3. plan every write; a broken managed block or manifest, a folder or a symbolic link in
-             the way stops here with nothing written
+             the way stops here with nothing written. Lanes profile, no [[lanes]] yet: show the
+             lanes guessed from the tracked folders, add them to kit.toml on a yes (decision 122).
+             Solo leaves the lane-router and ownership hooks out; [[lanes]] in kit.toml mean lanes
           4. print the answers used (a re-run: only a pre-commit answer decided on it), then the
              plan; --dry-run stops here
           5. write: kit-owned files (replaced only if unedited, else `.kit-new`), templates
@@ -384,7 +387,11 @@ install.ps1 / install.sh
              is left alone), managed blocks in .gitignore/.gitattributes/.worktreeinclude (only the
              kit's own `eol=lf` lines when the owner has a .gitattributes), deny rules and
              hooks merged into settings.json, python-path, manifest (decision 100)
-          6. print next steps: accept the trust dialog, review .kit-new files, fill TODOs, lanes
+          6. on a repository with a commit and no changes before the install: offer to commit the
+             kit's files, then (lanes, no origin) to run `lanes create`; never with --yes or
+             --dry-run, never a push (decision 123)
+          7. print next steps: accept the trust dialog, review .kit-new files, fill TODOs, what's
+             left of the lanes (each lane's folder once created)
 /onboard (v0.2, agentic): stack, test command, rules files, lane split → owner approves → written
 ```
 

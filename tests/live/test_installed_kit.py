@@ -37,7 +37,9 @@ def installed_project():
     for child in folder.iterdir():  # a fresh install every run, in the same (trusted once) folder
         shutil.rmtree(child) if child.is_dir() else child.unlink()
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=folder, check=True)
-    subprocess.run([sys.executable, str(ROOT / "kit_setup.py"), "--target", str(folder), "--yes"], check=True)
+    subprocess.run(
+        [sys.executable, str(ROOT / "kit_setup.py"), "--target", str(folder), "--yes", "--profile", "lanes"], check=True
+    )
     config = folder / ".claude" / "kit.toml"
     text = config.read_text(encoding="utf-8")
     assert "paths = []" in text

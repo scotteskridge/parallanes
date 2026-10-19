@@ -8,7 +8,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 
 ## 1. Setup and installation
 - **MVP** One-command setup: `install.ps1` (Windows first) and `install.sh` (Mac/Linux), both thin wrappers over one Python script
-- **MVP** Asks only what it can't detect (project name, description, stack, test command, integration branch, pre-commit), each with a detected default; `/onboard` (v0.2) fills the rest. Lanes are added to `kit.toml` afterwards (decision 101)
+- **MVP** Asks only what it can't detect (project name, description, stack, test command, integration branch, pre-commit), each with a detected default; `/onboard` (v0.2) fills the rest. *Plan 16:* a solo or lanes profile (solo by default, without the lane hooks), lanes guessed from the project's folders and added on a yes, and an offer to commit the kit and create the lanes (decisions 121–123)
 - **MVP** Prerequisite check: git, Python 3.11+ (a real interpreter, not the Windows Store alias), Claude Code, gh (optional)
 - **MVP** Works on a brand-new folder *or* an existing repo, without overwriting existing files: the kit's version goes beside yours as `.kit-new`, and a re-run is safe (decision 100)
 - **MVP** Dry-run mode that lists what it would create before doing anything. *Done in plan 08* (with the four lines above).
@@ -54,6 +54,7 @@ Decisions behind this list: `decisions-log.md`. Design: `ARCHITECTURE.md`. Build
 ## 6. Parallel lanes (the differentiator)
 - **MVP** Lanes in `.claude/kit.toml`: name, scope, owned paths, resources (ports, editor instances); integration branch; merge mode
 - **MVP** `lanes create`: a git worktree per lane (default `.claude/worktrees/<lane>/`), detached at the integration branch between tasks; `.worktreeinclude` for local settings
+- **v0.2** `lanes suggest`: `[[lanes]]` tables guessed from the project's folders (plan 16, decision 122)
 - **MVP** `lanes status`: each lane's branch, ahead/behind, uncommitted changes, unpushed work, PR state
 - **MVP** `lanes remove`: deletes a lane's worktree; refuses uncommitted changes and ignored files that may hold work
 - **MVP** `lanes start <task>`: short-lived task branch `<lane>/<task>` from the latest integration branch, after checking the previous one merged

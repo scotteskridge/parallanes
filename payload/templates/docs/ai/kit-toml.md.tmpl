@@ -1,0 +1,117 @@
+# `.claude/kit.toml`, key by key
+
+The kit's CLI, hooks and CI read `.claude/kit.toml`. Unknown keys are errors, so a typo can't
+silently switch a rule off. The installer writes only what every project needs; this page has
+every other table, with an example to copy. Each example is valid as written.
+
+## `[project]`
+
+`name`, `test_command` (run by `lanes finish` and CI) and `integration_branch` (where finished work
+lands) are set by the installer. The lane settings below are optional; these are their defaults:
+
+<!-- example: project-lanes -->
+```toml
+[project]
+merge_mode = "pr"                    # "pr": finished tasks become pull requests; "local": fast-forward
+worktree_root = ".claude/worktrees"  # where lane folders go; "../{project}-lanes" puts them beside
+ownership = "ask"                    # an edit outside the lane's paths asks you first; "off": never
+shared_defaults = true               # false: drop the default [[shared]] tables (see Shared paths)
+```
+
+## `[protected]`: what agents may not touch
+
+`{{kit_command}} settings sync` writes these as rules in `.claude/settings.json`, which Claude Code
+enforces; a hook catches command forms the rules miss; pre-commit and CI report changes to
+protected paths. What this stops and what it doesn't: [protected-paths.md](protected-paths.md).
+After editing the table, run `{{kit_command}} settings sync`.
+
+- `paths`: agents may not edit these, e.g. `["vendor/**", "docs/originals/"]`.
+- `commands`: agents may not run these; flags match in any order. The defaults block force pushes,
+  hard resets and skipped hooks. The `gh` label commands are there because the
+  `kit:protected-change` label lets a protected change pass CI, and only a person adds it;
+  `gh alias` could hide any of them, and `gh pr merge --admin` merges past red required checks.
+- `secrets`: agents may neither read nor edit these; add your key files. `"!name"` exempts a bare
+  file name listed after the names it cancels.
+- `guard_kit = true` (the default): edits to the kit's own config need your approval; `false` turns
+  that off.
+
+## `[[checks.rules]]`: forbidden patterns
+
+Checked after every agent edit, before each commit and in CI. Run them by hand with
+`{{kit_command}} check rules`.
+
+<!-- example: rules -->
+```toml
+[[checks.rules]]
+id = "no-print"
+pattern = '\bprint\('             # Python regular expression, matched line by line
+paths = ["src/**/*.py"]           # gitignore-style globs from the project root
+exclude = ["src/cli/**"]          # optional
+message = "Use the logger, not print()."
+ignore_comments = true            # optional (default true): skip matches inside comments
+```
+
+## `[hooks]`: switching a hook off
+
+Re-running the installer puts back a kit hook you deleted from `.claude/settings.json`; switch one
+off here instead, then re-run it. The protected hook is the backstop behind `[protected]` and has
+no switch; the ownership hook's is `ownership = "off"` in `[project]`. A mistake in this table (a
+misspelt key, `protected = false`) blocks every agent command and file edit until it's fixed.
+
+<!-- example: hooks -->
+```toml
+[hooks]
+rules_check = true                # check the [[checks.rules]] patterns after every agent edit
+lane_router = true                # tell the agent its lane at session start
+```
+
+## `[[shared]]`: paths every lane may change
+
+No one lane owns a shared path, and every lane may add files there. The first two tables are the
+defaults: you get them without writing them, and the tables you write add to them. A table can make
+a default stricter; to drop or loosen one or give it a steward, set `shared_defaults = false` in
+`[project]` and write the tables you want. A `shared_paths` list in `[project]` (v0.1, mode
+`"open"`) replaces the defaults unless you also set `shared_defaults = true`. A path in two tables
+takes the stricter mode. Guide: [parallel-lanes.md](parallel-lanes.md).
+
+<!-- example: shared-defaults -->
+```toml
+[[shared]]
+paths = ["docs/changelog.d/**", "docs/health/**"]
+mode = "append"                   # adding a file is free; changing or deleting one asks you
+
+[[shared]]
+paths = ["docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
+mode = "open"                     # any lane changes them
+```
+
+<!-- example: shared-repo-wide -->
+```toml
+[[shared]]
+paths = ["/.gitignore", "/package.json"]  # repo-wide files, for example
+mode = "ask"                      # every change asks you
+steward = "core"                  # optional: the one lane that changes them without asking
+```
+
+## `[[lanes]]`: one per agent working at once
+
+Each lane is a git worktree with its own paths. `{{kit_command}} lanes suggest` prints tables
+guessed from your folders; check them, add them here, commit, then run
+`{{kit_command}} lanes create`. When a lane's tests don't sit beside its code, give it their folder
+too: a lane that owns only `public/**` puts its tests in `public/`, where the web server serves
+them. Guide: [parallel-lanes.md](parallel-lanes.md).
+
+<!-- example: lanes -->
+```toml
+[[lanes]]
+name = "core"                     # lowercase letters, digits and '-': a folder name and branch prefix
+scope = "Domain logic and its tests"
+owns = ["src/core/**", "tests/core/**"]  # where two lanes match a file, the more specific pattern owns it
+resources = { dev_port = 8001 }   # free-form; the agent is told each value at session start
+
+[[lanes]]
+name = "api"
+scope = "HTTP layer"
+owns = ["src/api/**", "tests/api/**"]
+resources = { dev_port = 8002 }
+```

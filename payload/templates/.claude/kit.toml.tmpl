@@ -1,96 +1,32 @@
-# Project configuration for parallanes, read by its CLI, hooks and CI.
-# Unknown keys are errors, so a typo can't silently switch a rule off.
+# parallanes configuration, read by its CLI, hooks and CI. Every key, with examples:
+# docs/ai/kit-toml.md. Unknown keys are errors, so a typo can't silently switch a rule off.
 
 [project]
 name = "{{project_name}}"
-test_command = "{{test_command}}"
+test_command = "{{test_command}}"  # `lanes finish` and CI run it
 integration_branch = "{{integration_branch}}"
-# Parallel lanes (see [[lanes]] at the end). Defaults shown:
-# merge_mode = "pr"                 # "pr": finished tasks become pull requests; "local": fast-forward
-# worktree_root = ".claude/worktrees"  # where lane folders go; "../{project}-lanes" puts them beside
-# ownership = "ask"                 # an edit outside the lane's paths asks you first; "off": never
-# shared_defaults = true            # false: drop the default [[shared]] tables (see Shared paths)
 
-# Forbidden patterns: checked after every agent edit, before each commit and in CI.
-# Run them by hand with: {{kit_command}} check rules
-#
-# [[checks.rules]]
-# id = "no-print"
-# pattern = '\bprint\('             # Python regular expression, matched line by line
-# paths = ["src/**/*.py"]           # gitignore-style globs from the project root
-# exclude = ["src/cli/**"]          # optional
-# message = "Use the logger, not print()."
-# ignore_comments = true            # optional (default true): skip matches inside comments
-
-# Protected paths, secrets and commands. `{{kit_command}} settings sync` writes the matching rules
-# into .claude/settings.json, which Claude Code enforces; a hook catches command forms those rules
-# miss; pre-commit and CI report changes to protected paths. What this stops and what it doesn't:
-# docs/ai/protected-paths.md. After editing this table, run `{{kit_command}} settings sync`.
+# What agents may not edit, run, or read and edit. After a change here, run
+# `{{kit_command}} settings sync`. What this stops and what it doesn't: docs/ai/protected-paths.md.
 [protected]
-paths = []                          # agents may not edit these, e.g. ["vendor/**", "docs/originals/"]
-commands = [                        # agents may not run these (flags match in any order)
+paths = []  # e.g. ["vendor/**", "docs/originals/"]
+commands = [
     "git push --force",
     "git push -f",
     "git reset --hard",
     "git clean -f",
     "git commit --no-verify",
     "git commit -n",
-    "gh pr edit --add-label",         # the kit:protected-change label lets a protected change pass CI:
-    "gh issue edit --add-label",      # only a person adds it
+    "gh pr edit --add-label",
+    "gh issue edit --add-label",
     "gh pr create --label",
     "gh pr create -l",
     "gh label edit",
-    "gh alias set",                   # an alias would hide the commands above
+    "gh alias set",
     "gh alias import",
-    "gh pr merge --admin",            # merges past red required checks
+    "gh pr merge --admin",
 ]
-secrets = [".env", ".env.*", "!.env.example"]  # agents may neither read nor edit these; add key files.
-                                    # "!name" exempts a bare file name listed after the names it cancels
-# guard_kit = true                  # edits to the kit's own config need your approval (false: off)
+secrets = [".env", ".env.*", "!.env.example"]
 
-# The kit's hooks in .claude/settings.json. Re-running the installer puts back one you deleted;
-# switch one off here instead, then re-run it. The protected hook is the backstop behind the rules
-# above and has no switch; the ownership hook's is `ownership = "off"` in [project]. A mistake in
-# this table (a misspelt key, `protected = false`) blocks every agent command and file edit until
-# it's fixed.
-# [hooks]
-# rules_check = true                # check the [[checks.rules]] patterns after every agent edit
-# lane_router = true                # tell the agent its lane at session start
-
-# Shared paths: no one lane owns them, and every lane may add files there. The first two tables are
-# the defaults: you get them without writing them, and the tables you write add to them. A table
-# can make a default stricter; to drop or loosen one or give it a steward, set
-# `shared_defaults = false` in [project] and write the tables you want. A shared_paths list in
-# [project] (v0.1, mode "open") replaces the defaults unless you also set `shared_defaults = true`.
-# A path in two tables takes the stricter mode. Guide: docs/ai/parallel-lanes.md.
-#
-# [[shared]]
-# paths = ["docs/changelog.d/**", "docs/health/**"]
-# mode = "append"                   # adding a file is free; changing or deleting one asks you
-#
-# [[shared]]
-# paths = ["docs/backlog/**", "docs/plans/**", "docs/design/decisions-log.md"]
-# mode = "open"                     # any lane changes them
-#
-# [[shared]]
-# paths = ["/.gitignore", "/package.json"]  # repo-wide files, for example
-# mode = "ask"                      # every change asks you
-# steward = "core"                  # optional: the one lane that changes them without asking
-
-# Lanes: several agent sessions at once, each in its own git worktree with its own paths.
-# Guide: docs/ai/parallel-lanes.md. Create the folders with `{{kit_command}} lanes create`, check them
-# with `{{kit_command}} lanes status`. Uncomment and adapt; add one [[lanes]] table per lane.
-# When a lane's tests don't sit beside its code, give it their folder too (as below): a lane that
-# owns only `public/**` puts its tests in `public/`, where the web server serves them.
-#
-# [[lanes]]
-# name = "core"                     # lowercase letters, digits and '-': a folder name and branch prefix
-# scope = "Domain logic and its tests"
-# owns = ["src/core/**", "tests/core/**"]  # where two lanes match a file, the more specific pattern owns it
-# resources = { dev_port = 8001 }   # free-form; the agent is told each value at session start
-#
-# [[lanes]]
-# name = "api"
-# scope = "HTTP layer"
-# owns = ["src/api/**", "tests/api/**"]
-# resources = { dev_port = 8002 }
+# Forbidden code patterns, hook switches, shared paths and lanes: docs/ai/kit-toml.md.
+# `{{kit_command}} lanes suggest` prints [[lanes]] tables guessed from the project's folders.

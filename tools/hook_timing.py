@@ -59,7 +59,9 @@ def build(base: Path, python: str) -> Path:
     git(project, "add", "-A")
     git(project, "commit", "-q", "-m", "init")
     setup = subprocess.run(
-        [python, str(ROOT / "kit_setup.py"), "--target", str(project), "--yes"], capture_output=True, text=True
+        [python, str(ROOT / "kit_setup.py"), "--target", str(project), "--yes", "--profile", "lanes"],
+        capture_output=True,
+        text=True,
     )
     if setup.returncode != 0:
         raise SystemExit(f"kit_setup.py failed:\n{setup.stdout}{setup.stderr}")

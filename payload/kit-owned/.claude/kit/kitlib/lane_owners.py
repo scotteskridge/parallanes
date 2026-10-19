@@ -157,7 +157,7 @@ def judge(config, lane, path: str) -> tuple[str, Fix | None] | None:
             else f"{mine} matches it, but lane {found.owner!r} owns it: {found.pattern} is more specific"
         )
         return why, Fix("make this change from that lane instead", widens=False)
-    addition = _toml_string(literal(path))
+    addition = toml_string(literal(path))
     return "no lane owns it", Fix(f"add {addition} to the owns of lane {lane.name!r} in {POLICY}", widens=True)
 
 
@@ -202,12 +202,16 @@ def existence_matters(config, lane, paths) -> list:
 def literal(path: str) -> str:
     """A pattern matching path alone: wildcards bracketed (`[id]` is a Next.js folder name, not a
     class), and a bare name anchored, since `.gitignore` alone would match every nested one (globs)."""
-    path = globs.normalize(path)
-    pattern = re.sub(r"[*?\[]", lambda found: f"[{found.group()}]", path)
+    pattern = escape_wildcards(globs.normalize(path))
     return pattern if "/" in pattern else "/" + pattern
 
 
-def _toml_string(text: str) -> str:
+def escape_wildcards(path: str) -> str:
+    """path with each wildcard bracketed, so it matches itself."""
+    return re.sub(r"[*?\[]", lambda found: f"[{found.group()}]", path)
+
+
+def toml_string(text: str) -> str:
     """A TOML basic string, with quotes, backslashes and control characters escaped."""
     escaped = text.replace("\\", "\\\\").replace('"', '\\"')
     escaped = _CONTROL.sub(lambda found: f"\\u{ord(found.group()):04x}", escaped)
