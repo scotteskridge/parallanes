@@ -72,7 +72,7 @@ So the backlog item's "check live first" is answered: the warning at start is po
 | `kitlib/lane_setup.py` | Edit | `lanes remove` clears a leftover lock, refuses a running one |
 | `templates/docs/ai/parallel-lanes.md.tmpl` | Edit | What the warning means; `lanes remove` clears leftovers |
 | `tests/test_session_lock.py`, lane tests | New / Edit | See Tests |
-| `tests/live/test_session_lock.py` | New | The live check below |
+| `tests/live/test_worktree_session_lock.py` | New | The live check below |
 | ARCHITECTURE §6/§15, decisions log, CHANGELOG | Edit | Record it |
 
 ## Steps
@@ -111,4 +111,4 @@ So the backlog item's "check live first" is answered: the warning at start is po
   act on before the session ends.
 - **`lanes remove --force` still refuses a running session:** `--force` is about ignored files, and
   removing the folder under a live session would be the delete the warning is about.
-- **Live check** (`tests/live/test_session_lock.py`) passed on its first run (Claude Code 2.1.293).
+- **Live check** (`tests/live/test_worktree_session_lock.py`) passed on its first run (Claude Code 2.1.293).
